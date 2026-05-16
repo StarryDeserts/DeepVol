@@ -917,7 +917,7 @@ The following items are not static in this document and must be discovered at ru
 | Expiry list | Oracle state | MUST CONFIRM BEFORE CODING |
 | Strike grid | Predict/oracle state or server response | MUST CONFIRM BEFORE CODING |
 | Oracle freshness | `/oracles/:oracle_id/state`, event stream, or direct read | MUST CONFIRM BEFORE CODING |
-| Ask bounds | `/oracles/:oracle_id/ask-bounds` | MUST CONFIRM BEFORE CODING |
+| Ask bounds | `/oracles/:oracle_id/ask-bounds` and `predict::ask_bounds(predict, oracle_id)` | MUST CONFIRM BEFORE CODING |
 | Manager discovery by owner | `/managers`, event history, local cache | MUST CONFIRM BEFORE CODING |
 | Portfolio direct read feasibility | Manager summary endpoint, direct read, event fallback | MUST CONFIRM BEFORE CODING |
 | Faucet DUSDC balance | Wallet coin query | MUST CONFIRM BEFORE CODING |
@@ -950,9 +950,11 @@ The following items are not static in this document and must be discovered at ru
 
 1. Build `RangeKey` from selected oracle/expiry/lower/higher.
 2. Preview with `predict::get_range_trade_amounts` using devInspect or equivalent.
-3. Submit `predict::mint_range<DUSDC>`.
-4. Confirm `RangeMinted` event.
-5. Refresh portfolio from manager summary and/or event history.
+3. Inspect resolved ask bounds with `predict::ask_bounds` and treat public ask-bounds endpoint `null` as diagnostic.
+4. Preflight the full `predict::mint_range<DUSDC>` PTB with devInspect; abort code `7` in `predict::assert_mintable_ask` is `EAskPriceOutOfBounds`.
+5. Submit `predict::mint_range<DUSDC>` only if full preflight succeeds.
+6. Confirm `RangeMinted` event.
+7. Refresh portfolio from manager summary and/or event history.
 
 ### Phase 1D: Portfolio and redeem
 

@@ -4,6 +4,7 @@ import type {
   DevInspectU64PairDiagnostic,
   DevInspectU64ReturnDiagnostic,
   MarketKeyInput,
+  OnchainAskBoundsResult,
   MarketQuoteAttempt,
   MarketQuoteCandidate,
   MarketQuoteDirection,
@@ -17,6 +18,7 @@ import type {
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
+import { classifyMintAbort } from "./trade.ts";
 import {
   buildRangeKeyTransactionArgument,
   normalizeNonNegativeInteger,
@@ -53,6 +55,16 @@ export type DevInspectRangeQuoteParams = RangeQuoteParams & {
       transactionBlock: Transaction;
     }): Promise<unknown>;
   };
+  sender: string;
+};
+
+export type AskBoundsParams = {
+  oracleId: string;
+  config?: DeepBookPredictNetworkConfig;
+};
+
+export type DevInspectAskBoundsParams = AskBoundsParams & {
+  client: DevInspectRangeQuoteParams["client"];
   sender: string;
 };
 
@@ -135,6 +147,64 @@ export function buildGetRangeTradeAmountsTransaction(
   });
 
   return tx;
+}
+
+export function buildAskBoundsTransaction(params: AskBoundsParams): Transaction {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const oracleId = normalizeObjectId(params.oracleId, "ask_bounds oracle ID");
+  const tx = new Transaction();
+
+  tx.moveCall({
+    target: `${config.packageId}::predict::ask_bounds`,
+    arguments: [
+      tx.object(config.predictId),
+      tx.pure.id(oracleId),
+    ],
+  });
+
+  return tx;
+}
+
+export async function devInspectAskBounds(
+  params: DevInspectAskBoundsParams,
+): Promise<OnchainAskBoundsResult> {
+  try {
+    const transactionBlock = buildAskBoundsTransaction(params);
+    const result = await params.client.devInspectTransactionBlock({
+      sender: params.sender,
+      transactionBlock,
+    });
+
+    if (isRecord(result) && typeof result.error === "string") {
+      return {
+        status: "unavailable",
+        abort: classifyMintAbort(result.error),
+      };
+    }
+
+    const diagnostic = inspectDevInspectU64Pair(result);
+
+    if (!diagnostic.decoded) {
+      return {
+        status: "unavailable",
+        abort: classifyMintAbort(
+          `ask_bounds devInspect return shape did not decode to an unambiguous pair of u64 values. ${summarizeDevInspectU64PairDiagnostic(diagnostic)}`,
+        ),
+      };
+    }
+
+    return {
+      status: "available",
+      minAskPrice: diagnostic.decoded.mintCostAtomic,
+      maxAskPrice: diagnostic.decoded.redeemPayoutAtomic,
+      diagnostic,
+    };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      abort: classifyMintAbort(error),
+    };
+  }
 }
 
 export async function devInspectRangeQuote(
@@ -624,11 +694,7 @@ function normalizeMarketKeyInput(input: MarketKeyInput): {
   strike: string;
   direction: MarketQuoteDirection;
 } {
-  if (!SUI_OBJECT_ID_PATTERN.test(input.oracleId)) {
-    throw new DeepBookPredictUnconfirmedBindingError(
-      "MarketKey oracle ID must be a 0x-prefixed Sui object ID.",
-    );
-  }
+  normalizeObjectId(input.oracleId, "MarketKey oracle ID");
 
   if (input.direction !== "up" && input.direction !== "down") {
     throw new DeepBookPredictUnconfirmedBindingError("MarketKey direction must be up or down.");
@@ -640,6 +706,16 @@ function normalizeMarketKeyInput(input: MarketKeyInput): {
     strike: normalizeNonNegativeInteger(input.strike, "MarketKey strike"),
     direction: input.direction,
   };
+}
+
+function normalizeObjectId(value: string, label: string): string {
+  if (!SUI_OBJECT_ID_PATTERN.test(value)) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `${label} must be a 0x-prefixed Sui object ID.`,
+    );
+  }
+
+  return value;
 }
 
 function snapToStrike(anchor: bigint, minStrike: bigint, tickSize: bigint): bigint {

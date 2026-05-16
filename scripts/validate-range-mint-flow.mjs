@@ -14,6 +14,8 @@ import {
   createDeepBookPredictServerClient,
   RANGE_QUOTE_QUANTITY_SWEEP,
   deriveCandidateRanges,
+  devInspectAskBounds,
+  devInspectMintRangePreflight,
   parseRangeMintedEvent,
   scanRangeQuoteQuantities,
 } from "@rangepilot/sdk/deepbookPredict";
@@ -142,6 +144,14 @@ async function buildQuoteContext({ server, client, address }) {
   const askBounds = selectedOracleContext?.oracleId
     ? await tryRead("oracle_ask_bounds", () => server.getOracleAskBounds(selectedOracleContext.oracleId))
     : { kind: "error", source: "oracle_ask_bounds", message: "No oracle ID available." };
+  const onchainAskBounds = selectedOracleContext?.oracleId
+    ? await devInspectAskBounds({
+        client,
+        sender: address,
+        oracleId: selectedOracleContext.oracleId,
+        config,
+      })
+    : null;
   const activeOracle = selectedOracleContext
     ? {
         oracleId: selectedOracleContext.oracleId,
@@ -200,6 +210,8 @@ async function buildQuoteContext({ server, client, address }) {
     blockers.push("No quoteable range candidate produced a successful get_range_trade_amounts devInspect result.");
   }
 
+  let mintPreflight = null;
+
   if (quote) {
     const mintCost = BigInt(quote.mintCostAtomic);
 
@@ -218,6 +230,34 @@ async function buildQuoteContext({ server, client, address }) {
     }
   }
 
+  if (
+    quote &&
+    managerBalanceAtomic !== null &&
+    BigInt(quote.mintCostAtomic) > 0n &&
+    BigInt(quote.mintCostAtomic) <= maxMintCostAtomic &&
+    BigInt(managerBalanceAtomic) >= BigInt(quote.mintCostAtomic) &&
+    activeOracle?.status === "active"
+  ) {
+    mintPreflight = await devInspectMintRangePreflight({
+      managerId,
+      oracleId: quote.oracleId,
+      oracleObjectId: quote.oracleObjectId,
+      expiry: quote.expiry,
+      lowerStrike: quote.lowerStrike,
+      higherStrike: quote.higherStrike,
+      quantity: quote.quantity,
+      client,
+      sender: address,
+      config,
+    });
+
+    if (mintPreflight.status !== "passed") {
+      blockers.push(`Full mint preflight failed: ${formatMintAbort(mintPreflight.abort)}.`);
+    }
+  } else if (quote) {
+    blockers.push("Full mint preflight skipped because quote, balance, cap, or active-oracle gates did not pass.");
+  }
+
   return {
     address,
     managerId,
@@ -227,6 +267,8 @@ async function buildQuoteContext({ server, client, address }) {
     activeOracle,
     oracleObjectId: activeOracle?.oracleObjectId ?? null,
     askBounds,
+    onchainAskBounds,
+    mintPreflight,
     strikeGrid,
     oracleContexts,
     quoteAttempts,
@@ -235,7 +277,7 @@ async function buildQuoteContext({ server, client, address }) {
     quantity: quote?.quantity ?? null,
     quote,
     gates: {
-      passed: blockers.length === 0,
+      passed: blockers.length === 0 && mintPreflight?.status === "passed",
       blockers,
     },
   };
@@ -522,8 +564,10 @@ function printQuoteSummary(context) {
   console.log(`range anchor: ${context.range ? `${context.range.anchorSource}:${context.range.anchorPrice} strategy=${context.range.strategy} widthTicks=${context.range.widthTicks}` : "unavailable"}`);
   console.log(`quantity: ${context.quantity ?? "unavailable"}`);
   console.log(`win condition: ${RANGE_WIN_CONDITION_COPY}`);
-  console.log(`ask-bounds: ${formatReadResult(context.askBounds)} (diagnostic only if null)`);
+  console.log(`ask-bounds endpoint: ${formatReadResult(context.askBounds)} (diagnostic only if null)`);
+  console.log(`ask-bounds onchain: ${formatOnchainAskBounds(context.onchainAskBounds)}`);
   console.log(`quote preview: ${context.quote ? `mint=${context.quote.mintCostAtomic} redeem=${context.quote.redeemPayoutAtomic}` : "blocked (no quoteable candidate)"}`);
+  console.log(`mint preflight: ${formatMintPreflight(context.mintPreflight)}`);
   console.log(`safety gates: ${context.gates.passed ? "passed" : "blocked"}`);
 
   for (const blocker of context.gates.blockers) {
@@ -555,7 +599,7 @@ function printFailureSummary(attempts) {
 
 function printMintWarning(context) {
   console.log("\nREAL SUI TESTNET MINT WARNING");
-  console.log("Submitting one predict::mint_range<DUSDC> transaction because all safety gates passed.");
+  console.log("Submitting one predict::mint_range<DUSDC> transaction because quote gates and full mint preflight passed.");
   console.log(`Mint cost: ${context.quote.mintCostAtomic} atomic DUSDC.`);
   console.log("Forbidden actions remain blocked: redeem_range, supply, withdraw, mainnet.");
 }
@@ -574,6 +618,34 @@ function formatReadResult(result) {
   }
 
   return `${result.source}: ${String(result.value)}`;
+}
+
+function formatOnchainAskBounds(result) {
+  if (!result) {
+    return "unavailable";
+  }
+
+  if (result.status === "available") {
+    return `min=${result.minAskPrice} max=${result.maxAskPrice}`;
+  }
+
+  return `unavailable (${formatMintAbort(result.abort)})`;
+}
+
+function formatMintPreflight(result) {
+  if (!result) {
+    return "skipped";
+  }
+
+  if (result.status === "passed") {
+    return "passed";
+  }
+
+  return `failed (${formatMintAbort(result.abort)})`;
+}
+
+function formatMintAbort(abort) {
+  return `${abort.module ?? "unknown"}::${abort.function ?? "unknown"} code=${abort.code ?? "unknown"} reason=${abort.knownReason}`;
 }
 
 function findDusdcManagerBalance(value) {

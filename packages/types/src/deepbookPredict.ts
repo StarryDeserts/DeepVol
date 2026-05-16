@@ -176,6 +176,41 @@ export type RangeQuoteAbortClassification = {
   message: string;
 };
 
+export type MintAbortKnownReason = "EAskPriceOutOfBounds" | "unknown";
+
+export type MintAbortClassification = {
+  module: string | null;
+  function: string | null;
+  code: string | null;
+  message: string;
+  knownReason: MintAbortKnownReason;
+};
+
+export type MintRangePreflightPassed = {
+  status: "passed";
+};
+
+export type MintRangePreflightFailed = {
+  status: "failed";
+  abort: MintAbortClassification;
+};
+
+export type MintRangePreflightResult = MintRangePreflightPassed | MintRangePreflightFailed;
+
+export type OnchainAskBoundsAvailable = {
+  status: "available";
+  minAskPrice: string;
+  maxAskPrice: string;
+  diagnostic?: DevInspectU64PairDiagnostic;
+};
+
+export type OnchainAskBoundsUnavailable = {
+  status: "unavailable";
+  abort: MintAbortClassification;
+};
+
+export type OnchainAskBoundsResult = OnchainAskBoundsAvailable | OnchainAskBoundsUnavailable;
+
 export type RangeQuoteCandidateStrategy =
   | "centered"
   | "below-anchor"

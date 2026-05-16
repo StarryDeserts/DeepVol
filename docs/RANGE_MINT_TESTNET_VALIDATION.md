@@ -1,13 +1,13 @@
 ---
 Purpose: Record Phase 1C range quote and mint_range Testnet validation artifacts.
 Audience: Protocol integrators, transaction-builder authors, frontend developers, reviewers, and AI agents.
-Status: Quote-only, quoteability scanner, quantity-unit, return-decoding, and binary quote validations completed on 2026-05-16; first mint_range attempt failed in `predict::assert_mintable_ask` before digest.
+Status: Quote-only, quoteability scanner, quantity-unit, return-decoding, binary quote, ask-bounds, and mintability preflight validation completed on 2026-05-16; no full mint preflight success found yet.
 Source of truth relationship: Supplements official contract info, protocol notes, and entrypoint binding docs; runtime market state remains subject to live confirmation.
 ---
 
 # Range Mint Testnet Validation
 
-Phase 1C attempted the official DeepBook Predict range quote path through a local signer validation script. The first run discovered an active oracle at runtime, derived a candidate range from public server oracle metadata, attempted `predict::get_range_trade_amounts` through devInspect, and correctly blocked before `predict::mint_range<DUSDC>` because mint safety gates did not pass. Phase 1C-fix added a quoteability scanner that derives market-centered candidates around runtime spot/forward prices; it reached successful quote return decoding, but the selected quote returned zero mint cost and remained blocked before mint. Phase 1C-fix2 added quantity-unit sweep, safe return-decoding diagnostics, binary quote sanity checks, and wider/asymmetric candidate strategies; it found positive official range quotes and nonzero binary quotes, then reached the real mint submission path before failing in `predict::assert_mintable_ask` with abort code `7` before digest.
+Phase 1C attempted the official DeepBook Predict range quote path through a local signer validation script. The first run discovered an active oracle at runtime, derived a candidate range from public server oracle metadata, attempted `predict::get_range_trade_amounts` through devInspect, and correctly blocked before `predict::mint_range<DUSDC>` because mint safety gates did not pass. Phase 1C-fix added a quoteability scanner that derives market-centered candidates around runtime spot/forward prices; it reached successful quote return decoding, but the selected quote returned zero mint cost and remained blocked before mint. Phase 1C-fix2 added quantity-unit sweep, safe return-decoding diagnostics, binary quote sanity checks, and wider/asymmetric candidate strategies; it found positive official range quotes and nonzero binary quotes, then reached the real mint submission path before failing in `predict::assert_mintable_ask` with abort code `7` before digest. Phase 1C-fix3 identifies code `7` as `EAskPriceOutOfBounds` and upgrades mint safety so full `mint_range<DUSDC>` devInspect preflight, not quote success alone, is required before real mint execution.
 
 No private key, `.env.local` contents, or `.local/` cache contents are documented here.
 
@@ -99,18 +99,21 @@ The gated `npm run validate:range-quote` run selected a runtime active BTC oracl
 | No private key output | Passed |
 | Forbidden actions blocked | Passed |
 
-Safety gate status: passed for quote-only validation. `validate:range-mint` reached the real Testnet mint submission path, then failed before returning a digest with `MoveAbort` code `7` in `predict::assert_mintable_ask`. This is now the precise mint blocker; do not retry minting until that ask/mintability gate is understood.
+Safety gate status: passed for quote-only validation. `validate:range-mint` reached the real Testnet mint submission path, then failed before returning a digest with `MoveAbort` code `7` in `predict::assert_mintable_ask`. From pinned `predict-testnet-4-16` source, code `7` is `EAskPriceOutOfBounds`, meaning the post-trade ask price was outside resolved ask bounds. Quote success is not a mint gate; do not retry minting unless full `mint_range<DUSDC>` preflight succeeds.
 
 ## Mint validation
 
 | Field | Result |
 |---|---|
-| Executed | Attempted after quote safety gates passed, but no successful digest returned |
+| Executed | Attempted after quote safety gates passed in Phase 1C-fix2, but no successful digest returned; Phase 1C-fix3 now requires full preflight before any retry |
 | Digest | N/A |
 | Explorer URL | N/A |
 | `RangeMinted` event | N/A |
 | Manager/positions readback after mint | N/A |
-| Failure | `MoveAbort` code `7` in `0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138::predict::assert_mintable_ask` |
+| Failure | `MoveAbort` code `7` / `EAskPriceOutOfBounds` in `0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138::predict::assert_mintable_ask` |
+| Public ask-bounds endpoint | `null` for all four active runtime BTC oracles scanned by `npm run investigate:ask-bounds` |
+| Onchain `predict::ask_bounds` | Succeeded for all four active runtime BTC oracles; decoded `min_ask = 10000000`, `max_ask = 990000000` |
+| Full mint preflight | `npm run find:mintable-range` tested `40` full preflight attempts; `0` passed, `29` failed with code `7` / `EAskPriceOutOfBounds`, and `11` failed with other classified aborts. `npm run validate:range-quote` selected a positive quote but also blocked because full preflight failed with code `7` / `EAskPriceOutOfBounds`. |
 
 ## Public server observations
 
@@ -121,10 +124,13 @@ Safety gate status: passed for quote-only validation. `validate:range-mint` reac
 ## Current blockers
 
 - The previous `pricing_config::quote_spread_from_fair_price` abort code `1` is understood as an invalid boundary fair price for the selected range.
-- Ask bounds are `null`; this is diagnostic and must not be treated as mint eligibility by itself.
+- Public ask-bounds endpoint `null` is diagnostic and must not be treated as mint eligibility by itself.
 - Successful quote return mapping for `(mint_cost, redeem_payout)` is verified by Phase 1C-fix and Phase 1C-fix2 devInspect results.
 - Phase 1C-fix2 found positive official range quotes, including `quantity=1 mint_cost=1` on a wide-around-anchor range, so the previous zero-cost result is no longer the only observed range quote outcome.
-- `validate:range-mint` selected a positive quote and reached the real mint submission path, but the mint failed with `MoveAbort` code `7` in `predict::assert_mintable_ask` before returning a digest.
+- `validate:range-mint` selected a positive quote and reached the real mint submission path, but the mint failed with `MoveAbort` code `7` / `EAskPriceOutOfBounds` in `predict::assert_mintable_ask` before returning a digest.
+- Full `mint_range<DUSDC>` preflight must pass before any further real mint attempt.
+- `npm run find:mintable-range` derived `390` candidate ranges, tested `120` quote candidates across `960` quote attempts, found `772` positive quotes under the 5 DUSDC cap, and found `0` full preflight successes across `40` preflight attempts.
+- `npm run validate:range-quote` selected a runtime positive quote with `mint=1` and onchain ask bounds `10000000 / 990000000`, then blocked because full mint preflight failed in `predict::assert_mintable_ask` with code `7` / `EAskPriceOutOfBounds`.
 - First successful `predict::mint_range<DUSDC>` remains unexecuted.
 - `RangeMinted` event shape and portfolio/positions readback after mint remain unverified.
 
@@ -147,6 +153,6 @@ Browser validation remains pending and should wait until the `predict::assert_mi
 
 ## Next steps
 
-1. Confirm the meaning and requirements of `predict::assert_mintable_ask` abort code `7` from the pinned `predict-testnet-4-16` source before retrying mint.
-2. Update range quote/mint gating so a positive quote is not treated as sufficient when the official mint ask gate would reject it.
-3. Retry `npm run validate:range-mint` only after the ask/mintability blocker is understood and the script can preflight it safely.
+1. Run `npm run investigate:ask-bounds` to compare public endpoint ask bounds with onchain `predict::ask_bounds`.
+2. Investigate why otherwise positive quoted ranges still fail full `mint_range<DUSDC>` preflight, especially `EAskPriceOutOfBounds` after post-trade ask recalculation.
+3. Retry `npm run validate:range-mint` only if a fresh `npm run find:mintable-range` run reports at least one full preflight success.

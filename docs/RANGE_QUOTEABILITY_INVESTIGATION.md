@@ -110,11 +110,20 @@ The expanded range investigation tested quantities `1`, `1000`, `10000`, `100000
 
 The binary sanity check completed `1152` successful devInspect attempts through `market_key::up` / `market_key::down` and `predict::get_trade_amounts`. Its first nonzero binary quote was `quantity=1000`, `mint_cost=368`, `redeem_payout=349`, strike `78341000000000`, direction `up`.
 
+## Phase 1C-fix3 mintability follow-up
+
+Phase 1C-fix2 proved that quoteable ranges are not necessarily mintable ranges: a positive `get_range_trade_amounts` quote reached the real mint path, but `mint_range<DUSDC>` failed before digest with `MoveAbort` code `7` in `predict::assert_mintable_ask`.
+
+From pinned `predict-testnet-4-16` source, code `7` is `EAskPriceOutOfBounds`. The mint path recalculates post-trade ask after mutating exposure and can reject a candidate that quoted successfully from current state.
+
+Phase 1C-fix3 adds ask-bounds investigation and full mint preflight. See [MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md](./MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md).
+
 ## Current blockers
 
-- The first real `predict::mint_range<DUSDC>` transaction remains unexecuted until the gated validation script selects a positive quote and all safety gates pass.
+- A successful quote is no longer sufficient for real mint; full `mint_range<DUSDC>` preflight must succeed first.
+- First successful `predict::mint_range<DUSDC>` remains unexecuted.
 - `RangeMinted` event shape and post-mint portfolio/positions readback remain unverified.
 
 ## Next recommended action
 
-Run the gated quote validation, then execute `mint_range<DUSDC>` only if the official quote path returns `mint_cost > 0`, the cost is within the 5 DUSDC cap, manager balance covers the quote, and all runtime safety gates pass.
+Run the mintable-range scanner and execute `mint_range<DUSDC>` only if the official quote path returns `mint_cost > 0`, the cost is within the 5 DUSDC cap, manager balance covers the quote, and full mint preflight passes.
