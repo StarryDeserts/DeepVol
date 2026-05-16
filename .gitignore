@@ -6,3 +6,4 @@ apps/web/dist/
 .env*
 !.env.example
 .local/
+deepbookv3-predict-package/

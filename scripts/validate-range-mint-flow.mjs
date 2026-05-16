@@ -16,6 +16,7 @@ import {
   deriveCandidateRanges,
   devInspectAskBounds,
   devInspectMintRangePreflight,
+  inferAskBoundSide,
   parseRangeMintedEvent,
   scanRangeQuoteQuantities,
 } from "@rangepilot/sdk/deepbookPredict";
@@ -27,6 +28,9 @@ const config = DEEPBOOK_PREDICT_TESTNET;
 const verifiedSignerAddress = "0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5";
 const verifiedManagerId = "0x6f341e107a87812fd4fddfc4fc50a7e3ab5bc21cabff2cd39dd86b662fa75599";
 const maxMintCostAtomic = 5_000_000n;
+const maxQuoteCandidates = 120;
+const maxMintPreflightAttempts = 40;
+const oracleStrikeGridTicks = 100_000n;
 const forbiddenTargets = ["redeem_range", "::supply", "::withdraw"];
 
 main().catch((error) => {
@@ -123,11 +127,12 @@ async function buildQuoteContext({ server, client, address }) {
     blockers.push("Manager DUSDC balance was not readable from public server summary.");
   }
 
-  const oracleContexts = await loadActiveOracleContexts(server);
+  const oracleContexts = await loadActiveOracleContexts({ server, client, address });
   const allCandidates = oracleContexts.flatMap((context) => context.candidates);
-  const quoteAttempts = allCandidates.length > 0
+  const candidates = rankCandidates(allCandidates).slice(0, maxQuoteCandidates);
+  const quoteAttempts = candidates.length > 0
     ? await scanRangeQuoteQuantities({
-        candidates: allCandidates,
+        candidates,
         client,
         sender: address,
         quantities: RANGE_QUOTE_QUANTITY_SWEEP,
@@ -137,21 +142,21 @@ async function buildQuoteContext({ server, client, address }) {
   const quoteableCandidates = rankQuoteableAttempts(
     quoteAttempts.filter((attempt) => attempt.status === "success"),
   );
-  const quote = quoteableCandidates[0] ?? null;
+  const selectedQuote = await selectPreflightPassingQuote({
+    quoteableCandidates,
+    oracleContexts,
+    managerBalanceAtomic,
+    managerId,
+    client,
+    address,
+  });
+  const quote = selectedQuote?.quote ?? quoteableCandidates[0] ?? null;
+  const mintPreflightFromSelection = selectedQuote?.mintPreflight ?? null;
   const selectedOracleContext = quote
     ? oracleContexts.find((context) => context.oracleId === quote.oracleId) ?? null
     : oracleContexts[0] ?? null;
-  const askBounds = selectedOracleContext?.oracleId
-    ? await tryRead("oracle_ask_bounds", () => server.getOracleAskBounds(selectedOracleContext.oracleId))
-    : { kind: "error", source: "oracle_ask_bounds", message: "No oracle ID available." };
-  const onchainAskBounds = selectedOracleContext?.oracleId
-    ? await devInspectAskBounds({
-        client,
-        sender: address,
-        oracleId: selectedOracleContext.oracleId,
-        config,
-      })
-    : null;
+  const askBounds = selectedOracleContext?.endpointAskBounds ?? { kind: "error", source: "oracle_ask_bounds", message: "No oracle ID available." };
+  const onchainAskBounds = selectedOracleContext?.onchainAskBounds ?? null;
   const activeOracle = selectedOracleContext
     ? {
         oracleId: selectedOracleContext.oracleId,
@@ -238,17 +243,12 @@ async function buildQuoteContext({ server, client, address }) {
     BigInt(managerBalanceAtomic) >= BigInt(quote.mintCostAtomic) &&
     activeOracle?.status === "active"
   ) {
-    mintPreflight = await devInspectMintRangePreflight({
+    mintPreflight = mintPreflightFromSelection ?? await inspectMintPreflight({
+      quote,
       managerId,
-      oracleId: quote.oracleId,
-      oracleObjectId: quote.oracleObjectId,
-      expiry: quote.expiry,
-      lowerStrike: quote.lowerStrike,
-      higherStrike: quote.higherStrike,
-      quantity: quote.quantity,
       client,
-      sender: address,
-      config,
+      address,
+      onchainAskBounds,
     });
 
     if (mintPreflight.status !== "passed") {
@@ -283,7 +283,82 @@ async function buildQuoteContext({ server, client, address }) {
   };
 }
 
-async function loadActiveOracleContexts(server) {
+async function selectPreflightPassingQuote({ quoteableCandidates, oracleContexts, managerBalanceAtomic, managerId, client, address }) {
+  let fallback = null;
+
+  for (const quote of quoteableCandidates.slice(0, maxMintPreflightAttempts)) {
+    const oracleContext = oracleContexts.find((context) => context.oracleId === quote.oracleId) ?? null;
+
+    if (!oracleContext || oracleContext.status !== "active" || managerBalanceAtomic === null) {
+      continue;
+    }
+
+    const mintCost = BigInt(quote.mintCostAtomic);
+
+    if (mintCost <= 0n || mintCost > maxMintCostAtomic || BigInt(managerBalanceAtomic) < mintCost) {
+      continue;
+    }
+
+    const mintPreflight = await inspectMintPreflight({
+      quote,
+      managerId,
+      client,
+      address,
+      onchainAskBounds: oracleContext.onchainAskBounds,
+    });
+
+    fallback ??= { quote, mintPreflight };
+
+    if (mintPreflight.status === "passed") {
+      return { quote, mintPreflight };
+    }
+  }
+
+  return fallback;
+}
+
+async function inspectMintPreflight({ quote, managerId, client, address, onchainAskBounds }) {
+  const mintPreflight = await devInspectMintRangePreflight({
+    managerId,
+    oracleId: quote.oracleId,
+    oracleObjectId: quote.oracleObjectId,
+    expiry: quote.expiry,
+    lowerStrike: quote.lowerStrike,
+    higherStrike: quote.higherStrike,
+    quantity: quote.quantity,
+    client,
+    sender: address,
+    config,
+    candidateParams: {
+      oracleId: quote.oracleId,
+      oracleObjectId: quote.oracleObjectId,
+      expiry: quote.expiry,
+      lowerStrike: quote.lowerStrike,
+      higherStrike: quote.higherStrike,
+      widthTicks: quote.widthTicks,
+      strategy: quote.strategy,
+      family: quote.family,
+      quantity: quote.quantity,
+      mintCostAtomic: quote.mintCostAtomic,
+      redeemPayoutAtomic: quote.redeemPayoutAtomic,
+    },
+  });
+
+  if (mintPreflight.status !== "passed") {
+    const askSide = inferAskBoundSide({
+      abort: mintPreflight.abort,
+      mintCostAtomic: quote.mintCostAtomic,
+      quantity: quote.quantity,
+      minAskPrice: onchainAskBounds?.status === "available" ? onchainAskBounds.minAskPrice : null,
+      maxAskPrice: onchainAskBounds?.status === "available" ? onchainAskBounds.maxAskPrice : null,
+    });
+    mintPreflight.abort.askBoundSide = askSide;
+  }
+
+  return mintPreflight;
+}
+
+async function loadActiveOracleContexts({ server, client, address }) {
   const oracles = await server.getOracles(config.predictId);
   const nowMs = BigInt(Date.now());
   const active = oracles.filter((oracle) => {
@@ -295,14 +370,18 @@ async function loadActiveOracleContexts(server) {
   for (const oracle of active) {
     const oracleId = stringOrNull(oracle.oracle_id);
     const oracleState = oracleId ? await tryRead("oracle_state", () => server.getOracleState(oracleId)) : null;
+    const endpointAskBounds = oracleId ? await tryRead("oracle_ask_bounds", () => server.getOracleAskBounds(oracleId)) : null;
+    const onchainAskBounds = oracleId
+      ? await devInspectAskBounds({ client, sender: address, oracleId, config })
+      : null;
     const oracleRecord = selectOracleRecord(oracle, oracleState);
-    contexts.push(buildOracleContext(oracleRecord, oracleState));
+    contexts.push(buildOracleContext(oracleRecord, oracleState, endpointAskBounds, onchainAskBounds));
   }
 
   return contexts;
 }
 
-function buildOracleContext(oracleRecord, oracleState) {
+function buildOracleContext(oracleRecord, oracleState, endpointAskBounds, onchainAskBounds) {
   const blockers = [];
   const oracleId = stringOrNull(oracleRecord?.oracle_id);
   const expiry = normalizeIntegerOrNull(oracleRecord?.expiry);
@@ -331,7 +410,7 @@ function buildOracleContext(oracleRecord, oracleState) {
   }
 
   const candidates = oracleId && expiry && minStrike && tickSize && (spot || forward)
-    ? deriveCandidateRanges({
+    ? deriveSourceInformedRanges({
         oracleId,
         oracleObjectId: oracleId,
         underlyingAsset,
@@ -352,9 +431,122 @@ function buildOracleContext(oracleRecord, oracleState) {
     tickSize: tickSize ?? "",
     spot,
     forward,
+    endpointAskBounds,
+    onchainAskBounds,
     blockers,
     candidates,
   };
+}
+
+function deriveSourceInformedRanges(input) {
+  const candidates = new Map();
+  const base = deriveCandidateRanges(input).map((candidate) => ({
+    ...candidate,
+    family: normalizeFamilyName(candidate.strategy),
+  }));
+
+  for (const candidate of base) {
+    setCandidate(candidates, candidate);
+  }
+
+  const minStrike = BigInt(input.minStrike);
+  const tickSize = BigInt(input.tickSize);
+  const maxStrike = minStrike + oracleStrikeGridTicks * tickSize;
+  const anchors = [];
+
+  if (input.forward) {
+    anchors.push({ source: "forward", price: BigInt(input.forward) });
+  }
+
+  if (input.spot) {
+    anchors.push({ source: "spot", price: BigInt(input.spot) });
+  }
+
+  for (const anchor of anchors) {
+    const anchorStrike = snapToStrike(anchor.price, minStrike, tickSize, maxStrike);
+    const wideFamily = anchor.source === "forward" ? "wide_around_forward" : "wide_around_spot";
+
+    for (const widthTicks of [250n, 500n, 1000n, 2500n, 5000n, 10000n]) {
+      addCandidate(candidates, input, minStrike, maxStrike, tickSize, anchor, wideFamily, anchorStrike - widthTicks * tickSize, anchorStrike + widthTicks * tickSize);
+    }
+  }
+
+  const forwardAnchor = anchors.find((anchor) => anchor.source === "forward") ?? null;
+
+  if (forwardAnchor) {
+    const forwardStrike = snapToStrike(forwardAnchor.price, minStrike, tickSize, maxStrike);
+
+    for (const widthTicks of [10n, 25n, 50n, 100n, 250n, 500n, 1000n]) {
+      const widthAtomic = widthTicks * tickSize;
+      addCandidate(candidates, input, minStrike, maxStrike, tickSize, forwardAnchor, "forward_below_to_above", forwardStrike - widthAtomic, forwardStrike + widthAtomic);
+      addCandidate(candidates, input, minStrike, maxStrike, tickSize, forwardAnchor, "forward_centered_target_width", forwardStrike - widthAtomic / 2n, forwardStrike + widthAtomic / 2n);
+    }
+
+    for (const target of [5n, 10n, 25n, 50n, 75n, 90n]) {
+      const widthTicks = oracleStrikeGridTicks * target / 100n;
+      const widthAtomic = (widthTicks < 1n ? 1n : widthTicks) * tickSize;
+      addCandidate(candidates, input, minStrike, maxStrike, tickSize, forwardAnchor, `target_fair_price_${target}pct`, forwardStrike - widthAtomic / 2n, forwardStrike + widthAtomic / 2n);
+    }
+  }
+
+  for (const candidate of [...candidates.values()].slice(0, 24)) {
+    setCandidate(candidates, {
+      ...candidate,
+      family: "safe_larger_quantity_probe",
+    });
+  }
+
+  return [...candidates.values()];
+}
+
+function addCandidate(candidates, input, minStrike, maxStrike, tickSize, anchor, family, lowerStrikeValue, higherStrikeValue) {
+  const lowerStrike = clampToGrid(lowerStrikeValue, minStrike, maxStrike, tickSize);
+  const higherStrike = clampToGrid(higherStrikeValue, minStrike, maxStrike, tickSize);
+
+  if (higherStrike <= lowerStrike) {
+    return;
+  }
+
+  setCandidate(candidates, {
+    oracleId: input.oracleId,
+    oracleObjectId: input.oracleObjectId,
+    underlyingAsset: input.underlyingAsset,
+    expiry: String(input.expiry),
+    lowerStrike: lowerStrike.toString(),
+    higherStrike: higherStrike.toString(),
+    widthTicks: ((higherStrike - lowerStrike) / tickSize).toString(),
+    anchorSource: anchor.source,
+    anchorPrice: anchor.price.toString(),
+    strategy: family,
+    family,
+  });
+}
+
+function setCandidate(candidates, candidate) {
+  const key = `${candidate.oracleId}:${candidate.expiry}:${candidate.lowerStrike}:${candidate.higherStrike}:${candidate.family ?? candidate.strategy}`;
+  candidates.set(key, candidate);
+}
+
+function rankCandidates(candidates) {
+  return [...candidates].sort((left, right) => {
+    const leftFamily = familyPriority(left.family ?? left.strategy);
+    const rightFamily = familyPriority(right.family ?? right.strategy);
+
+    if (leftFamily !== rightFamily) {
+      return leftFamily - rightFamily;
+    }
+
+    const leftWidth = BigInt(left.widthTicks);
+    const rightWidth = BigInt(right.widthTicks);
+
+    if (leftWidth !== rightWidth) {
+      return leftWidth < rightWidth ? -1 : 1;
+    }
+
+    const leftAnchor = left.anchorSource === "forward" ? 0 : 1;
+    const rightAnchor = right.anchorSource === "forward" ? 0 : 1;
+    return leftAnchor - rightAnchor;
+  });
 }
 
 function rankQuoteableAttempts(attempts) {
@@ -383,6 +575,68 @@ function rankQuoteableAttempts(attempts) {
     const rightQuantity = BigInt(right.quantity);
     return leftQuantity < rightQuantity ? -1 : leftQuantity > rightQuantity ? 1 : 0;
   });
+}
+
+function familyPriority(family) {
+  switch (family) {
+    case "wide_around_forward":
+      return 0;
+    case "forward_below_to_above":
+      return 1;
+    case "forward_centered_target_width":
+      return 2;
+    case "target_fair_price_50pct":
+      return 3;
+    case "target_fair_price_25pct":
+    case "target_fair_price_75pct":
+      return 4;
+    case "target_fair_price_10pct":
+    case "target_fair_price_90pct":
+      return 5;
+    case "target_fair_price_5pct":
+      return 6;
+    case "wide_around_spot":
+      return 7;
+    case "safe_larger_quantity_probe":
+      return 8;
+    case "wide-around-anchor":
+      return 9;
+    case "centered":
+      return 10;
+    case "below-anchor":
+      return 11;
+    case "above-anchor":
+      return 12;
+    case "wide-below-anchor":
+      return 13;
+    case "wide-above-anchor":
+      return 14;
+    default:
+      return 15;
+  }
+}
+
+function snapToStrike(anchor, minStrike, tickSize, maxStrike) {
+  if (anchor <= minStrike) {
+    return minStrike;
+  }
+
+  if (anchor >= maxStrike) {
+    return maxStrike;
+  }
+
+  const offset = anchor - minStrike;
+  const lowerSteps = offset / tickSize;
+  const lower = minStrike + lowerSteps * tickSize;
+  const upper = lower + tickSize;
+  const snapped = anchor - lower <= upper - anchor ? lower : upper;
+  return clampToGrid(snapped, minStrike, maxStrike, tickSize);
+}
+
+function clampToGrid(value, minStrike, maxStrike, tickSize) {
+  const clamped = value < minStrike ? minStrike : value > maxStrike ? maxStrike : value;
+  const offset = clamped - minStrike;
+  return minStrike + offset / tickSize * tickSize;
 }
 
 function parseMode(args) {
@@ -645,7 +899,22 @@ function formatMintPreflight(result) {
 }
 
 function formatMintAbort(abort) {
-  return `${abort.module ?? "unknown"}::${abort.function ?? "unknown"} code=${abort.code ?? "unknown"} reason=${abort.knownReason}`;
+  const candidateParams = abort.candidateParams
+    ? Object.entries(abort.candidateParams).map(([key, value]) => `${key}=${value}`).join(",")
+    : "none";
+  const askSide = abort.askBoundSide
+    ? `${abort.askBoundSide.side}/${abort.askBoundSide.confidence}: ${abort.askBoundSide.reason}`
+    : "unknown";
+
+  return [
+    `${abort.module ?? "unknown"}::${abort.function ?? "unknown"}`,
+    `code=${abort.code ?? "unknown"}`,
+    `constant=${abort.constantName ?? "unknown"}`,
+    `reason=${abort.knownReason}`,
+    `likely_cause=${abort.likelyCause ?? "unknown"}`,
+    `candidate_params=${candidateParams}`,
+    `ask_side_inference=${askSide}`,
+  ].join(" ");
 }
 
 function findDusdcManagerBalance(value) {
@@ -698,6 +967,10 @@ function normalizeIntegerOrNull(value) {
 
 function stringOrNull(value) {
   return typeof value === "string" ? value : null;
+}
+
+function normalizeFamilyName(strategy) {
+  return typeof strategy === "string" ? strategy : "unknown";
 }
 
 function topLevelKeys(value) {

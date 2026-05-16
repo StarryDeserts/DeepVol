@@ -19,6 +19,7 @@
     "validate:range-mint": "node scripts/validate-range-mint-flow.mjs --mint",
     "find:quoteable-range": "node scripts/find-quoteable-range.mjs",
     "find:mintable-range": "node scripts/find-mintable-range.mjs",
+    "analyze:mint-preflight-aborts": "node scripts/analyze-mint-preflight-aborts.mjs",
     "investigate:range-quote-units": "node scripts/investigate-range-quote-units.mjs",
     "investigate:binary-quote": "node scripts/investigate-binary-quote.mjs",
     "investigate:ask-bounds": "node scripts/investigate-ask-bounds.mjs",

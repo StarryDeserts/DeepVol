@@ -17,7 +17,10 @@ import type {
   RangeQuotePreview,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
-import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
+import {
+  classifyDeepBookPredictAbort,
+  DeepBookPredictUnconfirmedBindingError,
+} from "./errors.ts";
 import { classifyMintAbort } from "./trade.ts";
 import {
   buildRangeKeyTransactionArgument,
@@ -347,15 +350,16 @@ export function summarizeDevInspectU64PairDiagnostic(diagnostic: DevInspectU64Pa
 }
 
 export function classifyQuoteAbort(errorOrMessage: unknown): RangeQuoteAbortClassification {
-  const message = errorOrMessage instanceof Error ? errorOrMessage.message : String(errorOrMessage);
-  const locationMatch = message.match(/([0-9a-fx]+::([A-Za-z0-9_]+)::([A-Za-z0-9_]+))/);
-  const codeMatch = message.match(/abort(?:ed)?(?: with)? code\s+(\d+)/i) ?? message.match(/,\s*(\d+)\)\s*in command/i);
+  const abort = classifyDeepBookPredictAbort(errorOrMessage);
 
   return {
-    module: locationMatch?.[2] ?? null,
-    function: locationMatch?.[3] ?? null,
-    code: codeMatch?.[1] ?? null,
-    message,
+    packageId: abort.packageId,
+    module: abort.module,
+    function: abort.function,
+    code: abort.code,
+    message: abort.message,
+    constantName: abort.constantName,
+    likelyCause: abort.likelyCause,
   };
 }
 

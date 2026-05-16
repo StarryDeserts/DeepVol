@@ -1,12 +1,17 @@
 import { Transaction } from "@mysten/sui/transactions";
 import type {
   DeepBookPredictNetworkConfig,
+  MintAbortCandidateParams,
   MintAbortClassification,
   MintRangePreflightResult,
   RangeMintParams,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
-import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
+import {
+  classifyDeepBookPredictAbort,
+  type ClassifyDeepBookPredictAbortOptions,
+  DeepBookPredictUnconfirmedBindingError,
+} from "./errors.ts";
 import {
   buildRangeKeyTransactionArgument,
   normalizePositiveInteger,
@@ -28,6 +33,7 @@ export type DevInspectMintRangePreflightParams = RangeMintParams & {
   };
   sender: string;
   config?: DeepBookPredictNetworkConfig;
+  candidateParams?: MintAbortCandidateParams;
 };
 
 export function buildMintRangeTransaction(
@@ -83,7 +89,7 @@ export async function devInspectMintRangePreflight(
     if (isRecord(result) && typeof result.error === "string") {
       return {
         status: "failed",
-        abort: classifyMintAbort(result.error),
+        abort: classifyMintAbort(result.error, { candidateParams: mintAbortCandidateParams(params) }),
       };
     }
 
@@ -94,7 +100,10 @@ export async function devInspectMintRangePreflight(
     if (status?.status !== "success") {
       return {
         status: "failed",
-        abort: classifyMintAbort(typeof status?.error === "string" ? status.error : "mint_range devInspect did not succeed."),
+        abort: classifyMintAbort(
+          typeof status?.error === "string" ? status.error : "mint_range devInspect did not succeed.",
+          { candidateParams: mintAbortCandidateParams(params) },
+        ),
       };
     }
 
@@ -102,7 +111,7 @@ export async function devInspectMintRangePreflight(
   } catch (error) {
     return {
       status: "failed",
-      abort: classifyMintAbort(error),
+      abort: classifyMintAbort(error, { candidateParams: mintAbortCandidateParams(params) }),
     };
   }
 }
@@ -111,24 +120,22 @@ export function isMintPreflightPassed(result: MintRangePreflightResult): boolean
   return result.status === "passed";
 }
 
-export function classifyMintAbort(errorOrMessage: unknown): MintAbortClassification {
-  const message = errorOrMessage instanceof Error ? errorOrMessage.message : String(errorOrMessage);
-  const locationMatch = message.match(/([0-9a-fx]+::([A-Za-z0-9_]+)::([A-Za-z0-9_]+))/);
-  const codeMatch = message.match(/abort(?:ed)?(?: with)? code:?\s*(\d+)/i) ?? message.match(/,\s*(\d+)\)\s*in command/i);
-  const moduleName = locationMatch?.[2] ?? null;
-  const functionName = locationMatch?.[3] ?? null;
-  const parsedCode = codeMatch?.[1] ?? null;
-  const isAskMintabilityAbort = moduleName === "predict" && functionName === "assert_mintable_ask";
-  const code = parsedCode ?? (isAskMintabilityAbort ? "7" : null);
+export function classifyMintAbort(
+  errorOrMessage: unknown,
+  options?: ClassifyDeepBookPredictAbortOptions,
+): MintAbortClassification {
+  return classifyDeepBookPredictAbort(errorOrMessage, options);
+}
 
+function mintAbortCandidateParams(params: RangeMintParams & { candidateParams?: MintAbortCandidateParams }): MintAbortCandidateParams {
   return {
-    module: moduleName,
-    function: functionName,
-    code,
-    message,
-    knownReason: isAskMintabilityAbort && code === "7"
-      ? "EAskPriceOutOfBounds"
-      : "unknown",
+    oracleId: params.oracleId,
+    oracleObjectId: params.oracleObjectId,
+    expiry: String(params.expiry),
+    lowerStrike: String(params.lowerStrike),
+    higherStrike: String(params.higherStrike),
+    quantity: String(params.quantity),
+    ...params.candidateParams,
   };
 }
 

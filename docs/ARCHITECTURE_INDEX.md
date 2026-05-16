@@ -35,6 +35,8 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 | [RANGE_QUOTEABILITY_INVESTIGATION.md](./RANGE_QUOTEABILITY_INVESTIGATION.md) | Phase 1C-fix quoteable range scanner methodology, results, and blockers | Protocol / SDK / Validation |
 | [RANGE_QUOTE_UNITS_AND_DECODING.md](./RANGE_QUOTE_UNITS_AND_DECODING.md) | Phase 1C-fix2 quantity-unit, return-decoding, binary quote, and range-selection validation | Protocol / SDK / Validation |
 | [MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md](./MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md) | Phase 1C-fix3 mintability preflight and ask-bounds validation | Protocol / SDK / Validation |
+| [MINTABILITY_SOURCE_ANALYSIS.md](./MINTABILITY_SOURCE_ANALYSIS.md) | Phase 1C-debug source-level quote-vs-mint mintability analysis | Protocol / SDK / Validation |
+| [DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md](./DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md) | Share-safe DeepBook team debug report for mintability blockers | Protocol / SDK / Validation |
 | [ENTRYPOINT_BINDINGS_PLAN.md](./ENTRYPOINT_BINDINGS_PLAN.md) | SDK/PTB entrypoint binding confirmation checklist | Protocol / SDK / PTB |
 | [AGENT_WORKFLOW.md](./AGENT_WORKFLOW.md) | Per-round workflow, Plan Mode, git, uncertainty, ADR rules | Agent workflow |
 | [SKILL_USAGE_GUIDE.md](./SKILL_USAGE_GUIDE.md) | Skill selection guide and found/not-found skill inventory | Agent workflow |
@@ -65,9 +67,11 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 9. [RANGE_QUOTEABILITY_INVESTIGATION.md](./RANGE_QUOTEABILITY_INVESTIGATION.md)
 10. [RANGE_QUOTE_UNITS_AND_DECODING.md](./RANGE_QUOTE_UNITS_AND_DECODING.md)
 11. [MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md](./MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md)
-12. [ENTRYPOINT_BINDINGS_PLAN.md](./ENTRYPOINT_BINDINGS_PLAN.md)
-13. [DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md](./DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md)
-14. [PROTOCOL_INTEGRATION_NOTES.md](./PROTOCOL_INTEGRATION_NOTES.md)
+12. [MINTABILITY_SOURCE_ANALYSIS.md](./MINTABILITY_SOURCE_ANALYSIS.md)
+13. [DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md](./DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md)
+14. [ENTRYPOINT_BINDINGS_PLAN.md](./ENTRYPOINT_BINDINGS_PLAN.md)
+15. [DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md](./DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md)
+16. [PROTOCOL_INTEGRATION_NOTES.md](./PROTOCOL_INTEGRATION_NOTES.md)
 
 ### Before UI/product work
 
@@ -110,6 +114,10 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 | New ADR | Agent workflow, source documents, existing ADRs |
 | Agent skill selection | Skill usage guide, agent workflow |
 | Any git operation | Agent workflow, root `CLAUDE.md` |
+
+## Local source snapshot note
+
+`deepbookv3-predict-package/predict` is a non-committed local DeepBook Predict source snapshot used for Phase 1C-debug source-level diagnostics. It may be read and cited by relative path, but it must not be staged or committed; official docs remain the deployment/config source of truth.
 
 ## Global anti-invention rules
 

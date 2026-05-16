@@ -19,7 +19,7 @@ const maxMintPreflightAttempts = 40;
 const oracleStrikeGridTicks = 100_000n;
 
 main().catch((error) => {
-  console.error("Mintable range scan failed:", sanitizeError(error));
+  console.error("Mint preflight abort analysis failed:", sanitizeError(error));
   process.exitCode = 1;
 });
 
@@ -37,13 +37,14 @@ async function main() {
   const managerSummary = await server.getManagerSummary(managerId);
   const managerBalanceAtomic = findDusdcManagerBalance(managerSummary);
 
-  console.log("Mode: mintable range scan");
+  console.log("Mode: mint preflight abort analyzer");
   console.log(`DevInspect sender: ${address}`);
   console.log(`Manager ID: ${managerId}`);
   console.log(`Manager DUSDC balance: ${managerBalanceAtomic ?? "unknown"} atomic`);
   console.log(`Network: ${config.network}`);
   console.log(`Public server: ${config.publicServer}`);
   console.log("Source inspected from local snapshot: deepbookv3-predict-package/predict");
+  console.log("Local source snapshot used for debugging; official docs remain deployment/config source of truth.");
   console.log(`Quantities tested: ${RANGE_QUOTE_QUANTITY_SWEEP.join(",")}`);
   console.log(`Max quote candidates: ${maxQuoteCandidates}`);
   console.log(`Max mint preflight attempts: ${maxMintPreflightAttempts}`);
@@ -54,11 +55,11 @@ async function main() {
 
   console.log(`Active oracles scanned: ${oracleContexts.length}`);
   console.log(`Candidate ranges derived: ${allCandidates.length}`);
-  console.log(`Candidate ranges tested: ${candidates.length}`);
+  console.log(`Candidate ranges quoted: ${candidates.length}`);
 
   if (candidates.length === 0) {
-    printOracleBlockers(oracleContexts);
-    console.log("mintable candidates found: 0");
+    printOracleSummary(oracleContexts);
+    printSummary([]);
     return;
   }
 
@@ -69,92 +70,28 @@ async function main() {
     quantities: RANGE_QUOTE_QUANTITY_SWEEP,
     config,
   });
-  const classified = await classifyAttempts({
-    attempts: quoteAttempts,
+  const preflightInputs = selectPreflightInputs({
+    quoteAttempts,
+    oracleContexts,
+    managerBalanceAtomic,
+  });
+  const results = await runMintPreflights({
+    inputs: preflightInputs,
     client,
     address,
     managerId,
-    managerBalanceAtomic,
-    oracleContexts,
   });
-  const ranked = rankClassifiedAttempts(classified);
 
   printOracleSummary(oracleContexts);
-  printMintabilityAttempts(ranked);
-  printSummary(classified);
+  printAbortGroups(results);
+  printSummary(results);
 }
 
-async function classifyAttempts({ attempts, client, address, managerId, managerBalanceAtomic, oracleContexts }) {
-  const classified = [];
-  const preflightable = [];
+async function runMintPreflights({ inputs, client, address, managerId }) {
+  const results = [];
 
-  for (const attempt of attempts) {
-    const context = oracleContexts.find((item) => item.oracleId === attempt.oracleId) ?? null;
-
-    if (attempt.status === "failure") {
-      classified.push({
-        attempt,
-        classification: "quote_abort",
-        quoteBucket: "quote_abort",
-        preflight: null,
-        askSide: null,
-        abortClass: quoteAbortClass(attempt.abort),
-      });
-      continue;
-    }
-
-    const mintCost = BigInt(attempt.mintCostAtomic);
-    const quoteBucket = classifyQuoteBucket(attempt, context?.onchainAskBounds ?? null);
-
-    if (mintCost <= 0n) {
-      classified.push({
-        attempt,
-        classification: "quote_zero_cost",
-        quoteBucket,
-        preflight: null,
-        askSide: null,
-        abortClass: null,
-      });
-      continue;
-    }
-
-    const quoteAllowed = mintCost <= maxMintCostAtomic &&
-      managerBalanceAtomic !== null &&
-      BigInt(managerBalanceAtomic) >= mintCost &&
-      context?.status === "active";
-
-    if (!quoteAllowed) {
-      classified.push({
-        attempt,
-        classification: "quote_success",
-        quoteBucket,
-        preflight: null,
-        askSide: null,
-        abortClass: null,
-      });
-      continue;
-    }
-
-    preflightable.push({ attempt, context, quoteBucket });
-  }
-
-  const selectedForPreflight = new Set(selectPreflightAttempts(preflightable).map((entry) => attemptKey(entry.attempt)));
-
-  for (const entry of rankPreflightable(preflightable)) {
-    const { attempt, context, quoteBucket } = entry;
-
-    if (!selectedForPreflight.has(attemptKey(attempt))) {
-      classified.push({
-        attempt,
-        classification: "quote_success",
-        quoteBucket,
-        preflight: null,
-        askSide: null,
-        abortClass: null,
-      });
-      continue;
-    }
-
+  for (const input of inputs) {
+    const { attempt, context, quoteBucket } = input;
     const preflight = await devInspectMintRangePreflight({
       managerId,
       oracleId: attempt.oracleId,
@@ -170,14 +107,7 @@ async function classifyAttempts({ attempts, client, address, managerId, managerB
     });
 
     if (preflight.status === "passed") {
-      classified.push({
-        attempt,
-        classification: "mint_preflight_success",
-        quoteBucket,
-        preflight,
-        askSide: null,
-        abortClass: null,
-      });
+      results.push({ attempt, context, quoteBucket, preflight, askSide: null });
       continue;
     }
 
@@ -185,24 +115,48 @@ async function classifyAttempts({ attempts, client, address, managerId, managerB
       abort: preflight.abort,
       mintCostAtomic: attempt.mintCostAtomic,
       quantity: attempt.quantity,
-      minAskPrice: context?.onchainAskBounds?.status === "available" ? context.onchainAskBounds.minAskPrice : null,
-      maxAskPrice: context?.onchainAskBounds?.status === "available" ? context.onchainAskBounds.maxAskPrice : null,
+      minAskPrice: context.onchainAskBounds?.status === "available" ? context.onchainAskBounds.minAskPrice : null,
+      maxAskPrice: context.onchainAskBounds?.status === "available" ? context.onchainAskBounds.maxAskPrice : null,
     });
     preflight.abort.askBoundSide = askSide;
+    results.push({ attempt, context, quoteBucket, preflight, askSide });
+  }
 
-    classified.push({
+  return results;
+}
+
+function selectPreflightInputs({ quoteAttempts, oracleContexts, managerBalanceAtomic }) {
+  const preflightable = [];
+
+  for (const attempt of quoteAttempts) {
+    if (attempt.status !== "success") {
+      continue;
+    }
+
+    const context = oracleContexts.find((item) => item.oracleId === attempt.oracleId);
+
+    if (!context || context.status !== "active") {
+      continue;
+    }
+
+    const mintCost = BigInt(attempt.mintCostAtomic);
+
+    if (mintCost <= 0n || mintCost > maxMintCostAtomic) {
+      continue;
+    }
+
+    if (managerBalanceAtomic === null || BigInt(managerBalanceAtomic) < mintCost) {
+      continue;
+    }
+
+    preflightable.push({
       attempt,
-      classification: preflight.abort.knownReason === "EAskPriceOutOfBounds"
-        ? "mint_preflight_abort_code_7"
-        : "mint_preflight_other_abort",
-      quoteBucket,
-      preflight,
-      askSide,
-      abortClass: mintAbortClass(preflight.abort),
+      context,
+      quoteBucket: classifyQuoteBucket(attempt, context.onchainAskBounds),
     });
   }
 
-  return classified;
+  return selectPreflightAttempts(preflightable);
 }
 
 async function loadActiveOracleContexts({ server, client, address }) {
@@ -253,7 +207,7 @@ function buildOracleContext({ oracleRecord, oracleState, endpointAskBounds, onch
   }
 
   if (!spot && !forward) {
-    blockers.push("Latest spot/forward unavailable; scanner cannot derive market-centered ranges.");
+    blockers.push("Latest spot/forward unavailable; analyzer cannot derive market-centered ranges.");
   }
 
   const candidates = oracleId && expiry && minStrike && tickSize && (spot || forward)
@@ -438,27 +392,6 @@ function rankCandidates(candidates) {
   });
 }
 
-function rankClassifiedAttempts(attempts) {
-  const priority = {
-    mint_preflight_success: 0,
-    mint_preflight_abort_code_7: 1,
-    mint_preflight_other_abort: 2,
-    quote_success: 3,
-    quote_zero_cost: 4,
-    quote_abort: 5,
-  };
-
-  return [...attempts].sort((left, right) => {
-    const priorityDelta = priority[left.classification] - priority[right.classification];
-
-    if (priorityDelta !== 0) {
-      return priorityDelta;
-    }
-
-    return compareQuoteAttempts(left.attempt, right.attempt);
-  });
-}
-
 function compareQuoteAttempts(left, right) {
   const leftCost = BigInt(left.status === "success" ? left.mintCostAtomic : "0");
   const rightCost = BigInt(right.status === "success" ? right.mintCostAtomic : "0");
@@ -591,84 +524,84 @@ function printOracleSummary(contexts) {
   }
 }
 
-function printMintabilityAttempts(ranked) {
-  console.log("\nMintability candidates");
-  console.log(`mintable candidates found: ${ranked.filter((entry) => entry.classification === "mint_preflight_success").length}`);
+function printAbortGroups(results) {
+  console.log("\nMint preflight abort groups");
+  const failures = results.filter((result) => result.preflight.status === "failed");
+  const groups = new Map();
 
-  for (const [index, entry] of ranked.slice(0, 24).entries()) {
-    const attempt = entry.attempt;
-    const mintCost = attempt.status === "success" ? attempt.mintCostAtomic : "";
-    const redeemPayout = attempt.status === "success" ? attempt.redeemPayoutAtomic : "";
-    const abort = formatAbort(entry);
-    console.log(
-      `${index + 1}. oracle=${attempt.oracleId} underlying=${attempt.underlyingAsset ?? "unknown"} expiry=${attempt.expiry} lower=${attempt.lowerStrike} higher=${attempt.higherStrike} widthTicks=${attempt.widthTicks} strategy=${attempt.strategy} family=${attempt.family ?? "unknown"} quantity=${attempt.quantity} mint=${mintCost} redeem=${redeemPayout} quote_bucket=${entry.quoteBucket} classification=${entry.classification}${abort}`,
-    );
+  for (const result of failures) {
+    const abort = result.preflight.abort;
+    const key = abortClass(abort);
+    const existing = groups.get(key) ?? { count: 0, representative: result };
+    groups.set(key, {
+      count: existing.count + 1,
+      representative: existing.representative,
+    });
   }
-}
 
-function printSummary(classified) {
-  const counts = countBy(classified, (entry) => entry.classification);
-  const abortCounts = countBy(classified.filter((entry) => entry.abortClass), (entry) => entry.abortClass);
-  const askSideCounts = countBy(classified.filter((entry) => entry.askSide), (entry) => entry.askSide.side);
-  const familyCounts = countBy(classified, (entry) => entry.attempt.family ?? "unknown");
-
-  console.log("\nMintability summary");
-  console.log(`attempts: ${classified.length}`);
-  console.log(`quote successes: ${classified.filter((entry) => entry.attempt.status === "success").length}`);
-  console.log(`zero-cost quotes: ${counts.get("quote_zero_cost") ?? 0}`);
-  console.log(`positive quotes under cap: ${classified.filter(isPositiveUnderCap).length}`);
-  console.log(`preflight attempts: ${(counts.get("mint_preflight_success") ?? 0) + (counts.get("mint_preflight_abort_code_7") ?? 0) + (counts.get("mint_preflight_other_abort") ?? 0)}`);
-  console.log(`preflight successes: ${counts.get("mint_preflight_success") ?? 0}`);
-  console.log(`code 7 failures: ${counts.get("mint_preflight_abort_code_7") ?? 0}`);
-  console.log(`other preflight failures: ${counts.get("mint_preflight_other_abort") ?? 0}`);
-  console.log(`ask side below_min: ${askSideCounts.get("below_min") ?? 0}`);
-  console.log(`ask side above_max: ${askSideCounts.get("above_max") ?? 0}`);
-  console.log(`ask side unknown: ${askSideCounts.get("unknown") ?? 0}`);
-  console.log(`candidate families tested: ${[...familyCounts.entries()].map(([key, value]) => `${key}=${value}`).join(",")}`);
-  console.log(`abort classes: ${[...abortCounts.entries()].map(([key, value]) => `${key}=${value}`).join(",") || "none"}`);
-
-  const best = rankClassifiedAttempts(classified).find((entry) => entry.classification === "mint_preflight_success");
-
-  if (!best || best.attempt.status !== "success") {
-    console.log("best mintable candidate: none");
+  if (groups.size === 0) {
+    console.log("none");
     return;
   }
 
-  console.log(
-    `best mintable candidate: oracle=${best.attempt.oracleId} quantity=${best.attempt.quantity} mint=${best.attempt.mintCostAtomic} redeem=${best.attempt.redeemPayoutAtomic} lower=${best.attempt.lowerStrike} higher=${best.attempt.higherStrike} family=${best.attempt.family ?? "unknown"}`,
+  for (const [key, group] of [...groups.entries()].sort((left, right) => right[1].count - left[1].count)) {
+    const representative = group.representative;
+    const attempt = representative.attempt;
+    const context = representative.context;
+    const abort = representative.preflight.abort;
+
+    console.log(`- ${key}: count=${group.count}`);
+    console.log(`  oracle_id=${attempt.oracleId}`);
+    console.log(`  underlying=${attempt.underlyingAsset ?? context.underlyingAsset ?? "unknown"}`);
+    console.log(`  expiry=${attempt.expiry}`);
+    console.log(`  lower=${attempt.lowerStrike}`);
+    console.log(`  higher=${attempt.higherStrike}`);
+    console.log(`  width_ticks=${attempt.widthTicks}`);
+    console.log(`  strategy=${attempt.strategy}`);
+    console.log(`  family=${attempt.family ?? "unknown"}`);
+    console.log(`  quantity=${attempt.quantity}`);
+    console.log(`  mint_cost=${attempt.mintCostAtomic}`);
+    console.log(`  redeem_payout=${attempt.redeemPayoutAtomic}`);
+    console.log(`  min_ask=${context.onchainAskBounds?.status === "available" ? context.onchainAskBounds.minAskPrice : "unavailable"}`);
+    console.log(`  max_ask=${context.onchainAskBounds?.status === "available" ? context.onchainAskBounds.maxAskPrice : "unavailable"}`);
+    console.log(`  likely_cause=${compact(abort.likelyCause)}`);
+    console.log(`  ask_side_inference=${formatAskSide(representative.askSide)}`);
+  }
+}
+
+function printSummary(results) {
+  const failures = results.filter((result) => result.preflight.status === "failed");
+  const successes = results.filter((result) => result.preflight.status === "passed");
+  const code7Count = failures.filter((result) => result.preflight.abort.knownReason === "EAskPriceOutOfBounds").length;
+  const otherAbortCounts = countBy(
+    failures.filter((result) => result.preflight.abort.knownReason !== "EAskPriceOutOfBounds"),
+    (result) => abortClass(result.preflight.abort),
   );
-}
+  const askSideCounts = countBy(failures.filter((result) => result.askSide), (result) => result.askSide.side);
+  const familyCounts = countBy(results, (result) => result.attempt.family ?? "unknown");
 
-function isPositiveUnderCap(entry) {
-  if (entry.attempt.status !== "success") {
-    return false;
+  console.log("\nMint preflight abort analysis summary");
+  console.log(`preflight attempts: ${results.length}`);
+  console.log(`preflight successes: ${successes.length}`);
+  console.log(`code 7 count: ${code7Count}`);
+  console.log(`non-code-7 counts by class: ${formatCounts(otherAbortCounts)}`);
+  console.log(`below-min inference count: ${askSideCounts.get("below_min") ?? 0}`);
+  console.log(`above-max inference count: ${askSideCounts.get("above_max") ?? 0}`);
+  console.log(`unknown inference count: ${askSideCounts.get("unknown") ?? 0}`);
+  console.log(`candidate families tested: ${formatCounts(familyCounts)}`);
+
+  const best = successes[0];
+
+  if (!best) {
+    console.log("mintable candidate found: no");
+    console.log("best candidate: none");
+    return;
   }
 
-  const mintCost = BigInt(entry.attempt.mintCostAtomic);
-  return mintCost > 0n && mintCost <= maxMintCostAtomic;
-}
-
-function formatAbort(entry) {
-  if (entry.preflight?.status === "failed") {
-    const abort = entry.preflight.abort;
-    return ` abort_module=${abort.module ?? "unknown"} abort_function=${abort.function ?? "unknown"} abort_code=${abort.code ?? "unknown"} constant=${abort.constantName ?? "unknown"} known_reason=${abort.knownReason} likely_cause=${compact(abort.likelyCause)} ask_side=${entry.askSide?.side ?? "unknown"} ask_confidence=${entry.askSide?.confidence ?? "low"}`;
-  }
-
-  if (entry.attempt.status === "failure") {
-    return ` abort_module=${entry.attempt.abort.module ?? "unknown"} abort_function=${entry.attempt.abort.function ?? "unknown"} abort_code=${entry.attempt.abort.code ?? "unknown"} constant=${entry.attempt.abort.constantName ?? "unknown"} likely_cause=${compact(entry.attempt.abort.likelyCause)}`;
-  }
-
-  return "";
-}
-
-function printOracleBlockers(contexts) {
-  console.log("\nOracle blockers");
-
-  for (const context of contexts) {
-    for (const blocker of context.blockers) {
-      console.log(`- ${context.oracleId}: ${blocker}`);
-    }
-  }
+  console.log("mintable candidate found: yes");
+  console.log(
+    `best candidate: oracle=${best.attempt.oracleId} expiry=${best.attempt.expiry} lower=${best.attempt.lowerStrike} higher=${best.attempt.higherStrike} quantity=${best.attempt.quantity} mint_cost=${best.attempt.mintCostAtomic} family=${best.attempt.family ?? "unknown"}`,
+  );
 }
 
 function candidateParamsForAttempt(attempt) {
@@ -687,12 +620,20 @@ function candidateParamsForAttempt(attempt) {
   };
 }
 
-function quoteAbortClass(abort) {
+function abortClass(abort) {
   return `${abort.module ?? "unknown"}::${abort.function ?? "unknown"}::${abort.code ?? "unknown"}::${abort.constantName ?? "unknown"}`;
 }
 
-function mintAbortClass(abort) {
-  return `${abort.module ?? "unknown"}::${abort.function ?? "unknown"}::${abort.code ?? "unknown"}::${abort.constantName ?? "unknown"}`;
+function formatAskSide(askSide) {
+  if (!askSide) {
+    return "unknown confidence=low reason=not_available";
+  }
+
+  return `${askSide.side} confidence=${askSide.confidence} reason=${compact(askSide.reason)}`;
+}
+
+function formatCounts(counts) {
+  return [...counts.entries()].map(([key, value]) => `${key}=${value}`).join(",") || "none";
 }
 
 function formatEndpointBounds(endpoint) {

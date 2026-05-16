@@ -169,14 +169,27 @@ export type RangeQuotePreview = {
   diagnostic?: DevInspectU64PairDiagnostic;
 };
 
-export type RangeQuoteAbortClassification = {
-  module: string | null;
-  function: string | null;
-  code: string | null;
-  message: string;
+export type AskBoundSideInference = {
+  side: "below_min" | "above_max" | "unknown";
+  confidence: "low" | "medium";
+  reason: string;
 };
 
-export type MintAbortKnownReason = "EAskPriceOutOfBounds" | "unknown";
+export type MintAbortKnownReason = "EAskPriceOutOfBounds" | "source_known_abort" | "unknown";
+
+export type MintAbortCandidateParams = {
+  oracleId?: string;
+  oracleObjectId?: string;
+  expiry?: string;
+  lowerStrike?: string;
+  higherStrike?: string;
+  widthTicks?: string;
+  strategy?: string;
+  family?: string;
+  quantity?: string;
+  mintCostAtomic?: string;
+  redeemPayoutAtomic?: string;
+};
 
 export type MintAbortClassification = {
   module: string | null;
@@ -184,6 +197,21 @@ export type MintAbortClassification = {
   code: string | null;
   message: string;
   knownReason: MintAbortKnownReason;
+  packageId?: string | null;
+  constantName?: string | null;
+  likelyCause?: string | null;
+  candidateParams?: MintAbortCandidateParams;
+  askBoundSide?: AskBoundSideInference;
+};
+
+export type RangeQuoteAbortClassification = {
+  module: string | null;
+  function: string | null;
+  code: string | null;
+  message: string;
+  packageId?: string | null;
+  constantName?: string | null;
+  likelyCause?: string | null;
 };
 
 export type MintRangePreflightPassed = {
