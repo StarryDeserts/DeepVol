@@ -151,6 +151,34 @@ export type RangeQuotePreview = {
   source: "devInspect";
 };
 
+export type RangeQuoteAbortClassification = {
+  module: string | null;
+  function: string | null;
+  code: string | null;
+  message: string;
+};
+
+export type RangeQuoteCandidate = RangeKeyInput & {
+  oracleObjectId: DeepBookPredictObjectId;
+  underlyingAsset: string | null;
+  widthTicks: string;
+  anchorSource: "spot" | "forward";
+  anchorPrice: string;
+};
+
+export type RangeQuoteAttemptSuccess = RangeQuoteCandidate & {
+  status: "success";
+  mintCostAtomic: string;
+  redeemPayoutAtomic: string;
+};
+
+export type RangeQuoteAttemptFailure = RangeQuoteCandidate & {
+  status: "failure";
+  abort: RangeQuoteAbortClassification;
+};
+
+export type RangeQuoteAttempt = RangeQuoteAttemptSuccess | RangeQuoteAttemptFailure;
+
 export type RangeMintParams = RangeKeyInput & {
   managerId: DeepBookPredictObjectId;
   oracleObjectId: DeepBookPredictObjectId;

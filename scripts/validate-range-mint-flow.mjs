@@ -12,8 +12,9 @@ import {
   buildMintRangeTransaction,
   buildSuiExplorerTransactionUrl,
   createDeepBookPredictServerClient,
-  devInspectRangeQuote,
+  deriveCandidateRanges,
   parseRangeMintedEvent,
+  scanQuoteableRanges,
 } from "@rangepilot/sdk/deepbookPredict";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -120,30 +121,62 @@ async function buildQuoteContext({ server, client, address }) {
     blockers.push("Manager DUSDC balance was not readable from public server summary.");
   }
 
-  const selectedOracle = await server.discoverDefaultOracle();
+  const oracleContexts = await loadActiveOracleContexts(server);
+  const allCandidates = oracleContexts.flatMap((context) => context.candidates);
+  const quoteAttempts = allCandidates.length > 0
+    ? await scanQuoteableRanges({
+        candidates: allCandidates,
+        client,
+        sender: address,
+        quantity,
+        config,
+      })
+    : [];
+  const quoteableCandidates = rankQuoteableAttempts(
+    quoteAttempts.filter((attempt) => attempt.status === "success"),
+  );
+  const quote = quoteableCandidates[0] ?? null;
+  const selectedOracleContext = quote
+    ? oracleContexts.find((context) => context.oracleId === quote.oracleId) ?? null
+    : oracleContexts[0] ?? null;
+  const askBounds = selectedOracleContext?.oracleId
+    ? await tryRead("oracle_ask_bounds", () => server.getOracleAskBounds(selectedOracleContext.oracleId))
+    : { kind: "error", source: "oracle_ask_bounds", message: "No oracle ID available." };
+  const activeOracle = selectedOracleContext
+    ? {
+        oracleId: selectedOracleContext.oracleId,
+        oracleObjectId: selectedOracleContext.oracleId,
+        underlyingAsset: selectedOracleContext.underlyingAsset,
+        status: selectedOracleContext.status,
+        expiry: selectedOracleContext.expiry,
+      }
+    : null;
+  const strikeGrid = selectedOracleContext
+    ? {
+        minStrike: selectedOracleContext.minStrike,
+        tickSize: selectedOracleContext.tickSize,
+        source: "public_server_oracle_metadata",
+      }
+    : null;
+  const range = quote
+    ? {
+        oracleId: quote.oracleId,
+        expiry: quote.expiry,
+        lowerStrike: quote.lowerStrike,
+        higherStrike: quote.higherStrike,
+        widthTicks: quote.widthTicks,
+        anchorSource: quote.anchorSource,
+        anchorPrice: quote.anchorPrice,
+      }
+    : null;
 
-  if (!selectedOracle) {
+  if (oracleContexts.length === 0) {
     blockers.push("No active unexpired oracle was discovered at runtime.");
   }
 
-  const oracleId = selectedOracle?.oracle_id ?? null;
-  const oracleState = oracleId
-    ? await tryRead("oracle_state", () => server.getOracleState(oracleId))
-    : { kind: "error", source: "oracle_state", message: "No oracle ID available." };
-  const askBounds = oracleId
-    ? await tryRead("oracle_ask_bounds", () => server.getOracleAskBounds(oracleId))
-    : { kind: "error", source: "oracle_ask_bounds", message: "No oracle ID available." };
-  const oracleRecord = selectOracleRecord(selectedOracle, oracleState);
-  const oracleObjectId = oracleId;
-  const activeOracle = oracleRecord
-    ? {
-        oracleId: oracleRecord.oracle_id,
-        oracleObjectId,
-        underlyingAsset: stringOrNull(oracleRecord.underlying_asset),
-        status: String(oracleRecord.status ?? "unknown"),
-        expiry: normalizeIntegerOrNull(oracleRecord.expiry) ?? "",
-      }
-    : null;
+  if (allCandidates.length === 0) {
+    blockers.push("No market-centered candidate ranges could be derived from active oracle spot/forward data.");
+  }
 
   if (!activeOracle?.oracleId || !activeOracle.oracleObjectId) {
     blockers.push("Runtime oracle ID was not available.");
@@ -157,49 +190,20 @@ async function buildQuoteContext({ server, client, address }) {
     blockers.push("Selected oracle expiry was not readable.");
   }
 
-  if (askBounds.kind === "error") {
-    blockers.push(`Ask-bounds read failed: ${askBounds.message}.`);
-  } else if (askBounds.value === null) {
-    blockers.push("Ask-bounds returned null; mint eligibility is not confirmed.");
-  }
-
-  const strikeGrid = deriveStrikeGrid(oracleRecord);
-  const range = strikeGrid && activeOracle
-    ? deriveSafeTestRange(activeOracle.oracleId, activeOracle.expiry, strikeGrid)
-    : null;
-
   if (!strikeGrid) {
     blockers.push("Strike grid could not be derived from runtime oracle metadata.");
   }
 
-  if (!range) {
-    blockers.push("Safe test range could not be derived.");
-  }
-
-  let quote = null;
-  let quoteError = null;
-
-  if (range && activeOracle?.oracleObjectId) {
-    try {
-      quote = await devInspectRangeQuote({
-        client,
-        sender: address,
-        oracleObjectId: activeOracle.oracleObjectId,
-        oracleId: range.oracleId,
-        expiry: range.expiry,
-        lowerStrike: range.lowerStrike,
-        higherStrike: range.higherStrike,
-        quantity,
-        config,
-      });
-    } catch (error) {
-      quoteError = sanitizeError(error);
-      blockers.push(`Quote preview failed: ${quoteError}`);
-    }
+  if (!quote) {
+    blockers.push("No quoteable range candidate produced a successful get_range_trade_amounts devInspect result.");
   }
 
   if (quote) {
     const mintCost = BigInt(quote.mintCostAtomic);
+
+    if (mintCost <= 0n) {
+      blockers.push(`Mint cost ${quote.mintCostAtomic} must be greater than 0.`);
+    }
 
     if (mintCost > maxMintCostAtomic) {
       blockers.push(`Mint cost ${quote.mintCostAtomic} exceeds 5 DUSDC cap.`);
@@ -218,21 +222,116 @@ async function buildQuoteContext({ server, client, address }) {
     managerOwner,
     managerBalanceAtomic,
     managerSummaryKeys: topLevelKeys(managerSummary),
-    selectedOracle,
     activeOracle,
     oracleObjectId: activeOracle?.oracleObjectId ?? null,
-    oracleState,
     askBounds,
     strikeGrid,
+    oracleContexts,
+    quoteAttempts,
+    quoteableCandidates,
     range,
     quantity,
     quote,
-    quoteError,
     gates: {
       passed: blockers.length === 0,
       blockers,
     },
   };
+}
+
+async function loadActiveOracleContexts(server) {
+  const oracles = await server.getOracles(config.predictId);
+  const nowMs = BigInt(Date.now());
+  const active = oracles.filter((oracle) => {
+    const expiry = normalizeIntegerOrNull(oracle.expiry);
+    return oracle.status === "active" && expiry !== null && BigInt(expiry) > nowMs;
+  });
+  const contexts = [];
+
+  for (const oracle of active) {
+    const oracleId = stringOrNull(oracle.oracle_id);
+    const oracleState = oracleId ? await tryRead("oracle_state", () => server.getOracleState(oracleId)) : null;
+    const oracleRecord = selectOracleRecord(oracle, oracleState);
+    contexts.push(buildOracleContext(oracleRecord, oracleState));
+  }
+
+  return contexts;
+}
+
+function buildOracleContext(oracleRecord, oracleState) {
+  const blockers = [];
+  const oracleId = stringOrNull(oracleRecord?.oracle_id);
+  const expiry = normalizeIntegerOrNull(oracleRecord?.expiry);
+  const minStrike = normalizeIntegerOrNull(oracleRecord?.min_strike);
+  const tickSize = normalizeIntegerOrNull(oracleRecord?.tick_size);
+  const latestPrice = isRecord(oracleState?.value?.latest_price) ? oracleState.value.latest_price : null;
+  const spot = normalizeIntegerOrNull(latestPrice?.spot);
+  const forward = normalizeIntegerOrNull(latestPrice?.forward);
+  const underlyingAsset = stringOrNull(oracleRecord?.underlying_asset);
+  const status = typeof oracleRecord?.status === "string" ? oracleRecord.status : "unknown";
+
+  if (!oracleId) {
+    blockers.push("Oracle ID unavailable.");
+  }
+
+  if (!expiry) {
+    blockers.push("Expiry unavailable.");
+  }
+
+  if (!minStrike || !tickSize) {
+    blockers.push("Strike grid unavailable.");
+  }
+
+  if (!spot && !forward) {
+    blockers.push("Latest spot/forward unavailable; scanner cannot derive market-centered ranges.");
+  }
+
+  const candidates = oracleId && expiry && minStrike && tickSize && (spot || forward)
+    ? deriveCandidateRanges({
+        oracleId,
+        oracleObjectId: oracleId,
+        underlyingAsset,
+        expiry,
+        minStrike,
+        tickSize,
+        spot,
+        forward,
+      })
+    : [];
+
+  return {
+    oracleId: oracleId ?? "unknown",
+    underlyingAsset,
+    status,
+    expiry: expiry ?? "",
+    minStrike: minStrike ?? "",
+    tickSize: tickSize ?? "",
+    spot,
+    forward,
+    blockers,
+    candidates,
+  };
+}
+
+function rankQuoteableAttempts(attempts) {
+  return [...attempts].sort((left, right) => {
+    const leftCost = BigInt(left.mintCostAtomic);
+    const rightCost = BigInt(right.mintCostAtomic);
+    const leftSafe = leftCost > 0n && leftCost <= maxMintCostAtomic ? 0 : 1;
+    const rightSafe = rightCost > 0n && rightCost <= maxMintCostAtomic ? 0 : 1;
+
+    if (leftSafe !== rightSafe) {
+      return leftSafe - rightSafe;
+    }
+
+    if (leftCost !== rightCost) {
+      return leftCost < rightCost ? -1 : 1;
+    }
+
+    const leftWidth = BigInt(left.widthTicks);
+    const rightWidth = BigInt(right.widthTicks);
+    return leftWidth < rightWidth ? -1 : leftWidth > rightWidth ? 1 : 0;
+  });
 }
 
 function parseMode(args) {
@@ -340,42 +439,11 @@ function keypairFromPrivateKey(privateKey) {
 }
 
 function selectOracleRecord(selectedOracle, oracleState) {
-  if (oracleState.kind !== "error" && isRecord(oracleState.value.oracle)) {
+  if (oracleState?.kind !== "error" && isRecord(oracleState?.value?.oracle)) {
     return oracleState.value.oracle;
   }
 
   return selectedOracle;
-}
-
-function deriveStrikeGrid(oracle) {
-  if (!isRecord(oracle)) {
-    return null;
-  }
-
-  const minStrike = normalizeIntegerOrNull(oracle.min_strike);
-  const tickSize = normalizeIntegerOrNull(oracle.tick_size);
-
-  if (!minStrike || !tickSize || BigInt(tickSize) <= 0n) {
-    return null;
-  }
-
-  return {
-    minStrike,
-    tickSize,
-    source: "public_server_oracle_metadata",
-  };
-}
-
-function deriveSafeTestRange(oracleId, expiry, strikeGrid) {
-  const lowerStrike = BigInt(strikeGrid.minStrike) + BigInt(strikeGrid.tickSize);
-  const higherStrike = lowerStrike + BigInt(strikeGrid.tickSize);
-
-  return {
-    oracleId,
-    expiry,
-    lowerStrike: lowerStrike.toString(),
-    higherStrike: higherStrike.toString(),
-  };
 }
 
 async function tryRead(source, read) {
@@ -427,19 +495,45 @@ function printQuoteSummary(context) {
   console.log(`manager owner: ${context.managerOwner ?? "unknown"}`);
   console.log(`manager DUSDC balance: ${context.managerBalanceAtomic ?? "unknown"} atomic`);
   console.log(`manager summary keys: ${context.managerSummaryKeys.join(",") || "none"}`);
+  console.log(`active oracles scanned: ${context.oracleContexts.length}`);
+  console.log(`candidate ranges tested: ${context.quoteAttempts.length}`);
+  console.log(`quoteable candidates found: ${context.quoteableCandidates.length}`);
   console.log(`active oracle: ${context.activeOracle?.oracleId ?? "none"}`);
   console.log(`oracle object candidate: ${context.oracleObjectId ?? "none"}`);
   console.log(`underlying: ${context.activeOracle?.underlyingAsset ?? "unknown"}`);
   console.log(`expiry: ${context.activeOracle?.expiry ?? "unknown"}`);
   console.log(`strike grid: ${context.strikeGrid ? `${context.strikeGrid.minStrike}/${context.strikeGrid.tickSize} (${context.strikeGrid.source})` : "unavailable"}`);
   console.log(`lower/higher strikes: ${context.range ? `${context.range.lowerStrike}/${context.range.higherStrike}` : "unavailable"}`);
+  console.log(`range anchor: ${context.range ? `${context.range.anchorSource}:${context.range.anchorPrice} widthTicks=${context.range.widthTicks}` : "unavailable"}`);
   console.log(`win condition: ${RANGE_WIN_CONDITION_COPY}`);
-  console.log(`ask-bounds: ${formatReadResult(context.askBounds)}`);
-  console.log(`quote preview: ${context.quote ? `mint=${context.quote.mintCostAtomic} redeem=${context.quote.redeemPayoutAtomic}` : `blocked (${context.quoteError ?? "not attempted"})`}`);
+  console.log(`ask-bounds: ${formatReadResult(context.askBounds)} (diagnostic only if null)`);
+  console.log(`quote preview: ${context.quote ? `mint=${context.quote.mintCostAtomic} redeem=${context.quote.redeemPayoutAtomic}` : "blocked (no quoteable candidate)"}`);
   console.log(`safety gates: ${context.gates.passed ? "passed" : "blocked"}`);
 
   for (const blocker of context.gates.blockers) {
     console.log(`- ${blocker}`);
+  }
+
+  printFailureSummary(context.quoteAttempts);
+}
+
+function printFailureSummary(attempts) {
+  const failures = attempts.filter((attempt) => attempt.status === "failure");
+  const groups = new Map();
+
+  for (const failure of failures) {
+    const key = `${failure.abort.module ?? "unknown"}::${failure.abort.function ?? "unknown"}::${failure.abort.code ?? "unknown"}`;
+    groups.set(key, (groups.get(key) ?? 0) + 1);
+  }
+
+  if (groups.size === 0) {
+    return;
+  }
+
+  console.log("quote failure summary:");
+
+  for (const [key, count] of [...groups.entries()].sort((left, right) => right[1] - left[1])) {
+    console.log(`- ${key}: ${count}`);
   }
 }
 
