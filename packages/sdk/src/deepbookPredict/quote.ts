@@ -1,10 +1,18 @@
 import { Transaction } from "@mysten/sui/transactions";
 import type {
   DeepBookPredictNetworkConfig,
+  DevInspectU64PairDiagnostic,
+  DevInspectU64ReturnDiagnostic,
+  MarketKeyInput,
+  MarketQuoteAttempt,
+  MarketQuoteCandidate,
+  MarketQuoteDirection,
+  MarketQuotePreview,
   RangeKeyInput,
   RangeQuoteAbortClassification,
   RangeQuoteAttempt,
   RangeQuoteCandidate,
+  RangeQuoteCandidateStrategy,
   RangeQuotePreview,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
@@ -17,7 +25,20 @@ import {
 } from "./rangeKey.ts";
 
 const SUI_CLOCK_OBJECT_ID = "0x6";
-const DEFAULT_RANGE_WIDTH_TICKS = [1n, 5n, 10n, 25n, 50n, 100n, 250n] as const;
+const SUI_OBJECT_ID_PATTERN = /^0x[0-9a-fA-F]+$/;
+const DEFAULT_RANGE_WIDTH_TICKS = [1n, 5n, 10n, 25n, 50n, 100n, 250n, 500n, 1000n, 2500n, 5000n, 10000n] as const;
+const BINARY_STRIKE_OFFSETS_TICKS = [-250n, -100n, -50n, -10n, 0n, 10n, 50n, 100n, 250n] as const;
+
+export const RANGE_QUOTE_QUANTITY_SWEEP = [
+  "1",
+  "1000",
+  "10000",
+  "100000",
+  "1000000",
+  "5000000",
+  "10000000",
+  "50000000",
+] as const;
 
 export type RangeQuoteParams = RangeKeyInput & {
   oracleObjectId: string;
@@ -60,6 +81,40 @@ export type ScanQuoteableRangesParams = {
   config?: DeepBookPredictNetworkConfig;
 };
 
+export type ScanRangeQuoteQuantitiesParams = Omit<ScanQuoteableRangesParams, "quantity"> & {
+  quantities: readonly (string | bigint)[];
+};
+
+export type MarketQuoteParams = MarketKeyInput & {
+  oracleObjectId: string;
+  quantity: string | bigint;
+  config?: DeepBookPredictNetworkConfig;
+};
+
+export type DevInspectMarketQuoteParams = MarketQuoteParams & {
+  client: DevInspectRangeQuoteParams["client"];
+  sender: string;
+};
+
+export type DeriveMarketQuoteCandidatesInput = {
+  oracleId: string;
+  oracleObjectId: string;
+  underlyingAsset: string | null;
+  expiry: string | bigint;
+  minStrike: string | bigint;
+  tickSize: string | bigint;
+  spot?: string | bigint | null;
+  forward?: string | bigint | null;
+};
+
+export type ScanBinaryQuoteSanityParams = {
+  candidates: readonly MarketQuoteCandidate[];
+  client: DevInspectMarketQuoteParams["client"];
+  sender: string;
+  quantities: readonly (string | bigint)[];
+  config?: DeepBookPredictNetworkConfig;
+};
+
 export function buildGetRangeTradeAmountsTransaction(
   params: RangeQuoteParams,
 ): Transaction {
@@ -97,37 +152,128 @@ export async function devInspectRangeQuote(
     );
   }
 
-  const decoded = decodeDevInspectU64Pair(result);
+  const diagnostic = inspectDevInspectU64Pair(result);
 
-  if (!decoded) {
+  if (!diagnostic.decoded) {
     throw new DeepBookPredictUnconfirmedBindingError(
-      "MUST CONFIRM BEFORE CODING: get_range_trade_amounts devInspect return shape did not decode to an unambiguous pair of u64 values.",
+      `MUST CONFIRM BEFORE CODING: get_range_trade_amounts devInspect return shape did not decode to an unambiguous pair of u64 values. ${summarizeDevInspectU64PairDiagnostic(diagnostic)}`,
     );
   }
 
   return {
     rangeKey: normalizeRangeKeyInput(params),
     quantity: normalizePositiveInteger(params.quantity, "Range quote quantity"),
-    mintCostAtomic: decoded.mintCostAtomic,
-    redeemPayoutAtomic: decoded.redeemPayoutAtomic,
+    mintCostAtomic: diagnostic.decoded.mintCostAtomic,
+    redeemPayoutAtomic: diagnostic.decoded.redeemPayoutAtomic,
     source: "devInspect",
+    diagnostic,
+  };
+}
+
+export function buildMarketKeyTransactionArgument(
+  tx: Transaction,
+  input: MarketKeyInput,
+  config?: DeepBookPredictNetworkConfig,
+): ReturnType<Transaction["moveCall"]> {
+  const resolvedConfig = resolveDeepBookPredictConfig(config);
+  const normalized = normalizeMarketKeyInput(input);
+  const directionFunction = normalized.direction === "up" ? "up" : "down";
+
+  return tx.moveCall({
+    target: `${resolvedConfig.packageId}::market_key::${directionFunction}`,
+    arguments: [
+      tx.pure.id(normalized.oracleId),
+      tx.pure.u64(normalized.expiry),
+      tx.pure.u64(normalized.strike),
+    ],
+  });
+}
+
+export function buildGetTradeAmountsTransaction(
+  params: MarketQuoteParams,
+): Transaction {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const quantity = normalizePositiveInteger(params.quantity, "Binary quote quantity");
+  const tx = new Transaction();
+  const marketKey = buildMarketKeyTransactionArgument(tx, params, config);
+
+  tx.moveCall({
+    target: `${config.packageId}::predict::get_trade_amounts`,
+    arguments: [
+      tx.object(config.predictId),
+      tx.object(params.oracleObjectId),
+      marketKey,
+      tx.pure.u64(quantity),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  return tx;
+}
+
+export async function devInspectBinaryQuote(
+  params: DevInspectMarketQuoteParams,
+): Promise<MarketQuotePreview> {
+  const transactionBlock = buildGetTradeAmountsTransaction(params);
+  const result = await params.client.devInspectTransactionBlock({
+    sender: params.sender,
+    transactionBlock,
+  });
+
+  if (isRecord(result) && typeof result.error === "string") {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `MUST CONFIRM BEFORE CODING: get_trade_amounts devInspect failed: ${result.error}`,
+    );
+  }
+
+  const diagnostic = inspectDevInspectU64Pair(result);
+
+  if (!diagnostic.decoded) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `MUST CONFIRM BEFORE CODING: get_trade_amounts devInspect return shape did not decode to an unambiguous pair of u64 values. ${summarizeDevInspectU64PairDiagnostic(diagnostic)}`,
+    );
+  }
+
+  return {
+    marketKey: normalizeMarketKeyInput(params),
+    quantity: normalizePositiveInteger(params.quantity, "Binary quote quantity"),
+    mintCostAtomic: diagnostic.decoded.mintCostAtomic,
+    redeemPayoutAtomic: diagnostic.decoded.redeemPayoutAtomic,
+    source: "devInspect",
+    diagnostic,
+  };
+}
+
+export function inspectDevInspectU64Pair(result: unknown): DevInspectU64PairDiagnostic {
+  const returnValues = extractReturnValues(result);
+  const returns = returnValues.map(inspectU64ReturnValue);
+  const decodedValues = returns
+    .map((entry) => entry.decodedU64)
+    .filter((value): value is string => value !== null);
+  const decoded = returnValues.length === 2 && decodedValues.length === 2
+    ? {
+        mintCostAtomic: decodedValues[0],
+        redeemPayoutAtomic: decodedValues[1],
+      }
+    : null;
+
+  return {
+    returnValueCount: returnValues.length,
+    returns,
+    decoded,
   };
 }
 
 export function decodeDevInspectU64Pair(result: unknown): DecodedRangeQuoteAmounts | null {
-  const returnValues = extractReturnValues(result);
-  const u64Values = returnValues
-    .map(decodeU64ReturnValue)
-    .filter((value): value is string => value !== null);
+  return inspectDevInspectU64Pair(result).decoded;
+}
 
-  if (u64Values.length !== 2 || u64Values.length !== returnValues.length) {
-    return null;
-  }
+export function summarizeDevInspectU64PairDiagnostic(diagnostic: DevInspectU64PairDiagnostic): string {
+  const returns = diagnostic.returns.map((entry) => {
+    return `${entry.index}:${entry.typeTag ?? "unknown"}:${entry.byteLength ?? "unknown"}:${entry.decodedU64 ?? "null"}:${entry.status}`;
+  });
 
-  return {
-    mintCostAtomic: u64Values[0],
-    redeemPayoutAtomic: u64Values[1],
-  };
+  return `returnValues=${diagnostic.returnValueCount} returns=[${returns.join(",")}]`;
 }
 
 export function classifyQuoteAbort(errorOrMessage: unknown): RangeQuoteAbortClassification {
@@ -147,48 +293,59 @@ export function deriveCandidateRanges(input: DeriveCandidateRangesInput): RangeQ
   const minStrike = BigInt(normalizeNonNegativeInteger(input.minStrike, "Range candidate min strike"));
   const tickSize = BigInt(normalizePositiveInteger(input.tickSize, "Range candidate tick size"));
   const expiry = normalizePositiveInteger(input.expiry, "Range candidate expiry");
-  const widths = input.widthTicks ?? DEFAULT_RANGE_WIDTH_TICKS;
+  const widths = normalizeUniquePositiveBigints(input.widthTicks ?? DEFAULT_RANGE_WIDTH_TICKS, "Range candidate width ticks");
   const candidates = new Map<string, RangeQuoteCandidate>();
 
   for (const anchor of deriveAnchors(input)) {
     const anchorStrike = snapToStrike(anchor.price, minStrike, tickSize);
 
-    for (const widthValue of widths) {
-      const widthTicks = BigInt(normalizePositiveInteger(widthValue, "Range candidate width ticks"));
+    for (const widthTicks of widths) {
       const widthAtomic = widthTicks * tickSize;
       const leftTicks = widthTicks / 2n;
-      let lowerStrike = anchorStrike - leftTicks * tickSize;
+      addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "centered", anchorStrike - leftTicks * tickSize, anchorStrike - leftTicks * tickSize + widthAtomic);
+      addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "below-anchor", anchorStrike - widthAtomic, anchorStrike);
+      addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "above-anchor", anchorStrike, anchorStrike + widthAtomic);
 
-      if (lowerStrike < minStrike) {
-        lowerStrike = minStrike;
+      if (widthTicks >= 250n) {
+        addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "wide-around-anchor", anchorStrike - widthAtomic, anchorStrike + widthAtomic);
+        addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "wide-below-anchor", anchorStrike - 2n * widthAtomic, anchorStrike - widthAtomic);
+        addRangeCandidate(candidates, input, expiry, minStrike, tickSize, anchor, "wide-above-anchor", anchorStrike + widthAtomic, anchorStrike + 2n * widthAtomic);
+      }
+    }
+  }
+
+  return [...candidates.values()];
+}
+
+export function deriveMarketQuoteCandidates(input: DeriveMarketQuoteCandidatesInput): MarketQuoteCandidate[] {
+  const minStrike = BigInt(normalizeNonNegativeInteger(input.minStrike, "Market quote min strike"));
+  const tickSize = BigInt(normalizePositiveInteger(input.tickSize, "Market quote tick size"));
+  const expiry = normalizePositiveInteger(input.expiry, "Market quote expiry");
+  const candidates = new Map<string, MarketQuoteCandidate>();
+
+  for (const anchor of deriveAnchors(input)) {
+    const anchorStrike = snapToStrike(anchor.price, minStrike, tickSize);
+
+    for (const offsetTicks of BINARY_STRIKE_OFFSETS_TICKS) {
+      const strike = anchorStrike + offsetTicks * tickSize;
+
+      if (strike < minStrike) {
+        continue;
       }
 
-      let higherStrike = lowerStrike + widthAtomic;
-
-      if (higherStrike <= anchorStrike) {
-        higherStrike = anchorStrike + tickSize;
-        lowerStrike = higherStrike - widthAtomic;
-
-        if (lowerStrike < minStrike) {
-          lowerStrike = minStrike;
-          higherStrike = lowerStrike + widthAtomic;
-        }
-      }
-
-      const candidate: RangeQuoteCandidate = {
-        oracleId: input.oracleId,
-        oracleObjectId: input.oracleObjectId,
-        underlyingAsset: input.underlyingAsset,
-        expiry,
-        lowerStrike: lowerStrike.toString(),
-        higherStrike: higherStrike.toString(),
-        widthTicks: widthTicks.toString(),
-        anchorSource: anchor.source,
-        anchorPrice: anchor.price.toString(),
-      };
-
-      if (isQuoteableRangeCandidate(candidate)) {
-        const key = `${candidate.oracleId}:${candidate.expiry}:${candidate.lowerStrike}:${candidate.higherStrike}`;
+      for (const direction of ["up", "down"] satisfies MarketQuoteDirection[]) {
+        const candidate: MarketQuoteCandidate = {
+          oracleId: input.oracleId,
+          oracleObjectId: input.oracleObjectId,
+          underlyingAsset: input.underlyingAsset,
+          expiry,
+          strike: strike.toString(),
+          direction,
+          anchorSource: anchor.source,
+          anchorPrice: anchor.price.toString(),
+        };
+        const normalized = normalizeMarketKeyInput(candidate);
+        const key = `${normalized.oracleId}:${normalized.expiry}:${normalized.strike}:${normalized.direction}`;
         candidates.set(key, candidate);
       }
     }
@@ -211,34 +368,132 @@ export function isQuoteableRangeCandidate(candidate: RangeQuoteCandidate): boole
 export async function scanQuoteableRanges(
   params: ScanQuoteableRangesParams,
 ): Promise<RangeQuoteAttempt[]> {
+  return scanRangeQuoteQuantities({
+    candidates: params.candidates,
+    client: params.client,
+    sender: params.sender,
+    quantities: [params.quantity],
+    config: params.config,
+  });
+}
+
+export async function scanRangeQuoteQuantities(
+  params: ScanRangeQuoteQuantitiesParams,
+): Promise<RangeQuoteAttempt[]> {
   const attempts: RangeQuoteAttempt[] = [];
 
   for (const candidate of params.candidates) {
-    try {
-      const quote = await devInspectRangeQuote({
-        ...candidate,
-        client: params.client,
-        sender: params.sender,
-        quantity: params.quantity,
-        config: params.config,
-      });
+    for (const quantityValue of params.quantities) {
+      const quantity = normalizePositiveInteger(quantityValue, "Range quote quantity");
 
-      attempts.push({
-        ...candidate,
-        status: "success",
-        mintCostAtomic: quote.mintCostAtomic,
-        redeemPayoutAtomic: quote.redeemPayoutAtomic,
-      });
-    } catch (error) {
-      attempts.push({
-        ...candidate,
-        status: "failure",
-        abort: classifyQuoteAbort(error),
-      });
+      try {
+        const quote = await devInspectRangeQuote({
+          ...candidate,
+          client: params.client,
+          sender: params.sender,
+          quantity,
+          config: params.config,
+        });
+
+        attempts.push({
+          ...candidate,
+          status: "success",
+          quantity,
+          mintCostAtomic: quote.mintCostAtomic,
+          redeemPayoutAtomic: quote.redeemPayoutAtomic,
+          diagnostic: quote.diagnostic,
+        });
+      } catch (error) {
+        attempts.push({
+          ...candidate,
+          status: "failure",
+          quantity,
+          abort: classifyQuoteAbort(error),
+        });
+      }
     }
   }
 
   return attempts;
+}
+
+export async function scanBinaryQuoteSanity(
+  params: ScanBinaryQuoteSanityParams,
+): Promise<MarketQuoteAttempt[]> {
+  const attempts: MarketQuoteAttempt[] = [];
+
+  for (const candidate of params.candidates) {
+    for (const quantityValue of params.quantities) {
+      const quantity = normalizePositiveInteger(quantityValue, "Binary quote quantity");
+
+      try {
+        const quote = await devInspectBinaryQuote({
+          ...candidate,
+          client: params.client,
+          sender: params.sender,
+          quantity,
+          config: params.config,
+        });
+
+        attempts.push({
+          ...candidate,
+          status: "success",
+          quantity,
+          mintCostAtomic: quote.mintCostAtomic,
+          redeemPayoutAtomic: quote.redeemPayoutAtomic,
+          diagnostic: quote.diagnostic,
+        });
+      } catch (error) {
+        attempts.push({
+          ...candidate,
+          status: "failure",
+          quantity,
+          abort: classifyQuoteAbort(error),
+        });
+      }
+    }
+  }
+
+  return attempts;
+}
+
+function addRangeCandidate(
+  candidates: Map<string, RangeQuoteCandidate>,
+  input: DeriveCandidateRangesInput,
+  expiry: string,
+  minStrike: bigint,
+  tickSize: bigint,
+  anchor: { source: RangeQuoteCandidate["anchorSource"]; price: bigint },
+  strategy: RangeQuoteCandidateStrategy,
+  lowerStrikeValue: bigint,
+  higherStrikeValue: bigint,
+) {
+  const lowerStrike = lowerStrikeValue < minStrike ? minStrike : lowerStrikeValue;
+  const higherStrike = higherStrikeValue;
+
+  if (higherStrike <= lowerStrike || (higherStrike - lowerStrike) % tickSize !== 0n) {
+    return;
+  }
+
+  const candidate: RangeQuoteCandidate = {
+    oracleId: input.oracleId,
+    oracleObjectId: input.oracleObjectId,
+    underlyingAsset: input.underlyingAsset,
+    expiry,
+    lowerStrike: lowerStrike.toString(),
+    higherStrike: higherStrike.toString(),
+    widthTicks: ((higherStrike - lowerStrike) / tickSize).toString(),
+    anchorSource: anchor.source,
+    anchorPrice: anchor.price.toString(),
+    strategy,
+  };
+
+  if (isQuoteableRangeCandidate(candidate)) {
+    const key = `${candidate.oracleId}:${candidate.expiry}:${candidate.lowerStrike}:${candidate.higherStrike}`;
+    if (!candidates.has(key)) {
+      candidates.set(key, candidate);
+    }
+  }
 }
 
 function extractReturnValues(result: unknown): unknown[] {
@@ -257,25 +512,62 @@ function extractReturnValues(result: unknown): unknown[] {
   return [];
 }
 
-function decodeU64ReturnValue(value: unknown): string | null {
+function inspectU64ReturnValue(value: unknown, index: number): DevInspectU64ReturnDiagnostic {
   if (!Array.isArray(value) || value.length !== 2) {
-    return null;
+    return {
+      index,
+      typeTag: null,
+      byteLength: null,
+      decodedU64: null,
+      status: "missing-bytes",
+    };
   }
 
   const [bytes, type] = value;
+  const typeTag = typeToString(type);
+  const byteArray = Array.isArray(bytes) ? bytes : null;
+  const byteLength = byteArray?.length ?? null;
 
-  if (type !== "u64" || !Array.isArray(bytes) || bytes.length !== 8) {
-    return null;
+  if (!byteArray || !byteArray.every(isByte)) {
+    return {
+      index,
+      typeTag,
+      byteLength,
+      decodedU64: null,
+      status: "missing-bytes",
+    };
   }
 
-  if (
-    !bytes.every(
-      (byte) => typeof byte === "number" && Number.isInteger(byte) && byte >= 0 && byte <= 255,
-    )
-  ) {
-    return null;
+  if (typeTag !== "u64") {
+    return {
+      index,
+      typeTag,
+      byteLength,
+      decodedU64: null,
+      status: "unsupported-type",
+    };
   }
 
+  if (byteArray.length !== 8) {
+    return {
+      index,
+      typeTag,
+      byteLength,
+      decodedU64: null,
+      status: "invalid-length",
+    };
+  }
+
+  return {
+    index,
+    typeTag,
+    byteLength,
+    decodedU64: decodeLittleEndianU64(byteArray),
+    status: "decoded",
+  };
+}
+
+function decodeLittleEndianU64(bytes: readonly number[]): string {
   return bytes.reduce((result, byte, index) => {
     return result + (BigInt(byte) << (8n * BigInt(index)));
   }, 0n).toString();
@@ -316,6 +608,40 @@ function normalizeOptionalNonNegativeInteger(value: string | bigint | null | und
   }
 }
 
+function normalizeUniquePositiveBigints(values: readonly (string | bigint)[], label: string): bigint[] {
+  const unique = new Set<string>();
+
+  for (const value of values) {
+    unique.add(normalizePositiveInteger(value, label));
+  }
+
+  return [...unique].map((value) => BigInt(value)).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+}
+
+function normalizeMarketKeyInput(input: MarketKeyInput): {
+  oracleId: string;
+  expiry: string;
+  strike: string;
+  direction: MarketQuoteDirection;
+} {
+  if (!SUI_OBJECT_ID_PATTERN.test(input.oracleId)) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      "MarketKey oracle ID must be a 0x-prefixed Sui object ID.",
+    );
+  }
+
+  if (input.direction !== "up" && input.direction !== "down") {
+    throw new DeepBookPredictUnconfirmedBindingError("MarketKey direction must be up or down.");
+  }
+
+  return {
+    oracleId: input.oracleId,
+    expiry: normalizePositiveInteger(input.expiry, "MarketKey expiry"),
+    strike: normalizeNonNegativeInteger(input.strike, "MarketKey strike"),
+    direction: input.direction,
+  };
+}
+
 function snapToStrike(anchor: bigint, minStrike: bigint, tickSize: bigint): bigint {
   if (anchor <= minStrike) {
     return minStrike;
@@ -329,6 +655,22 @@ function snapToStrike(anchor: bigint, minStrike: bigint, tickSize: bigint): bigi
   return anchor - lower <= upper - anchor ? lower : upper;
 }
 
+function typeToString(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return String(value);
+}
+
+function isByte(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 255;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

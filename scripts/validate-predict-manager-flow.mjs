@@ -258,7 +258,13 @@ function parseEnv(contents) {
 }
 
 function keypairFromPrivateKey(privateKey) {
-  const decoded = decodeSuiPrivateKey(privateKey);
+  let decoded;
+
+  try {
+    decoded = decodeSuiPrivateKey(privateKey);
+  } catch {
+    throw new Error("SUI_PRIVATE_KEY could not be decoded.");
+  }
 
   switch (decoded.scheme) {
     case "ED25519":

@@ -10,17 +10,16 @@ import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTest
 import {
   RANGE_QUOTE_QUANTITY_SWEEP,
   createDeepBookPredictServerClient,
-  deriveCandidateRanges,
-  scanRangeQuoteQuantities,
+  deriveMarketQuoteCandidates,
+  scanBinaryQuoteSanity,
 } from "@rangepilot/sdk/deepbookPredict";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = path.join(repoRoot, ".env.local");
 const config = DEEPBOOK_PREDICT_TESTNET;
-const maxMintCostAtomic = 5_000_000n;
 
 main().catch((error) => {
-  console.error("Quoteable range scan failed:", sanitizeError(error));
+  console.error("Binary quote investigation failed:", sanitizeError(error));
   process.exitCode = 1;
 });
 
@@ -38,25 +37,23 @@ async function main() {
   });
   const server = createDeepBookPredictServerClient({ config });
 
-  console.log("Mode: quoteability scan");
+  console.log("Mode: binary quote sanity investigation");
   console.log(`Signer address: ${address}`);
   console.log(`Network: ${config.network}`);
   console.log(`Public server: ${config.publicServer}`);
   console.log(`Quantities tested: ${RANGE_QUOTE_QUANTITY_SWEEP.join(",")}`);
 
-  const activeOracleContexts = await loadActiveOracleContexts(server);
-  const candidates = activeOracleContexts.flatMap((context) => context.candidates);
-
-  console.log(`Active oracles scanned: ${activeOracleContexts.length}`);
-  console.log(`Candidate ranges tested: ${candidates.length}`);
+  const contexts = await loadActiveOracleContexts(server);
+  const candidates = contexts.flatMap((context) => context.candidates);
+  console.log(`Active oracles scanned: ${contexts.length}`);
+  console.log(`Binary candidates tested: ${candidates.length}`);
 
   if (candidates.length === 0) {
-    printOracleBlockers(activeOracleContexts);
-    console.log("Quoteable candidates found: 0");
+    printOracleBlockers(contexts);
     return;
   }
 
-  const attempts = await scanRangeQuoteQuantities({
+  const attempts = await scanBinaryQuoteSanity({
     candidates,
     client,
     sender: address,
@@ -64,20 +61,26 @@ async function main() {
     config,
   });
   const successes = attempts.filter((attempt) => attempt.status === "success");
-  const ranked = rankQuoteableAttempts(successes);
 
-  printOracleSummary(activeOracleContexts);
-  printQuoteableCandidates(ranked);
+  console.log("\nBinary quote attempts");
+  for (const attempt of attempts) {
+    printAttempt(attempt);
+  }
+
+  console.log("\nBinary quote summary");
+  console.log(`attempts: ${attempts.length}`);
+  console.log(`successes: ${successes.length}`);
+  console.log(`failures: ${attempts.length - successes.length}`);
   printFirstNonzero(successes);
   printFailureSummary(attempts);
-  printDecodeDiagnostic(successes[0] ?? null);
 }
 
 async function loadActiveOracleContexts(server) {
   const oracles = await server.getOracles(config.predictId);
-  const nowMs = Date.now();
+  const nowMs = BigInt(Date.now());
   const active = oracles.filter((oracle) => {
-    return oracle.status === "active" && normalizeIntegerOrNull(oracle.expiry) !== null && BigInt(normalizeIntegerOrNull(oracle.expiry)) > BigInt(nowMs);
+    const expiry = normalizeIntegerOrNull(oracle.expiry);
+    return oracle.status === "active" && expiry !== null && BigInt(expiry) > nowMs;
   });
   const contexts = [];
 
@@ -86,8 +89,7 @@ async function loadActiveOracleContexts(server) {
     const oracleState = oracleId ? await tryRead("oracle_state", () => server.getOracleState(oracleId)) : null;
     const oracleRecord = selectOracleRecord(oracle, oracleState);
     const latestPrice = isRecord(oracleState?.value?.latest_price) ? oracleState.value.latest_price : null;
-    const context = buildOracleContext(oracleRecord, latestPrice);
-    contexts.push(context);
+    contexts.push(buildOracleContext(oracleRecord, latestPrice));
   }
 
   return contexts;
@@ -116,11 +118,11 @@ function buildOracleContext(oracleRecord, latestPrice) {
   }
 
   if (!spot && !forward) {
-    blockers.push("Latest spot/forward unavailable; scanner cannot derive market-centered ranges.");
+    blockers.push("Latest spot/forward unavailable; scanner cannot derive binary strikes.");
   }
 
   const candidates = oracleId && expiry && minStrike && tickSize && (spot || forward)
-    ? deriveCandidateRanges({
+    ? deriveMarketQuoteCandidates({
         oracleId,
         oracleObjectId: oracleId,
         underlyingAsset,
@@ -136,8 +138,6 @@ function buildOracleContext(oracleRecord, latestPrice) {
     oracleId: oracleId ?? "unknown",
     underlyingAsset,
     expiry: expiry ?? "unknown",
-    minStrike: minStrike ?? "unknown",
-    tickSize: tickSize ?? "unknown",
     spot,
     forward,
     blockers,
@@ -145,77 +145,40 @@ function buildOracleContext(oracleRecord, latestPrice) {
   };
 }
 
-function rankQuoteableAttempts(attempts) {
-  return [...attempts].sort((left, right) => {
-    const leftCost = BigInt(left.mintCostAtomic);
-    const rightCost = BigInt(right.mintCostAtomic);
-    const leftSafe = leftCost > 0n && leftCost <= maxMintCostAtomic ? 0 : 1;
-    const rightSafe = rightCost > 0n && rightCost <= maxMintCostAtomic ? 0 : 1;
-
-    if (leftSafe !== rightSafe) {
-      return leftSafe - rightSafe;
-    }
-
-    if (leftCost !== rightCost) {
-      return leftCost < rightCost ? -1 : 1;
-    }
-
-    const leftWidth = BigInt(left.widthTicks);
-    const rightWidth = BigInt(right.widthTicks);
-
-    if (leftWidth !== rightWidth) {
-      return leftWidth < rightWidth ? -1 : 1;
-    }
-
-    const leftQuantity = BigInt(left.quantity);
-    const rightQuantity = BigInt(right.quantity);
-    return leftQuantity < rightQuantity ? -1 : leftQuantity > rightQuantity ? 1 : 0;
-  });
-}
-
-function printOracleSummary(contexts) {
-  console.log("\nActive oracle scan summary");
-
-  for (const context of contexts) {
+function printAttempt(attempt) {
+  if (attempt.status === "success") {
     console.log(
-      `- ${context.oracleId} underlying=${context.underlyingAsset ?? "unknown"} expiry=${context.expiry} spot=${context.spot ?? "unknown"} forward=${context.forward ?? "unknown"} candidates=${context.candidates.length}`,
+      `oracle_id=${attempt.oracleId} underlying=${attempt.underlyingAsset ?? "unknown"} expiry=${attempt.expiry} strike=${attempt.strike} direction=${attempt.direction} quantity=${attempt.quantity} mint_cost=${attempt.mintCostAtomic} redeem_payout=${attempt.redeemPayoutAtomic} status=success abort_module= abort_code=`,
     );
-
-    for (const blocker of context.blockers) {
-      console.log(`  blocker: ${blocker}`);
-    }
-  }
-}
-
-function printQuoteableCandidates(ranked) {
-  console.log("\nQuoteable candidates");
-  console.log(`Quoteable candidates found: ${ranked.length}`);
-
-  for (const [index, candidate] of ranked.slice(0, 10).entries()) {
-    const mintCost = BigInt(candidate.mintCostAtomic);
-    const safety = mintCost <= 0n
-      ? "zero-cost-blocked"
-      : mintCost <= maxMintCostAtomic
-        ? "mint-cap-ok"
-        : "above-mint-cap";
-    console.log(
-      `${index + 1}. oracle=${candidate.oracleId} underlying=${candidate.underlyingAsset ?? "unknown"} expiry=${candidate.expiry} anchor=${candidate.anchorSource}:${candidate.anchorPrice} strategy=${candidate.strategy} lower=${candidate.lowerStrike} higher=${candidate.higherStrike} widthTicks=${candidate.widthTicks} quantity=${candidate.quantity} mint=${candidate.mintCostAtomic} redeem=${candidate.redeemPayoutAtomic} ${safety}`,
-    );
-  }
-}
-
-function printFirstNonzero(successes) {
-  const first = rankQuoteableAttempts(successes).find((attempt) => BigInt(attempt.mintCostAtomic) > 0n);
-  console.log("\nFirst nonzero quote");
-
-  if (!first) {
-    console.log("none");
     return;
   }
 
   console.log(
-    `oracle=${first.oracleId} quantity=${first.quantity} mint=${first.mintCostAtomic} redeem=${first.redeemPayoutAtomic} lower=${first.lowerStrike} higher=${first.higherStrike} strategy=${first.strategy}`,
+    `oracle_id=${attempt.oracleId} underlying=${attempt.underlyingAsset ?? "unknown"} expiry=${attempt.expiry} strike=${attempt.strike} direction=${attempt.direction} quantity=${attempt.quantity} mint_cost= redeem_payout= status=abort abort_module=${attempt.abort.module ?? "unknown"} abort_code=${attempt.abort.code ?? "unknown"}`,
   );
+}
+
+function printFirstNonzero(successes) {
+  const sorted = [...successes].sort((left, right) => {
+    const leftQuantity = BigInt(left.quantity);
+    const rightQuantity = BigInt(right.quantity);
+
+    if (leftQuantity !== rightQuantity) {
+      return leftQuantity < rightQuantity ? -1 : 1;
+    }
+
+    const leftCost = BigInt(left.mintCostAtomic);
+    const rightCost = BigInt(right.mintCostAtomic);
+    return leftCost < rightCost ? -1 : leftCost > rightCost ? 1 : 0;
+  });
+  const first = sorted.find((attempt) => BigInt(attempt.mintCostAtomic) > 0n);
+
+  if (!first) {
+    console.log("first nonzero binary mint cost: none");
+    return;
+  }
+
+  console.log(`first nonzero binary mint cost: quantity=${first.quantity} mint=${first.mintCostAtomic} redeem=${first.redeemPayoutAtomic} oracle=${first.oracleId} strike=${first.strike} direction=${first.direction}`);
 }
 
 function printFailureSummary(attempts) {
@@ -227,7 +190,7 @@ function printFailureSummary(attempts) {
     groups.set(key, (groups.get(key) ?? 0) + 1);
   }
 
-  console.log("\nFailure summary");
+  console.log("failure summary:");
 
   if (groups.size === 0) {
     console.log("none");
@@ -236,21 +199,6 @@ function printFailureSummary(attempts) {
 
   for (const [key, count] of [...groups.entries()].sort((left, right) => right[1] - left[1])) {
     console.log(`- ${key}: ${count}`);
-  }
-}
-
-function printDecodeDiagnostic(attempt) {
-  console.log("\nReturn decoding diagnostic");
-
-  if (!attempt?.diagnostic) {
-    console.log("none");
-    return;
-  }
-
-  console.log(`returnValues count: ${attempt.diagnostic.returnValueCount}`);
-
-  for (const entry of attempt.diagnostic.returns) {
-    console.log(`return ${entry.index}: type=${entry.typeTag ?? "unknown"} bytes=${entry.byteLength ?? "unknown"} decoded=${entry.decodedU64 ?? "null"} status=${entry.status}`);
   }
 }
 

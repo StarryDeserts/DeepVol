@@ -102,13 +102,19 @@ This is a successful quote return shape but not a mintable candidate under the c
 Mint cost 0 must be greater than 0.
 ```
 
+## Phase 1C-fix2 follow-up
+
+Phase 1C-fix2 added a quantity sweep, safe devInspect return diagnostics, binary quote sanity checks, and wider/asymmetric range candidate strategies. See [RANGE_QUOTE_UNITS_AND_DECODING.md](./RANGE_QUOTE_UNITS_AND_DECODING.md).
+
+The expanded range investigation tested quantities `1`, `1000`, `10000`, `100000`, `1000000`, `5000000`, `10000000`, and `50000000` across `3136` range quote attempts. It found the first positive range quote at `quantity=1`, `mint_cost=1`, oracle `0xe66aabab334efda1e9650d0ad26557bcfb28fa6012e267ec3bf7cdc71ff59084`, lower `68256000000000`, higher `88256000000000`, strategy `wide-around-anchor`. A later scanner run with refreshed live prices tested `389` candidates and found `3109` successful quote attempts, with current best `quantity=1`, `mint_cost=1`, lower `68012000000000`, higher `88012000000000`. This shows the previous all-zero result was primarily a candidate selection issue, not a broken decoder.
+
+The binary sanity check completed `1152` successful devInspect attempts through `market_key::up` / `market_key::down` and `predict::get_trade_amounts`. Its first nonzero binary quote was `quantity=1000`, `mint_cost=368`, `redeem_payout=349`, strike `78341000000000`, direction `up`.
+
 ## Current blockers
 
-- The scanner found successful quote return shapes, but observed `mint_cost = 0` and `redeem_payout = 0` for the selected validation candidate.
-- The first nonzero positive quote remains pending.
-- The first real `predict::mint_range<DUSDC>` transaction remains unexecuted.
+- The first real `predict::mint_range<DUSDC>` transaction remains unexecuted until the gated validation script selects a positive quote and all safety gates pass.
 - `RangeMinted` event shape and post-mint portfolio/positions readback remain unverified.
 
 ## Next recommended action
 
-Expand quote candidate search beyond centered spot/forward widths if official source confirms safe additional dimensions, such as wider ranges, asymmetric ranges around forward, adjacent in-the-money/out-of-the-money bands, or an official quoteability/read endpoint. Keep mint blocked until the official quote path returns `mint_cost > 0`, the cost is within the 5 DUSDC cap, and manager balance covers the quote.
+Run the gated quote validation, then execute `mint_range<DUSDC>` only if the official quote path returns `mint_cost > 0`, the cost is within the 5 DUSDC cap, manager balance covers the quote, and all runtime safety gates pass.

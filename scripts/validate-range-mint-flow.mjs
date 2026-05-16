@@ -12,9 +12,10 @@ import {
   buildMintRangeTransaction,
   buildSuiExplorerTransactionUrl,
   createDeepBookPredictServerClient,
+  RANGE_QUOTE_QUANTITY_SWEEP,
   deriveCandidateRanges,
   parseRangeMintedEvent,
-  scanQuoteableRanges,
+  scanRangeQuoteQuantities,
 } from "@rangepilot/sdk/deepbookPredict";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -24,7 +25,6 @@ const config = DEEPBOOK_PREDICT_TESTNET;
 const verifiedSignerAddress = "0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5";
 const verifiedManagerId = "0x6f341e107a87812fd4fddfc4fc50a7e3ab5bc21cabff2cd39dd86b662fa75599";
 const maxMintCostAtomic = 5_000_000n;
-const quantity = "1";
 const forbiddenTargets = ["redeem_range", "::supply", "::withdraw"];
 
 main().catch((error) => {
@@ -73,7 +73,7 @@ async function main() {
     expiry: quoteContext.range.expiry,
     lowerStrike: quoteContext.range.lowerStrike,
     higherStrike: quoteContext.range.higherStrike,
-    quantity,
+    quantity: quoteContext.quantity,
     config,
     allowRealTestnetMint: true,
   });
@@ -111,7 +111,7 @@ async function buildQuoteContext({ server, client, address }) {
   const managerOwner = isRecord(managerSummary) && typeof managerSummary.owner === "string"
     ? managerSummary.owner
     : null;
-  const managerBalanceAtomic = findLikelyBalance(managerSummary);
+  const managerBalanceAtomic = findDusdcManagerBalance(managerSummary);
 
   if (managerOwner !== address) {
     blockers.push(`Manager owner mismatch or unavailable: expected ${address}, got ${managerOwner ?? "unknown"}.`);
@@ -124,11 +124,11 @@ async function buildQuoteContext({ server, client, address }) {
   const oracleContexts = await loadActiveOracleContexts(server);
   const allCandidates = oracleContexts.flatMap((context) => context.candidates);
   const quoteAttempts = allCandidates.length > 0
-    ? await scanQuoteableRanges({
+    ? await scanRangeQuoteQuantities({
         candidates: allCandidates,
         client,
         sender: address,
-        quantity,
+        quantities: RANGE_QUOTE_QUANTITY_SWEEP,
         config,
       })
     : [];
@@ -167,6 +167,8 @@ async function buildQuoteContext({ server, client, address }) {
         widthTicks: quote.widthTicks,
         anchorSource: quote.anchorSource,
         anchorPrice: quote.anchorPrice,
+        strategy: quote.strategy,
+        quantity: quote.quantity,
       }
     : null;
 
@@ -211,7 +213,7 @@ async function buildQuoteContext({ server, client, address }) {
 
     if (managerBalanceAtomic !== null && BigInt(managerBalanceAtomic) < mintCost) {
       blockers.push(
-        `Manager balance ${managerBalanceAtomic} atomic DUSDC is below mint cost ${quote.mintCostAtomic}.`,
+        `quote valid but manager balance insufficient: manager balance ${managerBalanceAtomic} atomic DUSDC is below mint cost ${quote.mintCostAtomic}.`,
       );
     }
   }
@@ -230,7 +232,7 @@ async function buildQuoteContext({ server, client, address }) {
     quoteAttempts,
     quoteableCandidates,
     range,
-    quantity,
+    quantity: quote?.quantity ?? null,
     quote,
     gates: {
       passed: blockers.length === 0,
@@ -330,7 +332,14 @@ function rankQuoteableAttempts(attempts) {
 
     const leftWidth = BigInt(left.widthTicks);
     const rightWidth = BigInt(right.widthTicks);
-    return leftWidth < rightWidth ? -1 : leftWidth > rightWidth ? 1 : 0;
+
+    if (leftWidth !== rightWidth) {
+      return leftWidth < rightWidth ? -1 : 1;
+    }
+
+    const leftQuantity = BigInt(left.quantity);
+    const rightQuantity = BigInt(right.quantity);
+    return leftQuantity < rightQuantity ? -1 : leftQuantity > rightQuantity ? 1 : 0;
   });
 }
 
@@ -424,7 +433,13 @@ function parseEnv(contents) {
 }
 
 function keypairFromPrivateKey(privateKey) {
-  const decoded = decodeSuiPrivateKey(privateKey);
+  let decoded;
+
+  try {
+    decoded = decodeSuiPrivateKey(privateKey);
+  } catch {
+    throw new Error("SUI_PRIVATE_KEY could not be decoded.");
+  }
 
   switch (decoded.scheme) {
     case "ED25519":
@@ -504,7 +519,8 @@ function printQuoteSummary(context) {
   console.log(`expiry: ${context.activeOracle?.expiry ?? "unknown"}`);
   console.log(`strike grid: ${context.strikeGrid ? `${context.strikeGrid.minStrike}/${context.strikeGrid.tickSize} (${context.strikeGrid.source})` : "unavailable"}`);
   console.log(`lower/higher strikes: ${context.range ? `${context.range.lowerStrike}/${context.range.higherStrike}` : "unavailable"}`);
-  console.log(`range anchor: ${context.range ? `${context.range.anchorSource}:${context.range.anchorPrice} widthTicks=${context.range.widthTicks}` : "unavailable"}`);
+  console.log(`range anchor: ${context.range ? `${context.range.anchorSource}:${context.range.anchorPrice} strategy=${context.range.strategy} widthTicks=${context.range.widthTicks}` : "unavailable"}`);
+  console.log(`quantity: ${context.quantity ?? "unavailable"}`);
   console.log(`win condition: ${RANGE_WIN_CONDITION_COPY}`);
   console.log(`ask-bounds: ${formatReadResult(context.askBounds)} (diagnostic only if null)`);
   console.log(`quote preview: ${context.quote ? `mint=${context.quote.mintCostAtomic} redeem=${context.quote.redeemPayoutAtomic}` : "blocked (no quoteable candidate)"}`);
@@ -560,38 +576,24 @@ function formatReadResult(result) {
   return `${result.source}: ${String(result.value)}`;
 }
 
-function findLikelyBalance(value) {
-  if (!isRecord(value)) {
+function findDusdcManagerBalance(value) {
+  if (!isRecord(value) || !Array.isArray(value.balances)) {
     return null;
   }
 
-  const matchingQuoteBalance = Array.isArray(value.balances)
-    ? value.balances.find((entry) => {
-        return (
-          isRecord(entry) &&
-          typeof entry.quote_asset === "string" &&
-          entry.quote_asset.endsWith("::dusdc::DUSDC")
-        );
-      })
-    : null;
+  const matchingQuoteBalance = value.balances.find((entry) => {
+    return (
+      isRecord(entry) &&
+      typeof entry.quote_asset === "string" &&
+      entry.quote_asset.endsWith("::dusdc::DUSDC")
+    );
+  });
 
-  if (matchingQuoteBalance && isRecord(matchingQuoteBalance)) {
-    const balance = numericAtomicString(matchingQuoteBalance.balance);
-
-    if (balance !== null) {
-      return balance;
-    }
+  if (!matchingQuoteBalance || !isRecord(matchingQuoteBalance)) {
+    return null;
   }
 
-  for (const field of ["trading_balance", "account_value", "balance"]) {
-    const candidate = numericAtomicString(value[field]);
-
-    if (candidate !== null) {
-      return candidate;
-    }
-  }
-
-  return null;
+  return numericAtomicString(matchingQuoteBalance.balance);
 }
 
 function numericAtomicString(value) {

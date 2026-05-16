@@ -1,13 +1,13 @@
 ---
 Purpose: Record Phase 1C range quote and mint_range Testnet validation artifacts.
 Audience: Protocol integrators, transaction-builder authors, frontend developers, reviewers, and AI agents.
-Status: Quote-only and quoteability scanner validation completed on 2026-05-16; mint_range blocked by zero-cost quote safety gate.
+Status: Quote-only, quoteability scanner, quantity-unit, return-decoding, and binary quote validations completed on 2026-05-16; first mint_range attempt failed in `predict::assert_mintable_ask` before digest.
 Source of truth relationship: Supplements official contract info, protocol notes, and entrypoint binding docs; runtime market state remains subject to live confirmation.
 ---
 
 # Range Mint Testnet Validation
 
-Phase 1C attempted the official DeepBook Predict range quote path through a local signer validation script. The first run discovered an active oracle at runtime, derived a candidate range from public server oracle metadata, attempted `predict::get_range_trade_amounts` through devInspect, and correctly blocked before `predict::mint_range<DUSDC>` because mint safety gates did not pass. Phase 1C-fix added a quoteability scanner that derives market-centered candidates around runtime spot/forward prices; it reached successful quote return decoding, but the selected quote returned zero mint cost and remains blocked before mint.
+Phase 1C attempted the official DeepBook Predict range quote path through a local signer validation script. The first run discovered an active oracle at runtime, derived a candidate range from public server oracle metadata, attempted `predict::get_range_trade_amounts` through devInspect, and correctly blocked before `predict::mint_range<DUSDC>` because mint safety gates did not pass. Phase 1C-fix added a quoteability scanner that derives market-centered candidates around runtime spot/forward prices; it reached successful quote return decoding, but the selected quote returned zero mint cost and remained blocked before mint. Phase 1C-fix2 added quantity-unit sweep, safe return-decoding diagnostics, binary quote sanity checks, and wider/asymmetric candidate strategies; it found positive official range quotes and nonzero binary quotes, then reached the real mint submission path before failing in `predict::assert_mintable_ask` with abort code `7` before digest.
 
 No private key, `.env.local` contents, or `.local/` cache contents are documented here.
 
@@ -17,7 +17,7 @@ No private key, `.env.local` contents, or `.local/` cache contents are documente
 |---|---|
 | Test date | 2026-05-16 |
 | Network | Sui Testnet |
-| Mode | Quote-only validation; no mint submitted |
+| Mode | Quote-only validation passed; gated mint attempt failed before digest |
 | Signer public address | `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5` |
 | Manager ID | `0x6f341e107a87812fd4fddfc4fc50a7e3ab5bc21cabff2cd39dd86b662fa75599` |
 | Manager owner source | Public server `/managers/:manager_id/summary` |
@@ -66,40 +66,51 @@ This confirmed the script could reach the official quote path, but the selected 
 
 The gated `npm run validate:range-quote` run selected oracle `0xe66aabab334efda1e9650d0ad26557bcfb28fa6012e267ec3bf7cdc71ff59084`, expiry `1779004800000`, range `78375000000000 / 78376000000000`, anchor `forward:78374764969527`, and width `1` tick. The decoded quote was `mint=0` and `redeem=0`, so mint remained blocked because mint cost must be greater than zero.
 
-See [RANGE_QUOTEABILITY_INVESTIGATION.md](./RANGE_QUOTEABILITY_INVESTIGATION.md) for scanner methodology and full summarized results.
+See [RANGE_QUOTEABILITY_INVESTIGATION.md](./RANGE_QUOTEABILITY_INVESTIGATION.md) for scanner methodology and full summarized results. See [RANGE_QUOTE_UNITS_AND_DECODING.md](./RANGE_QUOTE_UNITS_AND_DECODING.md) for the Phase 1C-fix2 quantity-unit, return-decoding, and binary quote investigation.
+
+## Phase 1C-fix2 quote units and binary sanity result
+
+`npm run investigate:range-quote-units` swept quantities `1`, `1000`, `10000`, `100000`, `1000000`, `5000000`, `10000000`, and `50000000` across expanded centered, adjacent, and wide range candidates. It completed `3136` official range quote attempts with `3135` successes and found the first nonzero range quote at `quantity=1`, `mint_cost=1`, `redeem_payout=0`, oracle `0xe66aabab334efda1e9650d0ad26557bcfb28fa6012e267ec3bf7cdc71ff59084`, lower `68256000000000`, higher `88256000000000`, strategy `wide-around-anchor`. A later `npm run find:quoteable-range` run with refreshed live prices found `3109` quoteable attempts and selected current best `quantity=1`, `mint_cost=1`, lower `68012000000000`, higher `88012000000000`, strategy `wide-around-anchor`.
+
+`npm run investigate:binary-quote` completed `1152` official binary quote attempts with `1152` successes and found the first nonzero binary quote at `quantity=1000`, `mint_cost=368`, `redeem_payout=349`, strike `78341000000000`, direction `up`.
+
+This rules out broken u64-pair decoding as the cause of the previous all-zero range result. Expanded range selection is required; quantity still affects rounding and payout precision.
 
 ## Mint safety gate result
 
+The gated `npm run validate:range-quote` run selected a runtime active BTC oracle and passed all quote-only safety gates.
+
 | Gate | Result |
 |---|---|
-| Runtime active oracle selected | Passed |
+| Runtime active oracle selected | Passed (`0xe66aabab334efda1e9650d0ad26557bcfb28fa6012e267ec3bf7cdc71ff59084`) |
 | Oracle status active/live | Passed (`active`) |
-| Expiry from oracle state/metadata | Passed |
-| Strike metadata available | Passed for `min_strike` and `tick_size`; full eligibility still constrained by quote result |
-| `lowerStrike < higherStrike` | Passed |
+| Expiry from oracle state/metadata | Passed (`1779004800000`) |
+| Strike metadata available | Passed (`min_strike = 50000000000000`, `tick_size = 1000000000`) |
+| `lowerStrike < higherStrike` | Passed (`67801000000000 / 87801000000000`) |
 | Win condition displayed as `(lower, higher]` | Passed |
-| `get_range_trade_amounts` preview succeeds | Passed in Phase 1C-fix scanner |
-| Mint cost readable | Passed (`0`) |
-| Mint cost greater than zero | Failed |
-| Mint cost `<= 5 DUSDC` | Passed (`0`) |
-| Manager balance `>= mint cost` | Passed, but mint remains blocked by zero cost |
+| `get_range_trade_amounts` preview succeeds | Passed |
+| Mint cost readable | Passed (`1`) |
+| Mint cost greater than zero | Passed |
+| Mint cost `<= 5 DUSDC` | Passed (`1`) |
+| Manager balance `>= mint cost` | Passed (`2000000` atomic DUSDC) |
 | Verified manager ID and owner | Passed |
 | Sui Testnet only | Passed |
-| Warning before real mint | Not reached |
+| Warning before real mint | Reached; mint attempt then failed in `predict::assert_mintable_ask` |
 | No private key output | Passed |
 | Forbidden actions blocked | Passed |
 
-Safety gate status: blocked. No `mint_range<DUSDC>` transaction was submitted.
+Safety gate status: passed for quote-only validation. `validate:range-mint` reached the real Testnet mint submission path, then failed before returning a digest with `MoveAbort` code `7` in `predict::assert_mintable_ask`. This is now the precise mint blocker; do not retry minting until that ask/mintability gate is understood.
 
 ## Mint validation
 
 | Field | Result |
 |---|---|
-| Executed | No |
+| Executed | Attempted after quote safety gates passed, but no successful digest returned |
 | Digest | N/A |
 | Explorer URL | N/A |
 | `RangeMinted` event | N/A |
 | Manager/positions readback after mint | N/A |
+| Failure | `MoveAbort` code `7` in `0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138::predict::assert_mintable_ask` |
 
 ## Public server observations
 
@@ -111,14 +122,15 @@ Safety gate status: blocked. No `mint_range<DUSDC>` transaction was submitted.
 
 - The previous `pricing_config::quote_spread_from_fair_price` abort code `1` is understood as an invalid boundary fair price for the selected range.
 - Ask bounds are `null`; this is diagnostic and must not be treated as mint eligibility by itself.
-- Successful quote return mapping for `(mint_cost, redeem_payout)` is verified by Phase 1C-fix scanner devInspect results.
-- The selected quote returned `mint_cost = 0`, so mint remains blocked by safety gates.
-- First real `predict::mint_range<DUSDC>` remains unexecuted.
+- Successful quote return mapping for `(mint_cost, redeem_payout)` is verified by Phase 1C-fix and Phase 1C-fix2 devInspect results.
+- Phase 1C-fix2 found positive official range quotes, including `quantity=1 mint_cost=1` on a wide-around-anchor range, so the previous zero-cost result is no longer the only observed range quote outcome.
+- `validate:range-mint` selected a positive quote and reached the real mint submission path, but the mint failed with `MoveAbort` code `7` in `predict::assert_mintable_ask` before returning a digest.
+- First successful `predict::mint_range<DUSDC>` remains unexecuted.
 - `RangeMinted` event shape and portfolio/positions readback after mint remain unverified.
 
 ## Browser wallet manual validation checklist
 
-Browser validation remains pending and should wait until quote safety gates pass in the automated local signer path.
+Browser validation remains pending and should wait until the `predict::assert_mintable_ask` blocker is understood in the automated local signer path.
 
 - [ ] Open `apps/web` locally.
 - [ ] Connect browser wallet.
@@ -135,7 +147,6 @@ Browser validation remains pending and should wait until quote safety gates pass
 
 ## Next steps
 
-1. Expand candidate search for the first positive nonzero quote, preferably using official source-confirmed dimensions such as wider or asymmetric ranges.
-2. Keep `npm run validate:range-quote` as the gate for selecting the best runtime candidate.
-3. Only run `npm run validate:range-mint` after the quote has `mint_cost > 0`, cost is within the 5 DUSDC cap, and all safety gates pass.
-4. Update this document with the first successful positive quote and mint digest, or with the next precise blocker.
+1. Confirm the meaning and requirements of `predict::assert_mintable_ask` abort code `7` from the pinned `predict-testnet-4-16` source before retrying mint.
+2. Update range quote/mint gating so a positive quote is not treated as sufficient when the official mint ask gate would reject it.
+3. Retry `npm run validate:range-mint` only after the ask/mintability blocker is understood and the script can preflight it safely.

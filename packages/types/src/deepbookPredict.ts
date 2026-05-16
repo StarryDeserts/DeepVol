@@ -136,6 +136,23 @@ export type DeepBookPredictManagerSummary = Record<string, unknown>;
 
 export type DeepBookPredictManagerPositionsSummary = Record<string, unknown>;
 
+export type DevInspectU64ReturnDiagnostic = {
+  index: number;
+  typeTag: string | null;
+  byteLength: number | null;
+  decodedU64: string | null;
+  status: "decoded" | "unsupported-type" | "invalid-length" | "missing-bytes";
+};
+
+export type DevInspectU64PairDiagnostic = {
+  returnValueCount: number;
+  returns: DevInspectU64ReturnDiagnostic[];
+  decoded: {
+    mintCostAtomic: string;
+    redeemPayoutAtomic: string;
+  } | null;
+};
+
 export type RangeKeyInput = {
   oracleId: string;
   expiry: string | bigint;
@@ -149,6 +166,7 @@ export type RangeQuotePreview = {
   mintCostAtomic: string;
   redeemPayoutAtomic: string;
   source: "devInspect";
+  diagnostic?: DevInspectU64PairDiagnostic;
 };
 
 export type RangeQuoteAbortClassification = {
@@ -158,26 +176,79 @@ export type RangeQuoteAbortClassification = {
   message: string;
 };
 
+export type RangeQuoteCandidateStrategy =
+  | "centered"
+  | "below-anchor"
+  | "above-anchor"
+  | "wide-around-anchor"
+  | "wide-below-anchor"
+  | "wide-above-anchor";
+
 export type RangeQuoteCandidate = RangeKeyInput & {
   oracleObjectId: DeepBookPredictObjectId;
   underlyingAsset: string | null;
   widthTicks: string;
   anchorSource: "spot" | "forward";
   anchorPrice: string;
+  strategy: RangeQuoteCandidateStrategy;
 };
 
 export type RangeQuoteAttemptSuccess = RangeQuoteCandidate & {
   status: "success";
+  quantity: string;
   mintCostAtomic: string;
   redeemPayoutAtomic: string;
+  diagnostic?: DevInspectU64PairDiagnostic;
 };
 
 export type RangeQuoteAttemptFailure = RangeQuoteCandidate & {
   status: "failure";
+  quantity: string;
   abort: RangeQuoteAbortClassification;
 };
 
 export type RangeQuoteAttempt = RangeQuoteAttemptSuccess | RangeQuoteAttemptFailure;
+
+export type MarketQuoteDirection = "up" | "down";
+
+export type MarketKeyInput = {
+  oracleId: string;
+  expiry: string | bigint;
+  strike: string | bigint;
+  direction: MarketQuoteDirection;
+};
+
+export type MarketQuoteCandidate = MarketKeyInput & {
+  oracleObjectId: DeepBookPredictObjectId;
+  underlyingAsset: string | null;
+  anchorSource: "spot" | "forward";
+  anchorPrice: string;
+};
+
+export type MarketQuotePreview = {
+  marketKey: MarketKeyInput;
+  quantity: string;
+  mintCostAtomic: string;
+  redeemPayoutAtomic: string;
+  source: "devInspect";
+  diagnostic?: DevInspectU64PairDiagnostic;
+};
+
+export type MarketQuoteAttemptSuccess = MarketQuoteCandidate & {
+  status: "success";
+  quantity: string;
+  mintCostAtomic: string;
+  redeemPayoutAtomic: string;
+  diagnostic?: DevInspectU64PairDiagnostic;
+};
+
+export type MarketQuoteAttemptFailure = MarketQuoteCandidate & {
+  status: "failure";
+  quantity: string;
+  abort: RangeQuoteAbortClassification;
+};
+
+export type MarketQuoteAttempt = MarketQuoteAttemptSuccess | MarketQuoteAttemptFailure;
 
 export type RangeMintParams = RangeKeyInput & {
   managerId: DeepBookPredictObjectId;
