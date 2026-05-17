@@ -1,23 +1,21 @@
-import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 import { Transaction } from "@mysten/sui/transactions";
+import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
+import { RANGEPILOT_TESTNET } from "@rangepilot/config/rangePilotTestnet";
 import type {
+  CreateProtocolVaultParams,
   FollowStrategyAndMintPlan,
   FollowStrategyParams,
   RangePilotWrapperConfig,
+  WithdrawPlatformFeesParams,
 } from "@rangepilot/types/rangePilotStrategy";
 import { DeepBookPredictUnconfirmedBindingError } from "../deepbookPredict/errors.ts";
 
-export const RANGE_PILOT_WRAPPER_TESTNET: RangePilotWrapperConfig = {
-  network: "testnet",
-  packageId: null,
-  wrapperPackageId: null,
-  moduleName: "strategy",
-  platformFeeRecipient: null,
-};
+export const RANGE_PILOT_WRAPPER_TESTNET = RANGEPILOT_TESTNET;
 
 export type BuildFollowStrategyAndMintTransactionOptions = FollowStrategyParams & {
   wrapper?: RangePilotWrapperConfig;
   wrapperPackageId?: string;
+  protocolVaultId?: string;
   requireQuotePreviewPassed?: boolean;
   requireFullMintPreflightPassed?: boolean;
 };
@@ -26,6 +24,7 @@ export function buildFollowStrategyAndMintPlan(
   params: BuildFollowStrategyAndMintTransactionOptions,
 ): FollowStrategyAndMintPlan {
   const wrapperPackageId = resolveWrapperPackageId(params);
+  const protocolVaultId = resolveProtocolVaultId(params);
 
   return {
     strategyId: params.strategyId,
@@ -33,6 +32,7 @@ export function buildFollowStrategyAndMintPlan(
     managerId: params.managerId,
     oracleObjectId: params.oracleObjectId,
     feeCoinObjectId: params.feeCoinObjectId,
+    protocolVaultId,
     feeAmountAtomic: normalizePositiveInteger(
       params.feeAmountAtomic,
       "Strategy follow fee amount",
@@ -64,9 +64,57 @@ export function buildFollowStrategyAndMintTransaction(
       tx.object(plan.managerId),
       tx.object(plan.oracleObjectId),
       tx.object(plan.feeCoinObjectId),
+      tx.object(plan.protocolVaultId),
       tx.pure.u64(plan.feeAmountAtomic),
       tx.pure.u64(plan.quantity),
       tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  return tx;
+}
+
+export function buildCreateProtocolVaultTransaction(
+  params: CreateProtocolVaultParams,
+): Transaction {
+  const wrapperPackageId = normalizeRequiredObjectId(
+    params.wrapperPackageId,
+    "RangePilot wrapper package ID",
+  );
+  const adminCapId = normalizeRequiredObjectId(params.adminCapId, "RangePilot AdminCap ID");
+  const tx = new Transaction();
+
+  tx.moveCall({
+    target: `${wrapperPackageId}::strategy::create_protocol_vault`,
+    typeArguments: [params.quoteCoinType],
+    arguments: [tx.object(adminCapId)],
+  });
+
+  return tx;
+}
+
+export function buildWithdrawPlatformFeesTransaction(
+  params: WithdrawPlatformFeesParams,
+): Transaction {
+  const wrapperPackageId = normalizeRequiredObjectId(
+    params.wrapperPackageId,
+    "RangePilot wrapper package ID",
+  );
+  const protocolVaultId = normalizeRequiredObjectId(
+    params.protocolVaultId,
+    "RangePilot protocol vault ID",
+  );
+  const adminCapId = normalizeRequiredObjectId(params.adminCapId, "RangePilot AdminCap ID");
+  const tx = new Transaction();
+
+  tx.moveCall({
+    target: `${wrapperPackageId}::strategy::withdraw_platform_fees`,
+    typeArguments: [params.quoteCoinType],
+    arguments: [
+      tx.object(adminCapId),
+      tx.object(protocolVaultId),
+      tx.pure.u64(normalizePositiveInteger(params.amountAtomic, "Platform fee withdrawal amount")),
+      tx.pure.address(params.recipient),
     ],
   });
 
@@ -99,6 +147,28 @@ function resolveWrapperPackageId(
   }
 
   return packageId;
+}
+
+function resolveProtocolVaultId(
+  params: BuildFollowStrategyAndMintTransactionOptions,
+): string {
+  const protocolVaultId = params.protocolVaultId ?? params.wrapper?.protocolVaultId ?? null;
+
+  if (!protocolVaultId) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      "RangePilot protocol vault ID is TBD. Create ProtocolVault<T> after wrapper publish and pass protocolVaultId before building follow_strategy_and_mint transactions.",
+    );
+  }
+
+  return protocolVaultId;
+}
+
+function normalizeRequiredObjectId(value: string | null, label: string): string {
+  if (!value) {
+    throw new DeepBookPredictUnconfirmedBindingError(`${label} is required before building this transaction.`);
+  }
+
+  return value;
 }
 
 function normalizePositiveInteger(value: string, label: string): string {

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./deepbookPredictTestnet": "./src/deepbookPredictTestnet.ts"
+    "./deepbookPredictTestnet": "./src/deepbookPredictTestnet.ts",
+    "./rangePilotTestnet": "./src/rangePilotTestnet.ts"
   }
 }

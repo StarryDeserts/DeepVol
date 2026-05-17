@@ -31,9 +31,9 @@ A creator defines a compact range strategy:
 - lower strike;
 - higher strike;
 - default quantity;
-- creator fee bps;
-- platform fee bps;
-- metadata URI or metadata hash;
+- creator fee bps, capped at 3000 bps;
+- protocol-set platform fee bps, fixed at 10 bps;
+- metadata URI;
 - thesis/title/description off-chain where appropriate.
 
 The wrapper stores the executable fields in a `Strategy` object and emits `StrategyCreated`. The strategy must not store private keys, signatures, raw transaction bytes, wallet caches, or protocol snapshots that must be confirmed at runtime.
@@ -48,8 +48,10 @@ The strategy should separate executable fields from descriptive metadata:
 | Expiry | On-chain Strategy | Required for wrapper `RangeKey`. |
 | Lower/higher strike | On-chain Strategy | Required for wrapper `RangeKey`; range semantics are `(lower, higher]`. |
 | Default quantity | On-chain Strategy | Useful for default follow UX and events. |
-| Fee bps | On-chain Strategy | Required for transparent fee validation. |
-| Thesis/title/description | Off-chain URI/hash | Larger, mutable presentation data should not bloat the object. |
+| Creator fee bps | On-chain Strategy | Required for transparent creator fee validation. |
+| Fixed platform fee bps | On-chain Strategy | Protocol-set to 10 bps for transparency. |
+| ProtocolVault ID | Config / transaction input | Required for platform fee deposit during follow. |
+| Thesis/title/description | Off-chain URI | Larger, mutable presentation data should not bloat the object. |
 | Creator analytics | Indexer/off-chain | Derived from events and DeepBook Predict state. |
 
 ## 3. User discovers strategy
@@ -75,13 +77,14 @@ Before calling the wrapper, the frontend must run the official DeepBook Predict 
 3. run official `predict::get_range_trade_amounts` quote;
 4. verify mint cost is positive and affordable from `PredictManager` balance;
 5. run full `predict::mint_range<DUSDC>` devInspect preflight;
-6. show creator/platform fee separately from mint cost.
+6. show creator/platform fee separately from mint cost;
+7. confirm wrapper package ID and ProtocolVault object ID are configured.
 
 Quote success alone must not enable follow. Full mint preflight remains the safety gate.
 
 ## 5. User follows strategy
 
-When preview gates pass, the user approves one wallet transaction to the RangePilot wrapper. The wrapper validates the Strategy and fee policy, then internally calls DeepBook Predict `mint_range<DUSDC>`.
+When preview gates pass, the user approves one wallet transaction to the RangePilot wrapper. The wrapper validates the Strategy and fee policy, transfers the creator fee to the creator, deposits the platform fee into `ProtocolVault<DUSDC>`, returns any fee coin remainder to the follower, then internally calls DeepBook Predict `mint_range<DUSDC>`.
 
 The user remains the owner of their `PredictManager`. DeepBook Predict validates `ctx.sender() == manager.owner()` during `mint_range`, and positions remain internal quantities in the manager.
 
@@ -116,7 +119,7 @@ Positions and ranges are not independent NFTs. The source of truth is the user's
 Creator analytics can be derived from events:
 
 - `StrategyCreated` for catalog and metadata;
-- `StrategyFollowed` for strategy follow count, fee amount, manager ID, and quantity;
+- `StrategyFollowed` for strategy follow count, fee amount, ProtocolVault ID, manager ID, and quantity;
 - DeepBook Predict `RangeMinted` for official protocol mint details;
 - DeepBook Predict `RangeRedeemed` for later lifecycle outcomes.
 

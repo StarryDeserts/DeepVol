@@ -127,11 +127,25 @@ Negative:
 - SDK wrapper builders must block unless a package ID is explicitly provided.
 - The wrapper formal dependency source is the official DeepBookV3 Git repository with Testnet dep-replacements for the deployed DeepBook Predict and DeepBook package IDs; the local `deepbookv3-predict-testnet-4-16/` snapshot is debugging/reference-only and must not be committed.
 
+## Phase 3D amendment
+
+Phase 3D supersedes the direct platform-recipient model with RangePilot `ProtocolVault<T>` and `AdminCap`:
+
+- platform fee deposits into `ProtocolVault<T>`, not a direct recipient address;
+- `AdminCap` controls ProtocolVault creation and withdrawal;
+- `platform_fee_bps = 10`, which is `0.1%`;
+- `MAX_CREATOR_FEE_BPS = 3000`, which is `30%`; `300 bps` would be `3%`;
+- metadata policy is `metadata_uri` only;
+- Strategy objects remain shared;
+- strategy creation remains permissionless;
+- the Testnet/hackathon wrapper is upgradeable, and upgrade authority must be disclosed before publish.
+
 ## Follow-up requirements
 
-- Keep `move/rangepilot` compiling against official DeepBookV3 Git dependencies plus Testnet dep-replacements; current Phase 3C verification passes `npm run move:build:rangepilot` and `npm run move:test:rangepilot`.
-- Decide final fee product cap and platform recipient before publish.
+- Keep `move/rangepilot` compiling against official DeepBookV3 Git dependencies plus Testnet dep-replacements; current Phase 3D verification passes `npm run move:build:rangepilot` and `npm run move:test:rangepilot` with 18 tests.
 - Publish wrapper only after explicit future approval.
-- Add SDK transaction builders that default-block without wrapper package ID.
+- Create `ProtocolVault<DUSDC>` only after wrapper publish and explicit approval.
+- Record wrapper package ID, ProtocolVault object ID, and AdminCap owner/publish address after publish/post-publish setup.
+- Keep SDK transaction builders default-blocked without wrapper package ID, ProtocolVault object ID, quote-preview gate, and full mint-preflight gate.
 - Re-run official quote and full preflight before every future wrapper follow transaction.
 - Add indexing plan to link `StrategyFollowed` with DeepBook Predict `RangeMinted` in the same transaction.

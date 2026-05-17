@@ -12,6 +12,9 @@
       "@rangepilot/config/deepbookPredictTestnet": [
         "packages/config/src/deepbookPredictTestnet.ts"
       ],
+      "@rangepilot/config/rangePilotTestnet": [
+        "packages/config/src/rangePilotTestnet.ts"
+      ],
       "@rangepilot/types/deepbookPredict": [
         "packages/types/src/deepbookPredict.ts"
       ],

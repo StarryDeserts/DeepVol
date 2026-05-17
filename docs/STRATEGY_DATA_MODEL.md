@@ -1,7 +1,7 @@
 ---
-Purpose: Define the RangePilot Strategy data model for the Phase 3A/B Route B wrapper skeleton.
+Purpose: Define the RangePilot Strategy data model for the Phase 3D Route B wrapper skeleton.
 Audience: Move developers, SDK implementers, frontend developers, indexer authors, reviewers, and AI agents.
-Status: Draft data-model reference for wrapper skeleton; not final schema or UI design.
+Status: Phase 3D data-model reference; not final schema or UI design.
 Source of truth relationship: Supplements wrapper architecture and product flow docs; official DeepBook Predict docs remain source of truth for protocol position state.
 ---
 
@@ -11,10 +11,15 @@ RangePilot Strategy data links creator intent to an official DeepBook Predict ra
 
 ## Core objects and events
 
-The Phase 3A/B Move skeleton should define:
+The Phase 3D Move skeleton defines:
 
 ```move
+public struct AdminCap has key, store
+public struct ProtocolVault<phantom T> has key
 public struct Strategy has key
+public struct ProtocolVaultCreated has copy, drop
+public struct PlatformFeeDeposited has copy, drop
+public struct PlatformFeesWithdrawn has copy, drop
 public struct StrategyCreated has copy, drop
 public struct StrategyFollowed has copy, drop
 public struct StrategyDeactivated has copy, drop
@@ -22,29 +27,41 @@ public struct StrategyDeactivated has copy, drop
 
 ## Strategy
 
-Recommended on-chain fields:
+On-chain fields:
 
 | Field | Move type | TypeScript type | Purpose |
 |---|---|---|---|
 | `id` / `strategy_id` | `UID` / `ID` | `string` | Sui object identity. |
-| `creator` | `address` | `string` | Creator who can deactivate the strategy. |
+| `creator` | `address` | `string` | Creator who can deactivate the strategy and receives creator fee. |
 | `oracle_id` | `ID` | `string` | DeepBook Predict OracleSVI ID. |
 | `expiry` | `u64` | decimal string | Range expiry timestamp from DeepBook Predict oracle. |
 | `lower_strike` | `u64` | decimal string | Lower exclusive bound of `(lower, higher]`. |
 | `higher_strike` | `u64` | decimal string | Higher inclusive bound of `(lower, higher]`. |
 | `default_quantity` | `u64` | decimal string | Suggested follow quantity. |
-| `creator_fee_bps` | `u64` | decimal string or number | Creator share of explicit fee amount. |
-| `platform_fee_bps` | `u64` | decimal string or number | Platform share of explicit fee amount. |
-| `platform_recipient` | `address` | `string` | Address receiving the platform fee split. |
+| `creator_fee_bps` | `u64` | number | Creator share of explicit fee amount; max 3000 bps. |
+| `platform_fee_bps` | `u64` | `10` | Protocol-set platform share of explicit fee amount. |
 | `metadata_uri` | `vector<u8>` | `string` | Off-chain strategy metadata pointer. |
 | `active` | `bool` | `boolean` | Follow gating. |
 | `created_at_ms` | `u64` | decimal string | Creation timestamp from Clock. |
 
-The wrapper derives `RangeKey` from `oracle_id`, `expiry`, `lower_strike`, and `higher_strike`. Followers should not provide arbitrary RangeKey fields to `follow_strategy_and_mint`.
+The wrapper derives `RangeKey` from `oracle_id`, `expiry`, `lower_strike`, and `higher_strike`. Followers do not provide arbitrary RangeKey fields to `follow_strategy_and_mint`.
+
+Strategy objects are shared so multiple followers can use a creator's Strategy. Strategy creation is permissionless; frontend/indexer curation or verification is an off-chain concern.
+
+## ProtocolVault and AdminCap
+
+`ProtocolVault<T>` is a RangePilot wrapper object, not the DeepBook Predict Vault.
+
+| Object | Purpose |
+|---|---|
+| `AdminCap` | Minted to the package publisher / transaction sender at init; authorizes ProtocolVault creation and withdrawals. |
+| `ProtocolVault<T>` | Holds RangePilot platform fee deposits for coin type `T`. |
+
+Normal follower flows pass `ProtocolVault<T>` but do not pass `AdminCap`. Admin withdrawals are separate from follow.
 
 ## StrategyCreated
 
-Recommended event fields:
+Event fields:
 
 | Field | Purpose |
 |---|---|
@@ -56,14 +73,13 @@ Recommended event fields:
 | `higher_strike` | Higher range bound. |
 | `default_quantity` | Suggested follow size. |
 | `creator_fee_bps` | Creator fee share. |
-| `platform_fee_bps` | Platform fee share. |
-| `platform_recipient` | Platform fee recipient address. |
+| `platform_fee_bps` | Protocol-set platform fee share, fixed at 10. |
 | `metadata_uri` | Off-chain metadata pointer. |
 | `created_at_ms` | Creation timestamp. |
 
 ## StrategyFollowed
 
-Recommended event fields:
+Event fields:
 
 | Field | Purpose |
 |---|---|
@@ -75,17 +91,26 @@ Recommended event fields:
 | `expiry` | Expiry timestamp. |
 | `lower_strike` | Lower range bound. |
 | `higher_strike` | Higher range bound. |
+| `protocol_vault_id` | ProtocolVault object that received platform fee. |
 | `quantity` | Minted range quantity. |
 | `fee_amount` | Explicit fee amount provided to wrapper. |
-| `creator_fee` | Fee amount transferred or attributed to creator. |
-| `platform_fee` | Fee amount transferred or attributed to platform. |
+| `creator_fee` | Fee amount transferred to creator. |
+| `platform_fee` | Fee amount deposited into ProtocolVault. |
 | `timestamp_ms` | Follow timestamp. |
 
 The official DeepBook Predict `RangeMinted` event remains the protocol source of truth for successful mint details. Indexers should link `StrategyFollowed` and `RangeMinted` in the same transaction.
 
+## ProtocolVault events
+
+| Event | Fields | Purpose |
+|---|---|---|
+| `ProtocolVaultCreated` | `vault_id`, `admin` | Records admin creation of a shared ProtocolVault. |
+| `PlatformFeeDeposited` | `vault_id`, `strategy_id`, `follower`, `amount`, `timestamp_ms` | Records platform fee deposit during wrapper follow. |
+| `PlatformFeesWithdrawn` | `vault_id`, `recipient`, `amount` | Records admin withdrawal. |
+
 ## StrategyDeactivated
 
-Recommended event fields:
+Event fields:
 
 | Field | Purpose |
 |---|---|
@@ -97,7 +122,9 @@ Deactivation prevents new follows. It does not affect already minted positions b
 
 ## Metadata location
 
-Use an on-chain URI/hash pointer for MVP. Phase 3C rejects empty metadata URIs but does not enforce a scheme, max length, or content hash. Keep long-form strategy content off-chain:
+Phase 3D uses `metadata_uri` only. The wrapper rejects an empty URI but does not enforce a scheme, max length, content hash, or URI immutability.
+
+Keep long-form strategy content off-chain:
 
 - title;
 - thesis;
@@ -108,20 +135,22 @@ Use an on-chain URI/hash pointer for MVP. Phase 3C rejects empty metadata URIs b
 - external links;
 - version history.
 
-`metadata_uri` is easier for hackathon/product iteration. `metadata_hash` gives stronger immutability guarantees. A future version may store both.
+A future production version may add stronger metadata integrity, but Phase 3D keeps metadata URI-only.
 
-## Fee bps upper bound
+## Fee bps policy
 
-The wrapper enforces hard accounting fee bps bounds in Phase 3C:
+The wrapper enforces confirmed Phase 3D fee policy:
 
 ```text
 BPS_DENOMINATOR = 10_000
 MAX_TOTAL_FEE_BPS = 10_000
-MAX_CREATOR_FEE_BPS = 10_000
-MAX_PLATFORM_FEE_BPS = 10_000
+MAX_CREATOR_FEE_BPS = 3_000
+PLATFORM_FEE_BPS = 10
 ```
 
-Those maxima mean creator + platform split cannot exceed 100% of the explicit fee amount, and each individual side cannot exceed the full explicit fee. Product policy should likely set lower defaults before publish; final creator/platform caps remain `MUST CONFIRM BEFORE PUBLISH`.
+`3000 bps = 30%`; `300 bps` would be `3%`.
+
+The platform split deposits into `ProtocolVault<T>` and the creator split transfers to the creator. The explicit fee base remains separate from DeepBook Predict mint cost.
 
 ## Strategy active/deactivated state
 
@@ -130,22 +159,22 @@ Those maxima mean creator + platform split cannot exceed 100% of the explicit fe
 - `true`: strategy may be followed if frontend quote/preflight and wrapper checks pass;
 - `false`: wrapper aborts follow attempts.
 
-Only the creator should be able to deactivate in the minimal skeleton. Admin moderation or platform pause can be designed later if needed.
+Only the creator can deactivate in the minimal skeleton. Admin moderation or platform pause can be designed later if needed.
 
 ## Strategy-to-position mapping
 
-RangePilot should not create a separate position object. Mapping is event/indexer-based:
+RangePilot does not create a separate position object. Mapping is event/indexer-based:
 
-1. `StrategyFollowed` identifies strategy, follower, manager, range, and quantity.
+1. `StrategyFollowed` identifies strategy, follower, manager, range, ProtocolVault, and quantity.
 2. DeepBook Predict `RangeMinted` confirms protocol mint details in the same transaction.
 3. Direct `predict_manager::range_position` confirms active quantity for wallet-critical reads.
 4. DeepBook Predict `RangeRedeemed` and direct reads update later lifecycle state.
 
-This preserves the official model: positions and range positions are internal quantities in `PredictManager`, not standalone NFTs.
+This preserves the official model: positions and range positions are internal quantities in `PredictManager`, not standalone NFTs. Follower profit belongs to the follower because redemption uses the follower's own `PredictManager`; the RangePilot wrapper does not custody or distribute DeepBook Predict payout.
 
 ## TypeScript representation
 
-TypeScript APIs should keep protocol integers as decimal strings:
+TypeScript APIs keep protocol integers as decimal strings:
 
 ```ts
 export type RangePilotStrategy = {
@@ -157,20 +186,31 @@ export type RangePilotStrategy = {
   higherStrike: string;
   defaultQuantity: string;
   creatorFeeBps: number;
-  platformFeeBps: number;
-  platformRecipient: string;
+  platformFeeBps: 10;
   metadataUri: string;
   active: boolean;
   createdAtMs: string;
 };
+
+export type FollowStrategyParams = {
+  strategyId: string;
+  predictId: string;
+  managerId: string;
+  oracleObjectId: string;
+  feeCoinObjectId: string;
+  protocolVaultId: string;
+  feeAmountAtomic: string;
+  quantity: string;
+  quoteCoinType: string;
+};
 ```
 
-SDK transaction builders must remain guarded until wrapper package ID is published and confirmed.
+SDK transaction builders remain guarded until wrapper package ID and ProtocolVault object ID are published and confirmed.
 
 ## Open questions
 
-- Final platform recipient address: `TBD`.
-- Final fee bps product cap below 100%: `TBD`.
-- Metadata URI scheme and content hash policy: `TBD`.
-- Indexer schema for linking RangePilot and DeepBook Predict events: `TBD`.
 - Wrapper package ID: `TBD` until future publish.
+- ProtocolVault object ID: `TBD` until post-publish admin creation.
+- AdminCap owner / publish address: `TBD` until publish and must be disclosed.
+- Final production upgrade/immutability policy: revisit after Testnet/hackathon stage.
+- Indexer schema for linking RangePilot and DeepBook Predict events: `TBD`.

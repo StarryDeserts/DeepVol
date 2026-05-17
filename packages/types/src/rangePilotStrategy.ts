@@ -5,7 +5,8 @@ import type {
 } from "./deepbookPredict.ts";
 
 export type StrategyObjectId = DeepBookPredictObjectId;
-export type PlatformFeeRecipient = DeepBookPredictObjectId;
+export type ProtocolVaultObjectId = DeepBookPredictObjectId;
+export type AdminCapObjectId = DeepBookPredictObjectId;
 
 export type RangePilotStrategyRangeKey = {
   oracleId: DeepBookPredictObjectId;
@@ -17,21 +18,23 @@ export type RangePilotStrategyRangeKey = {
 export type RangePilotStrategyConfig = {
   network: DeepBookPredictNetwork;
   wrapperPackageId: DeepBookPredictObjectId | null;
+  packageId: DeepBookPredictObjectId | null;
   moduleName: "strategy";
-  platformFeeRecipient: PlatformFeeRecipient | null;
+  protocolVaultId: ProtocolVaultObjectId | null;
+  adminCapId: AdminCapObjectId | null;
+  defaultPlatformFeeBps: 10;
+  maxCreatorFeeBps: 3000;
+  metadataPolicy: "uri";
 };
 
-export type RangePilotWrapperConfig = RangePilotStrategyConfig & {
-  packageId: DeepBookPredictObjectId | null;
-};
+export type RangePilotWrapperConfig = RangePilotStrategyConfig;
 
 export type RangePilotStrategy = RangePilotStrategyRangeKey & {
   strategyId: DeepBookPredictObjectId;
   creator: string;
   defaultQuantity: string;
   creatorFeeBps: number;
-  platformFeeBps: number;
-  platformRecipient: string;
+  platformFeeBps: 10;
   metadataUri: string;
   active: boolean;
   createdAtMs: string;
@@ -42,8 +45,7 @@ export type StrategyCreatedEvent = RangePilotStrategyRangeKey & {
   creator: string;
   defaultQuantity: string;
   creatorFeeBps: number;
-  platformFeeBps: number;
-  platformRecipient: string;
+  platformFeeBps: 10;
   metadataUri: string;
   createdAtMs: string;
 };
@@ -53,6 +55,7 @@ export type StrategyFollowedEvent = RangePilotStrategyRangeKey & {
   creator: string;
   follower: string;
   managerId: DeepBookPredictObjectId;
+  protocolVaultId: ProtocolVaultObjectId;
   quantity: string;
   feeAmountAtomic: string;
   creatorFeeAtomic: string;
@@ -69,8 +72,6 @@ export type StrategyDeactivatedEvent = {
 export type CreateStrategyParams = RangePilotStrategyRangeKey & {
   defaultQuantity: string;
   creatorFeeBps: number;
-  platformFeeBps: number;
-  platformRecipient: PlatformFeeRecipient;
   metadataUri: string;
 };
 
@@ -80,6 +81,7 @@ export type FollowStrategyParams = {
   managerId: DeepBookPredictObjectId;
   oracleObjectId: DeepBookPredictObjectId;
   feeCoinObjectId: DeepBookPredictObjectId;
+  protocolVaultId: ProtocolVaultObjectId;
   feeAmountAtomic: string;
   quantity: string;
   quoteCoinType: DeepBookPredictCoinType;
@@ -96,3 +98,39 @@ export type FollowStrategyAndMintPlan = Omit<FollowStrategyParams, "feeAmountAto
   requiresFullMintPreflight: true;
   signsOrExecutes: false;
 };
+
+export type CreateProtocolVaultParams = {
+  wrapperPackageId: DeepBookPredictObjectId;
+  adminCapId: AdminCapObjectId;
+  quoteCoinType: DeepBookPredictCoinType;
+};
+
+export type WithdrawPlatformFeesParams = {
+  wrapperPackageId: DeepBookPredictObjectId;
+  protocolVaultId: ProtocolVaultObjectId;
+  adminCapId: AdminCapObjectId;
+  quoteCoinType: DeepBookPredictCoinType;
+  amountAtomic: string;
+  recipient: string;
+};
+
+export type ProtocolVaultCreatedEvent = {
+  vaultId: ProtocolVaultObjectId;
+  admin: string;
+};
+
+export type PlatformFeeDepositedEvent = {
+  vaultId: ProtocolVaultObjectId;
+  strategyId: StrategyObjectId;
+  follower: string;
+  amountAtomic: string;
+  timestampMs: string;
+};
+
+export type PlatformFeesWithdrawnEvent = {
+  vaultId: ProtocolVaultObjectId;
+  recipient: string;
+  amountAtomic: string;
+};
+
+export type PlatformFeeWithdrawnEvent = PlatformFeesWithdrawnEvent;
