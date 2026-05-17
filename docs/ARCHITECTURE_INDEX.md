@@ -33,6 +33,7 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 | [PREDICT_MANAGER_TESTNET_VALIDATION.md](./PREDICT_MANAGER_TESTNET_VALIDATION.md) | Phase 1B-Verify Testnet create/deposit/readback validation artifacts | Protocol / SDK / Validation |
 | [RANGE_MINT_TESTNET_VALIDATION.md](./RANGE_MINT_TESTNET_VALIDATION.md) | Phase 1C range quote and gated mint validation artifacts or blockers | Protocol / SDK / Validation |
 | [PORTFOLIO_READBACK_TESTNET_VALIDATION.md](./PORTFOLIO_READBACK_TESTNET_VALIDATION.md) | Phase 1D-1 portfolio and range-position readback validation artifacts | Protocol / SDK / Validation |
+| [RANGE_REDEEM_TESTNET_VALIDATION.md](./RANGE_REDEEM_TESTNET_VALIDATION.md) | Phase 1D-2 range redeem preflight, execution, event, and post-redeem readback validation artifacts | Protocol / SDK / Validation |
 | [RANGE_QUOTEABILITY_INVESTIGATION.md](./RANGE_QUOTEABILITY_INVESTIGATION.md) | Phase 1C-fix quoteable range scanner methodology, results, and blockers | Protocol / SDK / Validation |
 | [RANGE_QUOTE_UNITS_AND_DECODING.md](./RANGE_QUOTE_UNITS_AND_DECODING.md) | Phase 1C-fix2 quantity-unit, return-decoding, binary quote, and range-selection validation | Protocol / SDK / Validation |
 | [MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md](./MINTABILITY_PREFLIGHT_AND_ASK_BOUNDS.md) | Phase 1C-fix3 mintability preflight and ask-bounds validation | Protocol / SDK / Validation |
@@ -71,9 +72,10 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 12. [MINTABILITY_SOURCE_ANALYSIS.md](./MINTABILITY_SOURCE_ANALYSIS.md)
 13. [DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md](./DEEPBOOK_PREDICT_MINTABILITY_DEBUG_REPORT.md)
 14. [PORTFOLIO_READBACK_TESTNET_VALIDATION.md](./PORTFOLIO_READBACK_TESTNET_VALIDATION.md)
-15. [ENTRYPOINT_BINDINGS_PLAN.md](./ENTRYPOINT_BINDINGS_PLAN.md)
-16. [DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md](./DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md)
-17. [PROTOCOL_INTEGRATION_NOTES.md](./PROTOCOL_INTEGRATION_NOTES.md)
+15. [RANGE_REDEEM_TESTNET_VALIDATION.md](./RANGE_REDEEM_TESTNET_VALIDATION.md)
+16. [ENTRYPOINT_BINDINGS_PLAN.md](./ENTRYPOINT_BINDINGS_PLAN.md)
+17. [DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md](./DEEPBOOK_PREDICT_ARCHITECTURE_MAP.md)
+18. [PROTOCOL_INTEGRATION_NOTES.md](./PROTOCOL_INTEGRATION_NOTES.md)
 
 ### Before UI/product work
 
@@ -110,7 +112,7 @@ Do not edit the product or protocol-analysis source docs for normal implementati
 | SDK binding planning | Official contract info, entrypoint bindings plan, protocol integration notes, source documents |
 | PredictManager load/create/deposit | Product spec, protocol analysis, official contract info, PredictManager flow, PredictManager Testnet validation, entrypoint bindings plan, architecture map, protocol integration notes |
 | Quote preview | Product spec, protocol analysis, official contract info, entrypoint bindings plan, architecture map, protocol integration notes |
-| Portfolio/redeem/claim | Product spec, protocol analysis, official contract info, entrypoint bindings plan, portfolio readback validation, architecture map, protocol integration notes |
+| Portfolio/redeem/claim | Product spec, protocol analysis, official contract info, entrypoint bindings plan, portfolio readback validation, range redeem validation, architecture map, protocol integration notes |
 | Creator strategy pages | Product spec, architecture map, implementation roadmap |
 | Vault / LP dashboard | Product spec, protocol analysis, official contract info, entrypoint bindings plan, architecture map, protocol integration notes |
 | New ADR | Agent workflow, source documents, existing ADRs |

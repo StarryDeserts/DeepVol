@@ -9,6 +9,8 @@ Source of truth relationship: Validation supplement; official deployment/config 
 
 Phase 1D-1 validated read-only portfolio/range-position readback for the first successful DeepBook Predict range mint. No `mint_range`, `redeem_range`, `supply`, `withdraw`, `deposit`, `create_manager`, transaction signing, or transaction submission was executed in this phase.
 
+Phase 1D-2 later redeemed `500` from this range through one gated Sui Testnet `predict::redeem_range<DUSDC>` transaction. The Phase 1D-1 active quantity `1000` is now historical for the known RangeKey; the current direct `range_position` after redeem is `500`. See [RANGE_REDEEM_TESTNET_VALIDATION.md](./RANGE_REDEEM_TESTNET_VALIDATION.md).
+
 No private key, `.env.local` contents, `.local/` cache contents, `.claude/` contents, or local source snapshot contents are documented here.
 
 ## Known mint facts
@@ -60,9 +62,10 @@ It submitted the PTB through `devInspectTransactionBlock` only. The script rejec
 
 | Check | Result |
 |---|---|
-| Direct range_position read #1 | `quantity=1000` |
-| Direct range_position read #2 | `quantity=1000` |
+| Direct range_position read #1 | `quantity=1000` before Phase 1D-2 redeem |
+| Direct range_position read #2 | `quantity=1000` before Phase 1D-2 redeem |
 | Repeated-read stability | Passed |
+| Phase 1D-2 post-redeem direct range_position | `quantity=500` |
 | Direct DUSDC balance helper | Not implemented in this phase; public server summary remains the validated manager-balance read path. |
 
 Direct/devInspect range-position status: verified for this known manager and `RangeKey`.
@@ -81,7 +84,7 @@ Direct/devInspect range-position status: verified for this known manager and `Ra
 - The validated direct `range_position` helper confirms a specific `RangeKey`; it does not enumerate all range positions by itself.
 - `/managers/:manager_id/positions/summary` returned empty for the known active minted range in this run.
 - `/trades/:oracle_id` returned records, but the compact match scan did not identify the known manager/range mint; do not use it as the wallet-critical portfolio source.
-- `redeem_range<DUSDC>` remains unexecuted and must be planned separately.
+- Phase 1D-2 executed one gated `redeem_range<DUSDC>` for this known RangeKey; settled-range claim behavior remains pending.
 
 ## Browser manual testing checklist
 
@@ -96,4 +99,4 @@ Direct/devInspect range-position status: verified for this known manager and `Ra
 
 ## Next step
 
-Plan Phase 1D-2 to validate `predict::redeem_range<DUSDC>` only after preserving the direct `range_position` pre/post readback checks as the redemption safety baseline.
+Plan the Phase 2 guided range trading MVP around the validated deposit, mint, direct portfolio readback, live redeem, and post-redeem direct readback lifecycle while keeping direct `range_position` as the wallet-critical active quantity source.

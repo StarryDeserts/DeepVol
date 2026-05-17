@@ -338,6 +338,40 @@ export type RangeMintParams = RangeKeyInput & {
   quantity: string | bigint;
 };
 
+export type RangeRedeemParams = RangeKeyInput & {
+  managerId: DeepBookPredictObjectId;
+  oracleObjectId: DeepBookPredictObjectId;
+  quantity: string | bigint;
+};
+
+export type RedeemRangeParams = RangeRedeemParams;
+
+export type RedeemAbortCandidateParams = MintAbortCandidateParams & {
+  redeemQuantity?: string;
+  positionQuantityBefore?: string;
+  redeemPayoutAtomic?: string;
+};
+
+export type RedeemAbortClassification = MintAbortClassification;
+
+export type RedeemRangePreflightPassed = {
+  status: "passed";
+};
+
+export type RedeemRangePreflightFailed = {
+  status: "failed";
+  abort: RedeemAbortClassification;
+};
+
+export type RedeemRangePreflightResult =
+  | RedeemRangePreflightPassed
+  | RedeemRangePreflightFailed;
+
+export type RedeemRangeQuote = RangeQuotePreview & {
+  quantity: string;
+  zeroPayout: boolean;
+};
+
 export type NormalizedRangeMintedFields = {
   predictId: string | null;
   managerId: string | null;
@@ -356,6 +390,47 @@ export type RangeMintedEvent = {
   type: string;
   parsedJson: Record<string, unknown> | null;
   fields?: NormalizedRangeMintedFields;
+};
+
+export type NormalizedRangeRedeemedFields = {
+  predictId: string | null;
+  managerId: string | null;
+  trader: string | null;
+  quoteAsset: string | null;
+  oracleId: string | null;
+  expiry: string | null;
+  lowerStrike: string | null;
+  higherStrike: string | null;
+  quantity: string | null;
+  payoutAtomic: string | null;
+  bidPrice: string | null;
+  isSettled: boolean | null;
+};
+
+export type RangeRedeemedEvent = {
+  type: string;
+  parsedJson: Record<string, unknown> | null;
+  fields?: NormalizedRangeRedeemedFields;
+};
+
+export type RedeemSafetyGateResult = {
+  passed: boolean;
+  blockers: string[];
+  warnings: string[];
+};
+
+export type RangePositionBeforeAfter = RangeKeyInput & {
+  managerId: DeepBookPredictObjectId;
+  beforeQuantity: string;
+  redeemedQuantity: string;
+  afterQuantity: string;
+};
+
+export type RangeRedeemResult = {
+  digest: string;
+  explorerUrl: string;
+  event: RangeRedeemedEvent | null;
+  position: RangePositionBeforeAfter | null;
 };
 
 export type PortfolioReadPathStatus =

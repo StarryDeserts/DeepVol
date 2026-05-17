@@ -19,7 +19,8 @@ const knownMint = {
   expiry: "1779004800000",
   lowerStrike: "78194000000000",
   higherStrike: "78204000000000",
-  quantity: "1000",
+  mintedQuantity: "1000",
+  expectedActiveQuantity: "1000",
   mintCostAtomic: "10",
 };
 const forbiddenTargets = [
@@ -47,7 +48,9 @@ async function main() {
   const expiry = options.expiry ?? knownMint.expiry;
   const lowerStrike = options.lower ?? knownMint.lowerStrike;
   const higherStrike = options.higher ?? knownMint.higherStrike;
-  const quantity = options.quantity ?? knownMint.quantity;
+  const mintedQuantity = options.quantity ?? knownMint.mintedQuantity;
+  const expectedActiveQuantity = options["expected-active-quantity"] ?? knownMint.expectedActiveQuantity;
+  const exactActiveQuantityRequired = Object.hasOwn(options, "expected-active-quantity");
   const client = new SuiJsonRpcClient({
     url: getJsonRpcFullnodeUrl("testnet"),
     network: "testnet",
@@ -60,6 +63,8 @@ async function main() {
   console.log("No write transactions submitted.");
   console.log(`Mint digest: ${digest}`);
   console.log(`Explorer: ${buildSuiExplorerTransactionUrl(digest, config.network)}`);
+  console.log(`Minted quantity: ${mintedQuantity}`);
+  console.log(`Expected active quantity: ${exactActiveQuantityRequired ? expectedActiveQuantity : `${expectedActiveQuantity} (default upper bound check)`}`);
 
   const tx = await client.getTransactionBlock({
     digest,
@@ -73,7 +78,7 @@ async function main() {
     expiry,
     lowerStrike,
     higherStrike,
-    quantity,
+    quantity: mintedQuantity,
     mintCostAtomic: knownMint.mintCostAtomic,
   });
 
@@ -98,16 +103,28 @@ async function main() {
   console.log(`manager summary: ${formatReadResult(managerSummary)}`);
   console.log(`positions summary: ${formatReadResult(positionsSummary)}`);
   console.log(`manager pnl: ${formatReadResult(managerPnl)}`);
-  console.log(`range history: ${formatReadResult(rangeHistory)} match=${containsMatchingRecord(rangeHistory.value, { managerId, oracleId, expiry, lowerStrike, higherStrike, quantity }) ? "yes" : "no"}`);
-  console.log(`trade history: ${formatReadResult(oracleTrades)} match=${containsMatchingRecord(oracleTrades.value, { managerId, oracleId, expiry, lowerStrike, higherStrike, quantity }) ? "yes" : "no"}`);
+  console.log(`range history: ${formatReadResult(rangeHistory)} match=${containsMatchingRecord(rangeHistory.value, { managerId, oracleId, expiry, lowerStrike, higherStrike, quantity: mintedQuantity }) ? "yes" : "no"}`);
+  console.log(`trade history: ${formatReadResult(oracleTrades)} match=${containsMatchingRecord(oracleTrades.value, { managerId, oracleId, expiry, lowerStrike, higherStrike, quantity: mintedQuantity }) ? "yes" : "no"}`);
 
   const rangeParams = { managerId, oracleId, expiry, lowerStrike, higherStrike, config };
   assertNoForbiddenTargets(buildManagerRangePositionTransaction(rangeParams));
   const directFirst = await directRead("Direct range_position read #1", () => readRangePositionQuantity({ ...rangeParams, client, sender }));
   const directSecond = await directRead("Direct range_position read #2", () => readRangePositionQuantity({ ...rangeParams, client, sender }));
-  const directPassed = directFirst?.quantity === quantity && directSecond?.quantity === quantity && directFirst.quantity === directSecond.quantity;
+  const activeQuantityCheck = checkActiveQuantity({
+    first: directFirst?.quantity ?? null,
+    second: directSecond?.quantity ?? null,
+    mintedQuantity,
+    expectedActiveQuantity,
+    exactActiveQuantityRequired,
+  });
 
-  console.log(`Stability: ${directPassed ? "passed" : "blocked"}`);
+  console.log(`Active quantity: ${directFirst?.quantity ?? "unavailable"}`);
+  console.log(`Stability: ${activeQuantityCheck.passed ? "passed" : "blocked"}`);
+  for (const blocker of activeQuantityCheck.blockers) {
+    console.log(`direct read blocker: ${blocker}`);
+  }
+
+  const directPassed = activeQuantityCheck.passed;
 
   if (!directPassed) {
     process.exitCode = 1;
@@ -167,6 +184,36 @@ function verifyEventPosition(position, expected) {
   }
 
   return { matched: blockers.length === 0, blockers };
+}
+
+function checkActiveQuantity({ first, second, mintedQuantity, expectedActiveQuantity, exactActiveQuantityRequired }) {
+  const blockers = [];
+
+  if (first === null || second === null) {
+    blockers.push("Both direct range_position reads must decode.");
+    return { passed: false, blockers };
+  }
+
+  if (first !== second) {
+    blockers.push(`Direct range_position reads differed: first ${first}, second ${second}.`);
+  }
+
+  if (exactActiveQuantityRequired && first !== expectedActiveQuantity) {
+    blockers.push(`Active quantity mismatch: expected ${expectedActiveQuantity}, got ${first}.`);
+  }
+
+  if (!exactActiveQuantityRequired) {
+    const active = parseNonNegativeInteger(first);
+    const minted = parseNonNegativeInteger(mintedQuantity);
+
+    if (active === null || minted === null) {
+      blockers.push(`Active or minted quantity was not a non-negative integer: active ${first}, minted ${mintedQuantity}.`);
+    } else if (active > minted) {
+      blockers.push(`Active quantity ${first} exceeds original minted quantity ${mintedQuantity}.`);
+    }
+  }
+
+  return { passed: blockers.length === 0, blockers };
 }
 
 async function tryRead(source, read) {
@@ -233,6 +280,14 @@ function normalizeRecord(record) {
   }
 
   return values;
+}
+
+function parseNonNegativeInteger(value) {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  return BigInt(value);
 }
 
 function assertNoForbiddenTargets(tx) {

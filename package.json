@@ -18,6 +18,8 @@
     "validate:range-quote": "node scripts/validate-range-mint-flow.mjs --quote-only",
     "validate:range-mint": "node scripts/validate-range-mint-flow.mjs --mint",
     "validate:portfolio-readback": "node scripts/validate-portfolio-readback.mjs",
+    "validate:range-redeem-preflight": "node scripts/validate-range-redeem-flow.mjs --preflight-only",
+    "validate:range-redeem": "node scripts/validate-range-redeem-flow.mjs --redeem",
     "find:quoteable-range": "node scripts/find-quoteable-range.mjs",
     "find:mintable-range": "node scripts/find-mintable-range.mjs",
     "analyze:mint-preflight-aborts": "node scripts/analyze-mint-preflight-aborts.mjs",

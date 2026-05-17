@@ -1,14 +1,17 @@
 import type {
   DeepBookPredictNetworkConfig,
   NormalizedRangeMintedFields,
+  NormalizedRangeRedeemedFields,
   PredictManagerCreatedEventCandidate,
   RangeMintedEvent,
+  RangeRedeemedEvent,
   RangePositionSummary,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 
 const MANAGER_CREATED_SUFFIX = "::predict_manager::PredictManagerCreated";
 const RANGE_MINTED_SUFFIX = "::predict::RangeMinted";
+const RANGE_REDEEMED_SUFFIX = "::predict::RangeRedeemed";
 const MANAGER_EVENT_ID_FIELDS = [
   "manager_id",
   "managerId",
@@ -92,6 +95,26 @@ export function parseRangeMintedEvent(
   };
 }
 
+export function parseRangeRedeemedEvent(
+  result: { events?: readonly DeepBookPredictEventLike[] | null },
+  config?: DeepBookPredictNetworkConfig,
+): RangeRedeemedEvent | null {
+  const resolvedConfig = resolveDeepBookPredictConfig(config);
+  const event = result.events?.find((candidate) => isRangeRedeemedEvent(candidate, resolvedConfig));
+
+  if (!event?.type) {
+    return null;
+  }
+
+  const parsedJson = isRecord(event.parsedJson) ? event.parsedJson : null;
+
+  return {
+    type: event.type,
+    parsedJson,
+    fields: extractRangeRedeemedFields(parsedJson),
+  };
+}
+
 export function extractRangeMintedFields(parsedJson: unknown): NormalizedRangeMintedFields {
   const record = isRecord(parsedJson) ? parsedJson : {};
 
@@ -107,6 +130,25 @@ export function extractRangeMintedFields(parsedJson: unknown): NormalizedRangeMi
     quantity: integerStringOrNull(record.quantity),
     costAtomic: integerStringOrNull(record.cost),
     askPrice: integerStringOrNull(record.ask_price),
+  };
+}
+
+export function extractRangeRedeemedFields(parsedJson: unknown): NormalizedRangeRedeemedFields {
+  const record = isRecord(parsedJson) ? parsedJson : {};
+
+  return {
+    predictId: stringOrNull(record.predict_id),
+    managerId: stringOrNull(record.manager_id),
+    trader: stringOrNull(record.trader),
+    quoteAsset: stringOrNull(record.quote_asset),
+    oracleId: stringOrNull(record.oracle_id),
+    expiry: integerStringOrNull(record.expiry),
+    lowerStrike: integerStringOrNull(record.lower_strike),
+    higherStrike: integerStringOrNull(record.higher_strike),
+    quantity: integerStringOrNull(record.quantity),
+    payoutAtomic: integerStringOrNull(record.payout),
+    bidPrice: integerStringOrNull(record.bid_price),
+    isSettled: booleanOrNull(record.is_settled),
   };
 }
 
@@ -206,7 +248,7 @@ function isPredictManagerCreatedEvent(
   );
 }
 
-function isRangeMintedEvent(
+export function isRangeMintedEvent(
   event: DeepBookPredictEventLike,
   config: DeepBookPredictNetworkConfig,
 ): boolean {
@@ -215,6 +257,18 @@ function isRangeMintedEvent(
   return (
     eventType.startsWith(`${config.packageId}::`) &&
     eventType.endsWith(RANGE_MINTED_SUFFIX)
+  );
+}
+
+export function isRangeRedeemedEvent(
+  event: DeepBookPredictEventLike,
+  config: DeepBookPredictNetworkConfig,
+): boolean {
+  const eventType = event.type ?? "";
+
+  return (
+    eventType.startsWith(`${config.packageId}::`) &&
+    eventType.endsWith(RANGE_REDEEMED_SUFFIX)
   );
 }
 
@@ -249,6 +303,10 @@ function integerStringOrNull(value: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+function booleanOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 function extractPredictManagerObjectChangeIds(

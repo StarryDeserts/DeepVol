@@ -5,6 +5,10 @@ import type {
   MintAbortClassification,
   MintRangePreflightResult,
   RangeMintParams,
+  RangeRedeemParams,
+  RedeemAbortCandidateParams,
+  RedeemAbortClassification,
+  RedeemRangePreflightResult,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import {
@@ -24,6 +28,11 @@ export type BuildMintRangeTransactionOptions = RangeMintParams & {
   allowRealTestnetMint?: boolean;
 };
 
+export type BuildRedeemRangeTransactionOptions = RangeRedeemParams & {
+  config?: DeepBookPredictNetworkConfig;
+  allowRealTestnetRedeem?: boolean;
+};
+
 export type DevInspectMintRangePreflightParams = RangeMintParams & {
   client: {
     devInspectTransactionBlock(input: {
@@ -34,6 +43,18 @@ export type DevInspectMintRangePreflightParams = RangeMintParams & {
   sender: string;
   config?: DeepBookPredictNetworkConfig;
   candidateParams?: MintAbortCandidateParams;
+};
+
+export type DevInspectRedeemRangePreflightParams = RangeRedeemParams & {
+  client: {
+    devInspectTransactionBlock(input: {
+      sender: string;
+      transactionBlock: Transaction;
+    }): Promise<unknown>;
+  };
+  sender: string;
+  config?: DeepBookPredictNetworkConfig;
+  candidateParams?: RedeemAbortCandidateParams;
 };
 
 export function buildMintRangeTransaction(
@@ -59,6 +80,43 @@ export function buildMintRangeTransaction(
 
   tx.moveCall({
     target: `${config.packageId}::predict::mint_range`,
+    typeArguments: [config.quoteAssets.DUSDC.coinType],
+    arguments: [
+      tx.object(config.predictId),
+      tx.object(params.managerId),
+      tx.object(params.oracleObjectId),
+      rangeKey,
+      tx.pure.u64(quantity),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  return tx;
+}
+
+export function buildRedeemRangeTransaction(
+  params: BuildRedeemRangeTransactionOptions,
+): Transaction {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const quantity = normalizePositiveInteger(params.quantity, "Range redeem quantity");
+
+  if (!params.allowRealTestnetRedeem) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `MUST CONFIRM BEFORE REAL REDEEM: ${config.packageId}::predict::redeem_range<${config.quoteAssets.DUSDC.coinType}> must only be built by the gated Testnet validation flow after quote, direct readback, and full preflight gates pass.`,
+    );
+  }
+
+  if (config.network !== "testnet") {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      "Real range redeem transaction building is only allowed for Sui Testnet validation.",
+    );
+  }
+
+  const tx = new Transaction();
+  const rangeKey = buildRangeKeyTransactionArgument(tx, params, config);
+
+  tx.moveCall({
+    target: `${config.packageId}::predict::redeem_range`,
     typeArguments: [config.quoteAssets.DUSDC.coinType],
     arguments: [
       tx.object(config.predictId),
@@ -116,7 +174,54 @@ export async function devInspectMintRangePreflight(
   }
 }
 
+export async function devInspectRedeemRangePreflight(
+  params: DevInspectRedeemRangePreflightParams,
+): Promise<RedeemRangePreflightResult> {
+  try {
+    const transactionBlock = buildRedeemRangeTransaction({
+      ...params,
+      allowRealTestnetRedeem: true,
+    });
+    const result = await params.client.devInspectTransactionBlock({
+      sender: params.sender,
+      transactionBlock,
+    });
+
+    if (isRecord(result) && typeof result.error === "string") {
+      return {
+        status: "failed",
+        abort: classifyRedeemAbort(result.error, { candidateParams: redeemAbortCandidateParams(params) }),
+      };
+    }
+
+    const status = isRecord(result) && isRecord(result.effects) && isRecord(result.effects.status)
+      ? result.effects.status
+      : null;
+
+    if (status?.status !== "success") {
+      return {
+        status: "failed",
+        abort: classifyRedeemAbort(
+          typeof status?.error === "string" ? status.error : "redeem_range devInspect did not succeed.",
+          { candidateParams: redeemAbortCandidateParams(params) },
+        ),
+      };
+    }
+
+    return { status: "passed" };
+  } catch (error) {
+    return {
+      status: "failed",
+      abort: classifyRedeemAbort(error, { candidateParams: redeemAbortCandidateParams(params) }),
+    };
+  }
+}
+
 export function isMintPreflightPassed(result: MintRangePreflightResult): boolean {
+  return result.status === "passed";
+}
+
+export function isRedeemPreflightPassed(result: RedeemRangePreflightResult): boolean {
   return result.status === "passed";
 }
 
@@ -124,6 +229,13 @@ export function classifyMintAbort(
   errorOrMessage: unknown,
   options?: ClassifyDeepBookPredictAbortOptions,
 ): MintAbortClassification {
+  return classifyDeepBookPredictAbort(errorOrMessage, options);
+}
+
+export function classifyRedeemAbort(
+  errorOrMessage: unknown,
+  options?: ClassifyDeepBookPredictAbortOptions,
+): RedeemAbortClassification {
   return classifyDeepBookPredictAbort(errorOrMessage, options);
 }
 
@@ -135,6 +247,19 @@ function mintAbortCandidateParams(params: RangeMintParams & { candidateParams?: 
     lowerStrike: String(params.lowerStrike),
     higherStrike: String(params.higherStrike),
     quantity: String(params.quantity),
+    ...params.candidateParams,
+  };
+}
+
+function redeemAbortCandidateParams(params: RangeRedeemParams & { candidateParams?: RedeemAbortCandidateParams }): RedeemAbortCandidateParams {
+  return {
+    oracleId: params.oracleId,
+    oracleObjectId: params.oracleObjectId,
+    expiry: String(params.expiry),
+    lowerStrike: String(params.lowerStrike),
+    higherStrike: String(params.higherStrike),
+    quantity: String(params.quantity),
+    redeemQuantity: String(params.quantity),
     ...params.candidateParams,
   };
 }
