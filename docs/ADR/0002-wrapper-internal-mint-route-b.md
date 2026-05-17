@@ -140,12 +140,17 @@ Phase 3D supersedes the direct platform-recipient model with RangePilot `Protoco
 - strategy creation remains permissionless;
 - the Testnet/hackathon wrapper is upgradeable, and upgrade authority must be disclosed before publish.
 
+## Phase 3E note
+
+Phase 3E pre-publish verification passed, and the intended Testnet publisher/AdminCap owner address was confirmed as `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`. The controlled publish did not execute because Sui CLI publish and bytecode-dump diagnostics still classify `deepbook_predict` as an unpublished dependency. No wrapper package, AdminCap, UpgradeCap, or `ProtocolVault<DUSDC>` was created, so Route B remains accepted but unpublished.
+
 ## Follow-up requirements
 
-- Keep `move/rangepilot` compiling against official DeepBookV3 Git dependencies plus Testnet dep-replacements; current Phase 3D verification passes `npm run move:build:rangepilot` and `npm run move:test:rangepilot` with 18 tests.
-- Publish wrapper only after explicit future approval.
-- Create `ProtocolVault<DUSDC>` only after wrapper publish and explicit approval.
-- Record wrapper package ID, ProtocolVault object ID, and AdminCap owner/publish address after publish/post-publish setup.
+- Keep `move/rangepilot` compiling against official DeepBookV3 Git dependencies plus Testnet dep-replacements; current verification passes `npm run move:build:rangepilot` and `npm run move:test:rangepilot` with 18 tests.
+- Resolve the `deepbook_predict` dependency publication metadata blocker without vendoring local snapshots or publishing DeepBook Predict as a RangePilot dependency.
+- Retry wrapper publish only after a no-transaction publish dry-run no longer reports `deepbook_predict` as unpublished.
+- Create `ProtocolVault<DUSDC>` only after wrapper publish succeeds.
+- Record wrapper package ID, ProtocolVault object ID, and actual AdminCap owner after publish/post-publish setup.
 - Keep SDK transaction builders default-blocked without wrapper package ID, ProtocolVault object ID, quote-preview gate, and full mint-preflight gate.
 - Re-run official quote and full preflight before every future wrapper follow transaction.
 - Add indexing plan to link `StrategyFollowed` with DeepBook Predict `RangeMinted` in the same transaction.

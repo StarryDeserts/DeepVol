@@ -1,7 +1,7 @@
 ---
 Purpose: Define the RangePilot Route B wrapper contract boundary for creator strategies that internally mint DeepBook Predict ranges.
 Audience: Move developers, SDK implementers, frontend developers, protocol integrators, reviewers, product leads, and AI agents.
-Status: Phase 3D ProtocolVault wrapper design; not published and not final UI design.
+Status: Phase 3E publish attempt blocked by dependency publication metadata; wrapper package is not published and not final UI design.
 Source of truth relationship: Supplements official Sui DeepBook Predict docs, local validated entrypoint bindings, and RangePilot product docs; official docs and local source signatures remain authoritative for DeepBook Predict behavior.
 ---
 
@@ -90,7 +90,7 @@ subdir: packages/predict
 rev: predict-testnet-4-16
 ```
 
-`move/rangepilot/Move.toml` uses Testnet `dep-replacements` to bind DeepBook Predict and DeepBook to the deployed Testnet package IDs. The local `deepbookv3-predict-testnet-4-16/` snapshot is source-level debugging/reference only; it must stay ignored and uncommitted, and it is not the formal wrapper dependency source.
+`move/rangepilot/Move.toml` uses Testnet `dep-replacements` to bind DeepBook Predict and DeepBook to the deployed Testnet package IDs. Phase 3E pre-publish checks passed, but Sui CLI publish and bytecode-dump diagnostics still classify `deepbook_predict` as an unpublished dependency because the official Git dependency lacks usable publication metadata for the real publish path. The local `deepbookv3-predict-testnet-4-16/` snapshot is source-level debugging/reference only; it must stay ignored and uncommitted, and it is not the formal wrapper dependency source.
 
 Confirmed source signature:
 
@@ -227,7 +227,7 @@ Wrapper surface:
 
 No public or entry permissionless `deposit_platform_fees` exists. Platform deposits happen through `follow_strategy_and_mint<T>` only.
 
-The local skeleton entrypoints compile against official DeepBookV3 Git dependencies with Testnet dep-replacements. Concrete published wrapper package IDs, ProtocolVault object IDs, AdminCap owner/publish address, and deployment-specific DUSDC examples remain pending until publish/post-publish setup.
+The local skeleton entrypoints compile against official DeepBookV3 Git dependencies with Testnet dep-replacements. Phase 3E did not publish the wrapper because Sui CLI publication diagnostics still report `deepbook_predict` as unpublished; concrete published wrapper package IDs, ProtocolVault object IDs, and deployment-specific DUSDC examples remain pending until the dependency publication metadata blocker is resolved. The intended publisher/AdminCap owner address for the blocked attempt was `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`.
 
 ## Events
 
@@ -279,10 +279,10 @@ Do not mirror DeepBook Predict pricing, oracle, or vault errors in wrapper code.
 
 ## Upgrade and deployment assumptions
 
-- The wrapper package is not published in Phase 3D.
-- Wrapper package ID is `TBD` until an explicit future Testnet publish round.
+- The wrapper package is not published; Phase 3E was blocked before execution by Sui CLI dependency publication metadata for `deepbook_predict`.
+- Wrapper package ID is `TBD` until a future Testnet publish attempt succeeds.
 - ProtocolVault object ID is `TBD` until post-publish admin creation.
-- AdminCap owner/publish address is `TBD` until publish and must be disclosed before first follow.
+- Intended AdminCap owner / publish address for the blocked Phase 3E attempt was `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`; no actual AdminCap exists yet.
 - The Testnet/hackathon wrapper is upgradeable; final production policy can be revisited later.
 - SDK builders must block by default without a wrapper package ID and protocol vault ID.
 - Mainnet is out of scope.
@@ -293,18 +293,19 @@ Do not mirror DeepBook Predict pricing, oracle, or vault errors in wrapper code.
 | Follow-up | Status | Handling |
 |---|---|---|
 | Official DeepBookV3 dependency source | Resolved for Phase 3C: `move/rangepilot/Move.toml` uses official DeepBookV3 Git dependencies for `packages/predict` and `packages/deepbook` at `predict-testnet-4-16`, with Testnet dep-replacements binding deployed package IDs. | Keep local snapshots ignored and uncommitted. Do not switch formal dependencies back to local paths. |
-| ProtocolVault fee model | Resolved for Phase 3D: platform fee deposits into `ProtocolVault<T>` and `AdminCap` controls withdrawal. | Create real `ProtocolVault<DUSDC>` only after publish and explicit approval. |
-| DUSDC source dependency for published examples | `mint_range<T>` remains generic in the skeleton; concrete DUSDC publish examples still require final package/source confirmation. | Keep skeleton generic and docs Testnet-specific. Confirm before publish. |
-| Wrapper package ID | `TBD` until publish. | SDK stubs must block without explicit package ID. |
-| ProtocolVault object ID | `TBD` until post-publish creation. | SDK follow builders must block without explicit protocol vault ID. |
-| AdminCap owner / publish address | `TBD` until publish. | Disclose before publish/first follow. |
+| ProtocolVault fee model | Resolved for Phase 3D: platform fee deposits into `ProtocolVault<T>` and `AdminCap` controls withdrawal. | Create real `ProtocolVault<DUSDC>` only after publish succeeds. |
+| DUSDC source dependency for published examples | `mint_range<T>` remains generic in the skeleton; concrete DUSDC publish examples still require final package/source confirmation. | Keep skeleton generic and docs Testnet-specific. Resolve the Phase 3E `deepbook_predict` unpublished-dependency blocker before retrying publish. |
+| Wrapper package ID | `TBD`; Phase 3E publish was blocked before execution. | SDK stubs must block without explicit package ID. |
+| ProtocolVault object ID | `TBD`; no vault was created because publish did not execute. | SDK follow builders must block without explicit protocol vault ID. |
+| AdminCap owner / publish address | Intended Phase 3E publisher/admin address is `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`; no actual AdminCap exists yet. | Disclose actual cap owner after publish and before first follow. |
 | Final fee policy | Phase 3D confirms Testnet/hackathon `platform_fee_bps = 10` and `MAX_CREATOR_FEE_BPS = 3000`. | Revisit before audits/production if needed. |
 
 ## Verification status
 
-Current Phase 3D verification:
+Phase 3E pre-publish verification passed before the dependency publication blocker was reached:
 
 - `npm run typecheck`: passed.
-- `npm run build:web`: pending final verification.
+- `npm run build:web`: passed with the existing acceptable Vite chunk-size warning.
 - `npm run move:build:rangepilot`: passed.
 - `npm run move:test:rangepilot`: passed with 18 tests.
+- `sui client publish move/rangepilot --dry-run --gas-budget 200000000 --json`: blocked before execution because `deepbook_predict` is classified as unpublished.

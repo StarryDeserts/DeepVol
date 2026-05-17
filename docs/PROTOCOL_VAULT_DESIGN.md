@@ -1,7 +1,7 @@
 ---
 Purpose: Define RangePilot ProtocolVault and AdminCap fee custody for the creator strategy wrapper.
 Audience: Move developers, SDK implementers, frontend developers, reviewers, and product leads.
-Status: Phase 3D design and implementation reference; no package is published.
+Status: Phase 3E publish attempt blocked by dependency publication metadata; no ProtocolVault object exists.
 Source of truth relationship: Supplements wrapper architecture and publish readiness docs; Move source remains authoritative for implemented entrypoints.
 ---
 
@@ -57,26 +57,28 @@ Admin-controlled operations:
 - create `ProtocolVault<T>` after wrapper publish;
 - withdraw platform fees from `ProtocolVault<T>` to a recipient chosen by the admin operation.
 
-The admin cap ID is a post-publish operational value, not a frontend follower-flow input unless a future explicit admin workflow requires it.
+Phase 3E intended publisher/AdminCap owner address was `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`, but publish was blocked before execution, so no actual `AdminCap` exists yet. The admin cap ID is a post-publish operational value, not a frontend follower-flow input unless a future explicit admin workflow requires it.
 
-## Non-goals
+## Current deployment state and non-goals
 
-Phase 3D does not:
+Phase 3E pre-publish checks passed, but Sui CLI publish and bytecode-dump diagnostics still classify `deepbook_predict` as an unpublished dependency. The wrapper package was not published, no `AdminCap` or `UpgradeCap` was created, and no real `ProtocolVault<DUSDC>` object exists.
 
-- publish the wrapper package;
-- create a real `ProtocolVault<DUSDC>` object;
+Current non-goals:
+
 - execute `follow_strategy_and_mint<DUSDC>`;
-- sign wallet or local-signer transactions;
+- execute DeepBook Predict `mint_range`, `redeem_range`, or `supply`;
+- execute `withdraw_platform_fees`;
+- use mainnet;
 - choose a final platform withdrawal recipient;
 - build a vault dashboard;
 - implement DeepBook Predict pricing, oracle settlement, vault risk, StrikeMatrix, payout, settlement, or `PredictManager` custody.
 
 ## First Testnet follow scenario
 
-This scenario is design-only in Phase 3D and must not be executed until a future explicit approval:
+This scenario remains pending until the Phase 3E dependency publication metadata blocker is resolved and wrapper publish plus `ProtocolVault<DUSDC>` setup succeed:
 
-1. Obtain explicit future publish approval.
-2. Publish the wrapper package to Sui Testnet with upgradeability retained for the hackathon/Testnet stage.
+1. Resolve Sui CLI `deepbook_predict` unpublished-dependency diagnostics without vendoring local snapshots or publishing DeepBook Predict as a RangePilot dependency.
+2. Retry the controlled wrapper package publish to Sui Testnet with upgradeability retained for the hackathon/Testnet stage.
 3. Record the wrapper package ID in `packages/config/src/rangePilotTestnet.ts`.
 4. Publisher receives `AdminCap`; disclose AdminCap owner/publish address.
 5. Admin creates `ProtocolVault<DUSDC>`; record ProtocolVault object ID in RangePilot config.
@@ -95,10 +97,10 @@ This scenario is design-only in Phase 3D and must not be executed until a future
 18. Verify creator fee transferred to creator.
 19. Verify a failing DeepBook mint abort rolls back creator transfer and ProtocolVault deposit.
 
-Forbidden Phase 3D actions:
+Remaining forbidden actions before publish/setup succeeds:
 
-- do not run `sui client publish`;
-- do not run `sui client call`;
-- do not sign with a wallet;
-- do not execute local signer transactions;
-- do not run validation scripts that submit transactions.
+- do not execute `follow_strategy_and_mint`;
+- do not execute DeepBook Predict `mint_range`, `redeem_range`, or `supply`;
+- do not execute `withdraw_platform_fees`;
+- do not use mainnet;
+- do not run validation scripts that submit non-approved transactions.

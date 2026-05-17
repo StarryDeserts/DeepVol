@@ -1,7 +1,7 @@
 ---
 Purpose: Track RangePilot wrapper contract readiness before any Testnet publish.
 Audience: Move developers, SDK implementers, frontend developers, reviewers, and product leads.
-Status: Phase 3D ProtocolVault publish-readiness checklist; wrapper package is not published.
+Status: Phase 3E Testnet publish attempt blocked by dependency publication metadata; wrapper package is not published.
 Source of truth relationship: Supplements wrapper architecture and protocol integration docs; official DeepBook Predict docs and local Move source remain authoritative for protocol behavior.
 ---
 
@@ -9,14 +9,14 @@ Source of truth relationship: Supplements wrapper architecture and protocol inte
 
 ## Current status
 
-The RangePilot wrapper package is a publish-readiness candidate, not a published package. Phase 3D replaces the direct platform-recipient fee model with `ProtocolVault<T>` + `AdminCap`, fixes platform fee policy at 10 bps, caps creator fees at 3000 bps, keeps shared permissionless Strategies, and preserves Route B internal DeepBook Predict minting.
+The RangePilot wrapper package remains unpublished. Phase 3D replaced the direct platform-recipient fee model with `ProtocolVault<T>` + `AdminCap`, fixed platform fee policy at 10 bps, capped creator fees at 3000 bps, kept shared permissionless Strategies, and preserved Route B internal DeepBook Predict minting. Phase 3E pre-publish checks passed, but the controlled Testnet publish path is blocked because Sui CLI publish/dump diagnostics still classify `deepbook_predict` as an unpublished dependency.
 
 Current verification snapshot:
 
 | Command | Status |
 |---|---|
 | `npm run typecheck` | Passed after SDK/config/type updates. |
-| `npm run build:web` | Must pass before commit; existing Vite chunk-size warning is acceptable if unchanged. |
+| `npm run build:web` | Passed at Phase 3E pre-publish gate; existing Vite chunk-size warning is acceptable if unchanged. |
 | `npm run move:build:rangepilot` | Passed with official DeepBookV3 Git dependencies and Testnet dep-replacements. |
 | `npm run move:test:rangepilot` | Passed with 18 RangePilot tests. |
 
@@ -30,7 +30,7 @@ Current verification snapshot:
 | AdminCap owner / publish address | `TBD` until publish; must be disclosed before first follow. |
 | Formal DeepBook Predict dependency | Official DeepBookV3 Git repo, `packages/predict`, `rev = "predict-testnet-4-16"`. |
 | Formal DeepBook dependency | Official DeepBookV3 Git repo, `packages/deepbook`, `rev = "predict-testnet-4-16"`. |
-| Testnet binding | `Move.toml` uses `dep-replacements.testnet` for deployed DeepBook Predict and DeepBook package IDs. |
+| Testnet binding | `Move.toml` uses `dep-replacements.testnet` for deployed DeepBook Predict and DeepBook package IDs, but Sui CLI `publish`/bytecode dump still reports `deepbook_predict` as unpublished. |
 | Local source snapshot | `deepbookv3-predict-testnet-4-16/` is source-level debugging/reference only and must not be committed. |
 
 The wrapper must not switch its formal Move dependency back to `../../deepbookv3-predict-testnet-4-16/packages/predict` or any `deepbookv3-predict-package` path.
@@ -57,9 +57,9 @@ The wrapper must not switch its formal Move dependency back to `../../deepbookv3
 
 ## What is not ready
 
-- Wrapper package is not published.
+- Wrapper package is not published because Phase 3E publish is blocked by Sui CLI dependency publication metadata for `deepbook_predict`.
 - No `ProtocolVault<DUSDC>` object exists yet.
-- No final AdminCap owner / publish address is recorded.
+- Intended AdminCap owner / publish address was confirmed as `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`, but no final AdminCap exists until publish succeeds.
 - No real `follow_strategy_and_mint<T>` transaction has been executed.
 - No final creator strategy UI is built.
 - No indexer schema links `StrategyFollowed` to DeepBook Predict `RangeMinted` in production.
@@ -84,14 +84,15 @@ The wrapper must not switch its formal Move dependency back to `../../deepbookv3
 
 | Item | Status |
 |---|---|
-| Actual wrapper package ID | `TBD` until publish. |
-| Actual ProtocolVault object ID | `TBD` until `create_protocol_vault<DUSDC>` after publish. |
-| Actual AdminCap owner / publish address | `TBD` until publish; must be disclosed. |
-| Actual first Testnet follow transaction | `TBD`; do not execute in Phase 3D. |
-| Actual publish approval | Required before publish. |
+| Actual wrapper package ID | `TBD`; Phase 3E publish blocked before execution. |
+| Actual ProtocolVault object ID | `TBD`; `create_protocol_vault<DUSDC>` was not attempted because publish was blocked. |
+| Intended AdminCap owner / publish address | Confirmed intended publisher/admin address: `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`; no actual AdminCap exists yet. |
+| Actual first Testnet follow transaction | `TBD`; do not execute until wrapper package/vault setup succeeds and a fresh quote/full preflight passes. |
+| Actual publish approval | Phase 3E publish was approved, but blocked before execution by dependency publication metadata. |
 
 ## Publish checklist
 
+- Resolve Sui CLI `deepbook_predict` unpublished-dependency blocker for publish/bytecode dump.
 - Confirm Sui CLI version and `Move.toml` environment syntax.
 - Re-run `npm run move:build:rangepilot`.
 - Re-run `npm run move:test:rangepilot`.
@@ -152,13 +153,15 @@ The wrapper must not switch its formal Move dependency back to `../../deepbookv3
 18. Verify creator fee transferred to creator.
 19. Verify a failing DeepBook mint abort rolls back creator transfer and ProtocolVault deposit.
 
-Forbidden Phase 3D actions:
+Phase 3E authorization and remaining forbidden actions:
 
-- Do not run `sui client publish`.
-- Do not run `sui client call`.
-- Do not sign with a wallet.
-- Do not execute local signer transactions.
-- Do not run validation scripts that submit transactions.
+- Controlled `sui client publish` and `create_protocol_vault<DUSDC>` were approved for Phase 3E, but publish was blocked before execution.
+- Do not run `create_protocol_vault<DUSDC>` until publish succeeds.
+- Do not call `follow_strategy_and_mint` in Phase 3E.
+- Do not call DeepBook Predict `mint_range`, `redeem_range`, or `supply` in Phase 3E.
+- Do not call `withdraw_platform_fees` in Phase 3E.
+- Do not use mainnet.
+- Do not run validation scripts that submit non-approved transactions.
 
 ## Rollback and redeploy assumptions
 

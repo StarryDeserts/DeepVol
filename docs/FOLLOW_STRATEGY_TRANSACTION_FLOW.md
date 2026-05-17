@@ -1,7 +1,7 @@
 ---
 Purpose: Specify the planned Route B follow_strategy_and_mint transaction flow for the RangePilot wrapper.
 Audience: Move developers, SDK implementers, frontend developers, protocol integrators, reviewers, and AI agents.
-Status: Phase 3D ProtocolVault transaction-flow reference; not published or executed.
+Status: Phase 3E publish attempt blocked by dependency publication metadata; first wrapper follow remains pending.
 Source of truth relationship: Supplements wrapper architecture and entrypoint binding docs; official DeepBook Predict docs and local source signatures remain authoritative for protocol entrypoints.
 ---
 
@@ -29,11 +29,11 @@ The frontend also needs confirmed config values for Testnet:
 - Predict package ID;
 - Predict shared object ID;
 - DUSDC coin type;
-- wrapper package ID after future publish;
-- ProtocolVault object ID after post-publish admin creation;
+- wrapper package ID after a future successful publish;
+- ProtocolVault object ID after future post-publish admin creation;
 - Sui Clock object ID `0x6`.
 
-The wrapper package ID and ProtocolVault object ID are `TBD` until a future explicit publish/post-publish setup round.
+The wrapper package ID and ProtocolVault object ID remain `TBD`. Phase 3E pre-publish checks passed, but the controlled publish path was blocked before execution because Sui CLI publish and bytecode-dump diagnostics still classify `deepbook_predict` as an unpublished dependency.
 
 ## Pre-transaction frontend gates
 
@@ -99,7 +99,7 @@ The frontend should still preflight to avoid unnecessary wallet failures, but on
 
 ## Fee flow
 
-Phase 3D MVP fee flow:
+MVP fee flow:
 
 ```text
 fee Coin<T> passed to wrapper
@@ -112,9 +112,9 @@ fee Coin<T> passed to wrapper
 → wrapper calls DeepBook Predict mint_range<T>
 ```
 
-The fee type may be generic in the skeleton. Product docs expect DUSDC for the Testnet user path, but concrete DUSDC publish examples still require future publish/post-publish confirmation.
+The fee type may be generic in the skeleton. Product docs expect DUSDC for the Testnet user path, but concrete DUSDC publish examples still require successful publish/post-publish confirmation.
 
-The wrapper must not compute fee from DeepBook Predict mint cost by reproducing pricing. Phase 3D uses explicit fee amount only; quantity-based tokenomics remain a future product decision.
+The wrapper must not compute fee from DeepBook Predict mint cost by reproducing pricing. The wrapper uses explicit fee amount only; quantity-based tokenomics remain a future product decision.
 
 ## Admin operations
 
@@ -123,7 +123,7 @@ The wrapper must not compute fee from DeepBook Predict mint cost by reproducing 
 - `create_protocol_vault<T>` after wrapper publish;
 - `withdraw_platform_fees<T>` for later platform fee withdrawal.
 
-The AdminCap owner / publish address is `TBD` until publish and must be disclosed before first follow.
+The intended AdminCap owner / publish address for the blocked Phase 3E attempt was `0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5`, but no actual AdminCap exists until publish succeeds. The actual AdminCap owner must be disclosed before first follow.
 
 ## DeepBook Predict mint behavior
 
@@ -157,12 +157,12 @@ A successful follow transaction should produce at least:
 
 The recommended skeleton emits `StrategyFollowed` after `mint_range` succeeds so the event cannot exist without a successful protocol call.
 
-## First Testnet follow scenario, design-only
+## First Testnet follow scenario, pending
 
-Phase 3D only records this scenario; it does not execute it:
+The first wrapper follow remains pending until the Phase 3E dependency publication metadata blocker is resolved and wrapper publish plus `ProtocolVault<DUSDC>` setup succeed:
 
-1. Obtain explicit future publish approval.
-2. Publish the wrapper package to Sui Testnet with upgradeability retained for the hackathon/Testnet stage.
+1. Resolve Sui CLI `deepbook_predict` unpublished-dependency diagnostics without vendoring local snapshots or publishing DeepBook Predict as a RangePilot dependency.
+2. Retry the controlled wrapper package publish to Sui Testnet with upgradeability retained for the hackathon/Testnet stage.
 3. Record the wrapper package ID in `packages/config/src/rangePilotTestnet.ts`.
 4. Publisher receives AdminCap; disclose AdminCap owner/publish address.
 5. Admin creates `ProtocolVault<DUSDC>`; record ProtocolVault object ID in RangePilot config.
@@ -181,13 +181,13 @@ Phase 3D only records this scenario; it does not execute it:
 18. Verify creator fee transferred to creator.
 19. Verify a failing DeepBook mint abort rolls back creator transfer and ProtocolVault deposit.
 
-Forbidden Phase 3D actions:
+Remaining forbidden actions before publish/setup succeeds:
 
-- Do not run `sui client publish`.
-- Do not run `sui client call`.
-- Do not sign with a wallet.
-- Do not execute local signer transactions.
-- Do not run validation scripts that submit transactions.
+- Do not execute `follow_strategy_and_mint`.
+- Do not execute DeepBook Predict `mint_range`, `redeem_range`, or `supply`.
+- Do not execute `withdraw_platform_fees`.
+- Do not use mainnet.
+- Do not run validation scripts that submit non-approved transactions.
 
 ## Public server boundary
 
