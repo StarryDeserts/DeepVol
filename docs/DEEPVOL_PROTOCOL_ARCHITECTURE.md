@@ -76,7 +76,7 @@ The intended MVP transaction path is:
 7. Deposit Create Fee into `ProtocolVault`.
 8. Mint `MoveReceipt` recording the series and binary leg metadata.
 
-The exact DeepVol wrapper design is future implementation work. This foundation round only defines the boundary.
+The 2026-05-19 controlled Testnet round validated the direct Predict two-leg PTB through `devInspect`, but the CLI dry-run returned `InsufficientGas in command 3` before submission. No direct binary mint, Create Fee routing, or `MoveReceipt` mint has been executed yet, so the exact DeepVol wrapper design remains future implementation work.
 
 ### Portfolio readback path
 

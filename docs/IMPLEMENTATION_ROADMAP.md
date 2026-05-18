@@ -33,10 +33,10 @@ The prior creator-follow strategy model is not the primary product direction bec
 
 | Field | Content |
 |---|---|
-| Goal | Validate the DeepBook Predict binary leg path DeepVol depends on without submitting write transactions in the first harness round. |
-| Deliverables | Read-only/source confirmation of `MarketKey`; binary quote harness; read-only BTC UP/DOWN pair selection; binary position readback helper; full two-leg PTB devInspect; gated Testnet binary mint validation plan; binary event parser; binary redeem validation plan. |
+| Goal | Validate the DeepBook Predict binary leg path DeepVol depends on with read/preflight evidence first, then a controlled real mint only after gates pass. |
+| Deliverables | Read-only/source confirmation of `MarketKey`; binary quote harness; read-only BTC UP/DOWN pair selection; binary position readback helper; full two-leg PTB devInspect; gated Testnet binary mint mode; blocked-before-submission validation report; binary event parser; binary redeem validation plan. |
 | Non-goals | No custodial receipt, no profit fee, no creator marketplace, no production UI. |
-| Acceptance criteria | UP and DOWN quote preview pass for a runtime BTC oracle/expiry; full two-leg mint preflight passes; controlled binary mint validation is either completed with digest/evidence or blocked with precise cause; `predict_manager::position` readback strategy is proven. |
+| Acceptance criteria | UP and DOWN quote preview pass for a runtime BTC oracle/expiry; full two-leg mint preflight passes; controlled binary mint validation is either completed with digest/evidence or blocked with precise cause; `predict_manager::position` readback strategy is proven. Current status: 2026-05-19 controlled round blocked before submission at CLI dry-run with `InsufficientGas in command 3`. |
 | Required docs | DeepVol binary leg integration; official contract info; protocol integration notes; entrypoint bindings plan; PredictManager flow and validation docs. |
 | Risks and fallback | Risk: active BTC binary market changes or mintability fails after quote. Fallback: document runtime blocker and do not build production receipt flow until full binary preflight succeeds. |
 

@@ -57,7 +57,7 @@ The MVP excludes:
 - Pro API.
 - Full UI polish.
 
-These can be revisited after BTC MOVE binary mint, receipt creation, fee deposit, portfolio readback, and guided redeem are validated.
+These can be revisited after BTC MOVE binary mint, receipt creation, fee deposit, portfolio readback, and guided redeem are validated. The 2026-05-19 controlled binary mint round was blocked before submission by CLI dry-run `InsufficientGas in command 3`, so receipt contract work remains future scope.
 
 ## Runtime assumptions
 
@@ -71,11 +71,13 @@ The first implementation should prefer runtime discovery over hardcoded market a
 2. Clarify the primitives-vs-receipts product layer.
 3. Add a read-only BTC binary leg validation harness for quote, MarketKey construction, readback, and devInspect-only preflight.
 4. Validate BTC binary quote preview for both UP and DOWN legs.
-5. Validate a two-leg binary mint PTB in devInspect and then in a controlled transaction round.
-4. Design `VolSeries` and non-custodial `MoveReceipt` Move structs.
-5. Add SDK builders and full preflight gates.
-6. Add portfolio readback and guided settlement UI.
-7. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
+5. Validate a two-leg binary mint PTB in devInspect.
+6. Run a controlled binary mint round and document the result. The 2026-05-19 round was blocked before submission by CLI dry-run `InsufficientGas in command 3`.
+7. Diagnose the mint dry-run blocker before attempting another real binary mint.
+8. Design `VolSeries` and non-custodial `MoveReceipt` Move structs after the underlying binary mint path is proven or explicitly re-scoped.
+9. Add SDK builders and full preflight gates.
+10. Add portfolio readback and guided settlement UI.
+11. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
 
 ## Future code organization
 

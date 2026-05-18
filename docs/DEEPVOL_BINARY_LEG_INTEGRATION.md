@@ -1,7 +1,7 @@
 ---
 Purpose: Record the DeepBook Predict binary-leg entrypoints DeepVol depends on.
 Audience: Move developers, SDK implementers, frontend developers, reviewers, and AI agents.
-Status: Source-confirmed entrypoints; binary mint/redeem still require dedicated Testnet validation before production coding.
+Status: Source-confirmed entrypoints; quote/read/preflight validated; controlled binary mint attempt blocked before submission at CLI dry-run.
 ---
 
 # DeepVol Binary Leg Integration
@@ -79,6 +79,7 @@ This round adds `scripts/validate-deepvol-binary-legs.mjs` with two modes:
 
 - `npm run validate:deepvol-binary-read` discovers active BTC oracle candidates, constructs UP/DOWN `MarketKey` values with official constructors, quotes both legs with `predict::get_trade_amounts`, and optionally reads `predict_manager::position` when `--sender` and `--manager` are supplied.
 - `npm run validate:deepvol-binary-preflight` first runs read-mode selection, then requires explicit `--sender` and `--manager` before building a two-leg `predict::mint<DUSDC>` PTB for `devInspect` only.
+- `npm run validate:deepvol-binary-mint` runs the controlled Testnet mint gates for the known funded sender/manager, serializes a two-leg transaction kind for Sui CLI dry-run, and submits only if all gates pass.
 
 Safety properties:
 
@@ -102,7 +103,9 @@ Latest harness result from 2026-05-18:
 | Two-leg PTB preflight result | Passed with explicit sender/manager through `client.devInspectTransactionBlock`; no signing or execution. |
 | Blockers | Live binary mint/redeem not executed in this round. Future wallet approval still needs fresh runtime quote, manager balance, fee coverage, and full two-leg preflight. |
 
-Quote success does not imply mintability. The full two-leg PTB still requires fresh `devInspect` before any future wallet approval.
+Latest controlled mint-mode result from 2026-05-19 is recorded in [DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md](./DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md): read, balance, owner, CLI environment, transaction-shape, and `devInspect` gates passed for sender `0x4ff903b0dcc52dc8753787baf19b34b7425dfa64d187cc7c726b38413705fa75` and manager `0xd59be0646d948c9be6073edc0cfd253ce4cb00f4929f0bae71f451f50e5d1575`, but CLI dry-run returned `InsufficientGas in command 3`. No write transaction was submitted and no retry was attempted.
+
+Quote success and `devInspect` success do not imply mintability or executable CLI submission. The full two-leg PTB still requires fresh quote, manager balance, gas, `devInspect`, CLI dry-run or wallet dry-run equivalent, and wallet approval gates before any future production mint.
 
 ## Binary mint entrypoint
 
@@ -220,8 +223,8 @@ Validated prior work:
 DeepVol-specific remaining work:
 
 - Record this harness round's actual read output and blockers.
-- Run two-leg binary mint PTB `devInspect` with explicit sender/manager inputs.
-- Complete controlled live binary mint validation in a later explicitly approved round.
+- Diagnose the controlled mint-mode CLI dry-run blocker: `InsufficientGas in command 3`.
+- Complete controlled live binary mint validation in a later explicitly approved round only after the dry-run blocker is understood.
 - Binary redeem validation.
 - Binary event parsing in SDK.
 - Binary direct readback helper in SDK.
