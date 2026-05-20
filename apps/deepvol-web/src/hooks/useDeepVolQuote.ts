@@ -54,6 +54,8 @@ export type DeepVolQuoteState = {
   warnings: string[];
   error: string | null;
   isLoading: boolean;
+  isRefreshing: boolean;
+  refreshQuote: () => void;
 };
 
 type UseDeepVolQuoteParams = {
@@ -198,9 +200,6 @@ export function useDeepVolQuote({
         });
       }
 
-      blockers.push("Browser direct binary mint preflight is not implemented in this scaffold, so wallet submission remains disabled.");
-      blockers.push("Browser buy_move_receipt<DUSDC> preflight is not implemented in this scaffold, so wallet submission remains disabled.");
-
       return buildState({
         status: blockers.length > 0 ? "blocked" : "ready",
         series,
@@ -218,31 +217,35 @@ export function useDeepVolQuote({
     },
   });
 
-  if (query.isLoading) {
-    return buildState({
-      status: "loading",
-      quantity: quantity ?? quantityInput,
-      blockers: baseBlockers,
-      warnings: [],
-    });
-  }
+  const state = query.isLoading
+    ? buildState({
+        status: "loading",
+        quantity: quantity ?? quantityInput,
+        blockers: baseBlockers,
+        warnings: [],
+      })
+    : query.isError
+      ? buildState({
+          status: "error",
+          quantity: quantity ?? quantityInput,
+          blockers: baseBlockers,
+          warnings: [],
+          error: query.error instanceof Error ? query.error.message : String(query.error),
+        })
+      : query.data ?? buildState({
+          status: baseBlockers.length > 0 ? "blocked" : "idle",
+          quantity: quantity ?? quantityInput,
+          blockers: baseBlockers,
+          warnings: [],
+        });
 
-  if (query.isError) {
-    return buildState({
-      status: "error",
-      quantity: quantity ?? quantityInput,
-      blockers: baseBlockers,
-      warnings: [],
-      error: query.error instanceof Error ? query.error.message : String(query.error),
-    });
-  }
-
-  return query.data ?? buildState({
-    status: baseBlockers.length > 0 ? "blocked" : "idle",
-    quantity: quantity ?? quantityInput,
-    blockers: baseBlockers,
-    warnings: [],
-  });
+  return {
+    ...state,
+    isRefreshing: query.isFetching,
+    refreshQuote: () => {
+      void query.refetch();
+    },
+  };
 }
 
 async function readVolSeries(
@@ -311,6 +314,8 @@ function buildState(params: Partial<DeepVolQuoteState> & {
     },
     error: null,
     isLoading: params.status === "loading",
+    isRefreshing: false,
+    refreshQuote: () => undefined,
     ...params,
   };
 }

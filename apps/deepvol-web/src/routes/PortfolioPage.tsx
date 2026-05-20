@@ -48,8 +48,10 @@ export function PortfolioPage() {
       </section>
 
       {!portfolio.hasLocalReceipts && (
-        <StateCallout tone="info" title="Reference artifact">
-          No local receipt history was found for this browser, so the validation receipt is shown as reference evidence only.
+        <StateCallout tone="info" title="Create your first local receipt">
+          No local receipt history was found for this browser. Start on <a href="/buy/btc-move">BTC MOVE</a> to connect a Testnet wallet,
+          prepare a PredictManager, fund DUSDC, quote, run preflight, and only then review a buy transaction. The validation receipt below is
+          reference evidence only, not connected-wallet inventory.
         </StateCallout>
       )}
 

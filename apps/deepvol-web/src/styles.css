@@ -732,7 +732,9 @@ dd {
 }
 
 .primitiveSection,
-.btcMoveCard {
+.btcMoveCard,
+.setupActionCard,
+.flowChecklist {
   display: grid;
   gap: 1rem;
 }
@@ -744,6 +746,148 @@ dd {
 .primitiveCard span {
   color: var(--dv-seafoam);
   font-size: 1rem;
+}
+
+.flowChecklist ol {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flowStep {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.8rem;
+  border: 1px solid rgba(116, 232, 255, 0.12);
+  border-radius: var(--dv-radius-sm);
+  background: rgba(3, 12, 24, 0.34);
+}
+
+.flowStep strong,
+.flowStep small,
+.flowStep em {
+  display: block;
+}
+
+.flowStep small {
+  margin-top: 0.25rem;
+  color: var(--dv-muted);
+  line-height: 1.4;
+}
+
+.flowStep em {
+  color: var(--dv-muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flowStepIndex {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.flowStep-complete {
+  color: var(--dv-seafoam);
+}
+
+.flowStep-current {
+  color: var(--dv-cyan);
+  border-color: rgba(54, 216, 255, 0.3);
+}
+
+.flowStep-blocked {
+  color: var(--dv-warning);
+}
+
+.flowStep-pending {
+  color: var(--dv-muted);
+}
+
+.inlineFieldGroup,
+.actionRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.inlineFieldGroup input {
+  flex: 1 1 auto;
+}
+
+.inlineFieldGroup .secondaryButton,
+.actionRow .primaryButton,
+.setupActionCard > .primaryButton {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.actionRow {
+  flex-wrap: wrap;
+}
+
+.fundingSplitGrid,
+.preflightAction {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.fundingSplitGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fundingSplitGrid article,
+.preflightAction {
+  min-width: 0;
+  border: 1px solid rgba(116, 232, 255, 0.14);
+  border-radius: var(--dv-radius-md);
+  padding: 1rem;
+  background: rgba(3, 12, 24, 0.34);
+}
+
+.fundingSplitGrid span {
+  display: block;
+  color: var(--dv-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fundingSplitGrid strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--dv-text);
+  font-size: 1.05rem;
+}
+
+.fundingSplitGrid small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--dv-muted);
+  line-height: 1.45;
+}
+
+.preflightAction {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.preflightAction p {
+  margin: 0.35rem 0 0;
 }
 
 .fieldLabel {
@@ -996,7 +1140,9 @@ input:focus {
   .pageHero,
   .metricGrid,
   .portfolioSummaryBand,
-  .receiptMetricRow {
+  .receiptMetricRow,
+  .fundingSplitGrid,
+  .preflightAction {
     grid-template-columns: 1fr;
   }
 
@@ -1047,7 +1193,9 @@ input:focus {
   .dataGrid,
   .dataGrid-compact,
   .detailsGrid,
-  .primitiveGrid {
+  .primitiveGrid,
+  .inlineFieldGroup,
+  .flowStep {
     grid-template-columns: 1fr;
   }
 

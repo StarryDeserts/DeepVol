@@ -1,7 +1,7 @@
 ---
 Purpose: Define the phased implementation roadmap for DeepVol BTC MOVE while preserving RangePilot validation history.
 Audience: Product engineers, protocol integrators, frontend developers, and project planners.
-Status: Updated for DeepVol-7 frontend UI/UX redesign.
+Status: Updated for DeepVol-8 browser UX flow repair.
 Source of truth relationship: Derived from DeepVol foundation docs, local protocol docs, and official-derived Testnet integration references; implementation details remain subject to confirmation.
 ---
 
@@ -68,9 +68,9 @@ The prior creator-follow strategy model is not the primary product direction bec
 | Field | Content |
 |---|---|
 | Goal | Establish and polish the DeepVol-first wallet-gated frontend before settlement UX. |
-| Deliverables | New `apps/deepvol-web` Vite app; BTC MOVE markets route; buy route; portfolio route; wallet status; Testnet guard; quote/preflight panels; transaction gating card; local/reference receipt readback; explicit blocker states; DeepVol-7 oceanic UI/UX redesign over the DeepVol-6 scaffold. |
+| Deliverables | New `apps/deepvol-web` Vite app; BTC MOVE markets route; buy route; portfolio route; wallet status; Testnet guard; quote/preflight panels; transaction gating card; local/reference receipt readback; explicit blocker states; DeepVol-7 oceanic UI/UX redesign over the DeepVol-6 scaffold; DeepVol-8 browser flow repair with PredictManager create/store action visibility, DUSDC wallet/deposit visibility, explicit quote refresh, explicit preflight action, and first-receipt portfolio guidance. |
 | Non-goals | Creator marketplace, secondary market, custodial settlement, Profit Fee enforcement, automatic execution, mainnet, redeem/withdraw actions, or protocol changes. |
-| Acceptance criteria | Users can connect a Testnet wallet, inspect the validated BTC MOVE VolSeries, understand `Trade movement, not direction.`, see quote/preflight state, understand why the buy button is disabled until all gates pass, and view local/reference receipt readback without treating the receipt as custody truth. |
+| Acceptance criteria | Users can connect a Testnet wallet, inspect the validated BTC MOVE VolSeries, understand `Trade movement, not direction.`, create or store a PredictManager, inspect wallet DUSDC funding, see quote/preflight state, understand why the buy button is disabled until all gates pass, and view local/reference receipt readback without treating the receipt as custody truth. |
 | Required docs | DeepVol frontend MVP; DeepVol protocol architecture; DeepVol data model; binary leg integration; PredictManager docs; protocol integration notes. |
 | Risks and fallback | Risk: users misunderstand receipts as tradable claims or assume the reference artifact is a live wallet position. Fallback: UI copy must state non-custodial receipt and local/indexer limitations clearly. |
 
@@ -109,4 +109,4 @@ These milestones are complete and remain useful as DeepVol implementation eviden
 | Phase 2 guided range scaffold | Completed as engineering scaffold | UI and wallet-gating reference, not current MVP direction. |
 | Phase 3 Route B wrapper | Completed and validated | Reusable fee vault, wrapper, event-linkage, and post-state verification patterns. |
 
-Formal UI design should now build from `apps/deepvol-web`, not by extending the prior RangePilot `apps/web` scaffold. DeepVol-7 moves that app from scaffold aesthetics to a coherent oceanic BTC MOVE transaction UX, while the next protocol/frontend task remains browser-safe full buy preflight and wallet execution. Wallet-gated UX work must preserve fresh quote, preflight, readback, and non-custodial receipt limitations.
+Formal UI design should now build from `apps/deepvol-web`, not by extending the prior RangePilot `apps/web` scaffold. DeepVol-7 moved that app from scaffold aesthetics to a coherent oceanic BTC MOVE transaction UX. DeepVol-8 repairs the browser flow so new Testnet users can see PredictManager setup, DUSDC funding, quote refresh, preflight, and portfolio next steps. The remaining protocol/frontend task is still full browser-safe binary mint and `buy_move_receipt<DUSDC>` preflight that can safely unlock the final buy wallet prompt. Wallet-gated UX work must preserve fresh quote, preflight, readback, and non-custodial receipt limitations.

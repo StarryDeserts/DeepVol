@@ -1,3 +1,4 @@
+import type { DeepVolPreflightController } from "../hooks/useDeepVolPreflight";
 import type { DeepVolQuoteState } from "../hooks/useDeepVolQuote";
 import { formatAtomicAmount, formatTimestampMs, shortId } from "../lib/format";
 import { DataGrid } from "./ui/DataGrid";
@@ -6,9 +7,10 @@ import { StatusPill } from "./ui/StatusPill";
 
 type MoveQuotePanelProps = {
   quote: DeepVolQuoteState;
+  preflight: DeepVolPreflightController;
 };
 
-export function MoveQuotePanel({ quote }: MoveQuotePanelProps) {
+export function MoveQuotePanel({ quote, preflight }: MoveQuotePanelProps) {
   return (
     <section className={`card quotePanel state-${quote.status}`}>
       <div className="cardHeader">
@@ -16,7 +18,12 @@ export function MoveQuotePanel({ quote }: MoveQuotePanelProps) {
           <div className="eyebrow">Runtime quote and preflight</div>
           <h2>BTC MOVE preview</h2>
         </div>
-        <StatusPill tone={statusTone(quote.status)}>{quote.status}</StatusPill>
+        <div className="cardActions">
+          <StatusPill tone={statusTone(quote.status)}>{quote.status}</StatusPill>
+          <button className="secondaryButton" type="button" disabled={quote.isRefreshing} onClick={quote.refreshQuote}>
+            {quote.isRefreshing ? "Refreshing" : "Refresh quote"}
+          </button>
+        </div>
       </div>
 
       {quote.error && (
@@ -74,22 +81,42 @@ export function MoveQuotePanel({ quote }: MoveQuotePanelProps) {
             value: <span className="mono" title={quote.feeCoin?.coinObjectId}>{shortId(quote.feeCoin?.coinObjectId)}</span>,
           },
           { label: "Quoted at", value: formatTimestampMs(quote.quotedAtMs) },
-          { label: "Preflight", value: quote.preflight.message },
+          { label: "Preflight", value: preflight.preflight.message },
+          { label: "Preflight ran", value: formatTimestampMs(preflight.lastRunAtMs) },
         ]}
       />
 
-      {quote.warnings.length > 0 && (
+      <section className={`preflightAction state-${preflight.status}`} aria-live="polite">
+        <div>
+          <span className="eyebrow">Step 7</span>
+          <strong>Run preflight</strong>
+          <p>{preflight.preflight.message}</p>
+        </div>
+        <button className="primaryButton" type="button" disabled={!preflight.canRun || preflight.isRunning} onClick={preflight.runPreflight}>
+          {preflight.isRunning ? "Running preflight" : "Run preflight"}
+        </button>
+      </section>
+
+      {[...quote.warnings, ...preflight.warnings].length > 0 && (
         <StateCallout tone="info" title="Quote warnings">
           <ul>
-            {quote.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            {[...quote.warnings, ...preflight.warnings].map((warning) => <li key={warning}>{warning}</li>)}
           </ul>
         </StateCallout>
       )}
 
       {quote.blockers.length > 0 && (
-        <StateCallout tone="warning" title="Preflight blockers">
+        <StateCallout tone="warning" title="Quote blockers">
           <ul>
             {quote.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+          </ul>
+        </StateCallout>
+      )}
+
+      {preflight.blockers.length > 0 && (
+        <StateCallout tone="warning" title="Preflight blockers">
+          <ul>
+            {preflight.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
           </ul>
         </StateCallout>
       )}

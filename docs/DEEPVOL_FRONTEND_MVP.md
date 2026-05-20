@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-7 UI/UX redesign over the DeepVol-6 frontend scaffold.
+Status: Updated for DeepVol-8 browser UX flow repair over the DeepVol-7 oceanic terminal.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 
@@ -11,7 +11,9 @@ Source of truth relationship: Derived from DeepVol foundation docs, deployed rec
 
 DeepVol-6 added a DeepVol-first frontend scaffold under `apps/deepvol-web/`. DeepVol-7 redesigns that app into a more professional oceanic DeFi trading experience for the validated BTC MOVE receipt path while preserving strict wallet, Testnet, quote, fee coin, and preflight gates before any wallet prompt can submit `receipt::buy_move_receipt<DUSDC>`.
 
-The redesigned frontend is still an MVP foundation, not a production launch. It improves product clarity, route hierarchy, transaction readiness states, portfolio receipt presentation, accessibility, and responsive layout without adding new chain behavior.
+The redesigned frontend is still an MVP foundation, not a production launch. It improves product clarity, route hierarchy, transaction readiness states, portfolio receipt presentation, accessibility, and responsive layout without adding production chain behavior.
+
+DeepVol-8 repairs the browser interaction flow for brand-new Sui Testnet users. The Buy page now exposes the path from wallet connection to PredictManager setup, DUSDC funding visibility, explicit quote refresh, explicit preflight, final buy gating, and portfolio guidance while preserving the rule that `buy_move_receipt<DUSDC>` cannot prompt the wallet until full browser-safe preflight passes.
 
 ## App path
 
@@ -61,11 +63,11 @@ DeepVol-7 used it only for interaction and layout patterns: app shell rhythm, fo
 | Route | Purpose |
 |---|---|
 | `/` | Alias to the markets page. |
-| `/markets` | Product entry page for BTC MOVE with `Trade movement, not direction.`, BTC MOVE payoff zones, CTA, and advanced primitive context. |
-| `/buy/btc-move` | Transaction workspace with product context, quantity/PredictManager setup, quote metrics, UP/DOWN leg quotes, readiness checklist, disabled buy CTA, and advanced protocol details. |
-| `/portfolio` | Receipt overview showing local browser records or the DeepVol-5 validation reference artifact, with explicit local/indexer limitations. |
+| `/markets` | Product entry page for BTC MOVE with `Trade movement, not direction.`, BTC MOVE payoff zones, CTA, advanced primitive context, and first-time setup preview. |
+| `/buy/btc-move` | Transaction workspace with product context, first-time flow checklist, PredictManager create/store actions, DUSDC wallet/deposit visibility, quantity setup, quote metrics, UP/DOWN leg quotes, explicit preflight, disabled buy CTA, and advanced protocol details. |
+| `/portfolio` | Receipt overview showing local browser records or the DeepVol-5 validation reference artifact, with explicit local/indexer limitations and a path back to `/buy/btc-move` for first local receipt creation. |
 
-The redesigned Buy page follows a transaction workspace model: product explanation and payoff zones stay near the setup form, while quote metrics and wallet-gated execution sit in a focused action column. The buy button stays disabled until the existing hook-derived gates pass.
+The redesigned Buy page follows a transaction workspace model: product explanation and payoff zones stay near the guided setup flow, while PredictManager setup, DUSDC funding, quote metrics, explicit preflight, and wallet-gated execution sit in a focused action column. The buy button stays disabled until all hook-derived gates and explicit preflight gates pass.
 
 ## Wallet and Testnet guard
 
@@ -82,26 +84,31 @@ No browser code uses local private keys, mnemonics, `.env.local`, CLI signing, o
 
 ## BTC MOVE buy flow gates
 
-The primary flow is:
+The primary first-time browser flow is:
 
 ```text
 Connect wallet
-→ Testnet guard
+→ switch to Sui Testnet
+→ check / create PredictManager
+→ check wallet DUSDC coins
+→ deposit DUSDC to PredictManager if needed
 → load configured BTC VolSeries
-→ quote UP
-→ quote DOWN
+→ refresh UP quote
+→ refresh DOWN quote
 → compute expected premium
 → compute Create Fee
 → select sender-owned Coin<DUSDC> for Create Fee
-→ run full binary mint preflight
-→ run buy_move_receipt<DUSDC> preflight
-→ enable explicit wallet approval
+→ run explicit browser preflight
+→ keep buy disabled unless binary mint and receipt preflight both pass
+→ enable explicit wallet approval only after all gates pass
 → persist successful digest and receipt ID locally
 ```
 
+DeepVol-8 exposes `Create PredictManager`, `Deposit DUSDC to PredictManager`, `Refresh quote`, and `Run preflight` as visible browser actions. `Create PredictManager` and `Deposit DUSDC` are real Sui Testnet wallet actions guarded by wallet/Testnet checks. Quote refresh uses browser-safe devInspect helpers for the configured BTC VolSeries.
+
 The app reads the configured validated VolSeries and attempts browser-safe quote helpers. Historical DeepVol-5 quote values are not treated as live offers. Fresh quote, premium, fee, and fee coin values are runtime state.
 
-The current frontend intentionally keeps submission blocked when full browser preflight is unavailable. In that state, the UI must show the exact blockers instead of prompting the wallet.
+The current frontend intentionally keeps final `buy_move_receipt<DUSDC>` submission blocked when full browser preflight is unavailable. DeepVol-8 makes this an explicit `Run preflight` blocker state: direct two-leg binary mint preflight and DeepVol receipt preflight remain required before any final buy wallet prompt can appear.
 
 ## Product clarity requirements
 
@@ -162,4 +169,4 @@ npm run typecheck
 npm run build:web
 ```
 
-Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating, visible focus states, responsive layout, and absence of historical validation quote values as live quotes.
+Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, explicit quote refresh, explicit preflight blockers, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating, visible focus states, responsive layout, and absence of historical validation quote values as live quotes.

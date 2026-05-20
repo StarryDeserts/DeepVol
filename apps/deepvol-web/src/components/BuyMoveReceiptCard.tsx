@@ -10,12 +10,13 @@ import { formatAtomicAmount } from "../lib/format";
 type BuyMoveReceiptCardProps = {
   quote: DeepVolQuoteState;
   predictManagerId: string | null;
+  walletDusdcChecked: boolean;
 };
 
-export function BuyMoveReceiptCard({ quote, predictManagerId }: BuyMoveReceiptCardProps) {
+export function BuyMoveReceiptCard({ quote, predictManagerId, walletDusdcChecked }: BuyMoveReceiptCardProps) {
   const wallet = useSuiWallet();
   const buy = useBuyMoveReceipt({ quote, predictManagerId });
-  const checklist = buildChecklist({ wallet, quote, predictManagerId, blockers: buy.blockers });
+  const checklist = buildChecklist({ wallet, quote, predictManagerId, walletDusdcChecked });
 
   return (
     <section className="card transactionCard">
@@ -60,11 +61,12 @@ function buildChecklist({
   wallet,
   quote,
   predictManagerId,
+  walletDusdcChecked,
 }: {
   wallet: ReturnType<typeof useSuiWallet>;
   quote: DeepVolQuoteState;
   predictManagerId: string | null;
-  blockers: readonly string[];
+  walletDusdcChecked: boolean;
 }): StatusChecklistItem[] {
   const preflightComplete = quote.preflight.binaryMintPassed && quote.preflight.buyReceiptPassed;
 
@@ -80,9 +82,24 @@ function buildChecklist({
       detail: wallet.isTestnet ? "Network ready" : "Switch wallet to Sui Testnet",
     },
     {
-      label: "PredictManager supplied",
+      label: "PredictManager ready",
       state: predictManagerId ? "complete" : "blocked",
-      detail: predictManagerId ? "Manager object stored for this flow" : "Paste a PredictManager object ID",
+      detail: predictManagerId ? "Manager object stored for this flow" : "Create or store a PredictManager object ID",
+    },
+    {
+      label: "DUSDC wallet balance checked",
+      state: walletDusdcChecked ? "complete" : wallet.isTestnet ? "pending" : "blocked",
+      detail: walletDusdcChecked ? "Wallet Coin<DUSDC> objects loaded" : "Load wallet DUSDC before deposit and fee checks",
+    },
+    {
+      label: "PredictManager funding checked",
+      state: walletDusdcChecked ? "pending" : "blocked",
+      detail: "Deposit premium DUSDC to PredictManager if needed; direct manager balance readback remains a preflight blocker.",
+    },
+    {
+      label: "BTC MOVE Series loaded",
+      state: quote.series ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: quote.series ? "Configured VolSeries available" : "Waiting for configured VolSeries readback",
     },
     {
       label: "UP quote ready",
@@ -95,14 +112,19 @@ function buildChecklist({
       detail: quote.downQuoteAtomic ? "Fresh DOWN leg quote loaded" : "Waiting for DOWN quote",
     },
     {
-      label: "Fee coin ready",
+      label: "Create Fee coin ready",
       state: quote.feeCoin ? "complete" : quote.status === "loading" ? "pending" : "blocked",
       detail: quote.feeCoin ? "Sender-owned DUSDC fee coin selected" : "Needs one Coin<DUSDC> covering Create Fee",
     },
     {
-      label: "Full receipt preflight",
+      label: "Full binary mint preflight",
+      state: quote.preflight.binaryMintPassed ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: quote.preflight.binaryMintPassed ? "Binary mint preflight passed" : quote.preflight.message,
+    },
+    {
+      label: "DeepVol receipt preflight",
       state: preflightComplete ? "complete" : quote.status === "loading" ? "pending" : "blocked",
-      detail: preflightComplete ? "Binary mint and receipt preflight passed" : quote.preflight.message,
+      detail: preflightComplete ? "Receipt preflight passed" : quote.preflight.message,
     },
   ];
 }

@@ -42,6 +42,30 @@ export function MarketsPage() {
       <section className="card primitiveSection">
         <div className="cardHeader">
           <div>
+            <div className="eyebrow">First-time setup</div>
+            <h2>What happens before a BTC MOVE buy?</h2>
+          </div>
+          <StatusPill tone="info">Browser-guided</StatusPill>
+        </div>
+        <div className="primitiveGrid">
+          <article className="primitiveCard">
+            <span>1. Wallet + Testnet</span>
+            <p>Connect a wallet and switch to Sui Testnet before DeepVol shows transaction actions.</p>
+          </article>
+          <article className="primitiveCard">
+            <span>2. PredictManager + DUSDC</span>
+            <p>Create or store a PredictManager, then deposit DUSDC for Predict premium funding.</p>
+          </article>
+          <article className="primitiveCard">
+            <span>3. Quote + preflight</span>
+            <p>Refresh UP/DOWN quotes and run preflight before the buy wallet prompt can unlock.</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="card primitiveSection">
+        <div className="cardHeader">
+          <div>
             <div className="eyebrow">Advanced primitives</div>
             <h2>Underlying building blocks</h2>
           </div>

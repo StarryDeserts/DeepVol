@@ -1,7 +1,7 @@
 ---
 Purpose: Navigation index for RangePilot and DeepVol architecture documentation.
 Audience: Developers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol BTC MOVE and DeepVol-7 frontend redesign.
+Status: Updated for DeepVol BTC MOVE and DeepVol-8 browser UX flow repair.
 Source of truth relationship: Indexes local source-of-truth documents, official-derived protocol references, generated companion docs, and pivot ADRs; does not replace source docs.
 ---
 
@@ -38,7 +38,7 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 | [DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md](./DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md) | Records the controlled Testnet binary mint validation and gas-budget diagnosis | Protocol / SDK / validation |
 | [DEEPVOL_TESTNET_PUBLISH_RESULT.md](./DEEPVOL_TESTNET_PUBLISH_RESULT.md) | Records the DeepVol Testnet package publish, AdminCap/UpgradeCap, and shared ProtocolVault<DUSDC> setup | Move / protocol / validation |
 | [DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md](./DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md) | Records the first deployed BTC VolSeries and buy_move_receipt<DUSDC> execution, receipt, mints, and fee accounting | Move / protocol / validation |
-| [DEEPVOL_FRONTEND_MVP.md](./DEEPVOL_FRONTEND_MVP.md) | Defines the `apps/deepvol-web` wallet-gated frontend, DeepVol-7 oceanic UI/UX foundation, and browser blocker policy | Frontend / product / SDK |
+| [DEEPVOL_FRONTEND_MVP.md](./DEEPVOL_FRONTEND_MVP.md) | Defines the `apps/deepvol-web` wallet-gated frontend, DeepVol-7 oceanic UI/UX foundation, DeepVol-8 browser flow repair, and browser blocker policy | Frontend / product / SDK |
 | [DEEPVOL_MOVE_RECEIPT_CONTRACT.md](./DEEPVOL_MOVE_RECEIPT_CONTRACT.md) | Documents the Route B VolSeries, ProtocolVault, and protocol-enforced non-custodial MoveReceipt contract | Move / protocol / SDK |
 | [DEEPVOL_CONTRACT_BUILD_VALIDATION.md](./DEEPVOL_CONTRACT_BUILD_VALIDATION.md) | Records local DeepVol Route B contract build/test validation scope and non-actions | Move / validation |
 | [DEEPVOL_BUSINESS_MODEL.md](./DEEPVOL_BUSINESS_MODEL.md) | Defines Create Fee MVP model and V2-only Profit Fee / Creator Share | Product / business |

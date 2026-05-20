@@ -9,6 +9,7 @@ import {
 } from "@rangepilot/sdk/deepbookPredict";
 import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
+import { getBuyMoveReceiptBlockers } from "./buyMoveReceiptGate";
 import type { DeepVolQuoteState } from "./useDeepVolQuote";
 import { DEEPVOL_STORAGE_KEYS, TESTNET_CHAIN } from "../lib/constants";
 
@@ -33,39 +34,13 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>({
     state: "idle",
   });
-  const blockers = useMemo(() => {
-    const entries = [...quote.blockers];
-
-    if (!wallet.address || !wallet.isConnected) {
-      entries.push("Connect a Sui wallet before submitting.");
-    }
-
-    if (wallet.isConnected && !wallet.isTestnet) {
-      entries.push("Switch to Sui Testnet before submitting.");
-    }
-
-    if (!quote.series) {
-      entries.push("Configured VolSeries readback must complete before submitting.");
-    }
-
-    if (!predictManagerId) {
-      entries.push("A PredictManager ID is required before submitting.");
-    }
-
-    if (!quote.feeCoin) {
-      entries.push("A sender-owned Coin<DUSDC> covering the Create Fee is required.");
-    }
-
-    if (!quote.upQuoteAtomic || !quote.downQuoteAtomic || !quote.expectedPremiumAtomic || !quote.maxPremiumPaidAtomic) {
-      entries.push("Fresh UP and DOWN quote data is required before submitting.");
-    }
-
-    if (!quote.preflight.binaryMintPassed || !quote.preflight.buyReceiptPassed) {
-      entries.push("Full binary mint and buy_move_receipt preflight must pass before wallet prompt.");
-    }
-
-    return [...new Set(entries)];
-  }, [predictManagerId, quote.blockers, quote.downQuoteAtomic, quote.expectedPremiumAtomic, quote.feeCoin, quote.maxPremiumPaidAtomic, quote.preflight.binaryMintPassed, quote.preflight.buyReceiptPassed, quote.series, quote.upQuoteAtomic, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  const blockers = useMemo(() => getBuyMoveReceiptBlockers({
+    quote,
+    predictManagerId,
+    walletAddress: wallet.address,
+    walletConnected: wallet.isConnected,
+    walletTestnet: wallet.isTestnet,
+  }), [predictManagerId, quote, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const canSubmit = blockers.length === 0;
   const signAndExecuteTransaction = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
