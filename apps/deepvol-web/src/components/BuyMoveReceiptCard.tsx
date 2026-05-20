@@ -1,4 +1,7 @@
 import type { TransactionStatus as TransactionStatusType } from "@rangepilot/types/deepbookPredict";
+import { StatusChecklist, type StatusChecklistItem } from "./StatusChecklist";
+import { StateCallout } from "./ui/StateCallout";
+import { StatusPill } from "./ui/StatusPill";
 import type { DeepVolQuoteState } from "../hooks/useDeepVolQuote";
 import { useBuyMoveReceipt } from "../hooks/useBuyMoveReceipt";
 import { useSuiWallet } from "../hooks/useSuiWallet";
@@ -12,57 +15,96 @@ type BuyMoveReceiptCardProps = {
 export function BuyMoveReceiptCard({ quote, predictManagerId }: BuyMoveReceiptCardProps) {
   const wallet = useSuiWallet();
   const buy = useBuyMoveReceipt({ quote, predictManagerId });
+  const checklist = buildChecklist({ wallet, quote, predictManagerId, blockers: buy.blockers });
 
   return (
     <section className="card transactionCard">
       <div className="cardHeader">
         <div>
           <div className="eyebrow">Wallet-gated action</div>
-          <h2>Buy MOVE receipt</h2>
+          <h2>Review BTC MOVE</h2>
         </div>
-        <span className={buy.canSubmit ? "statusBadge successBadge" : "statusBadge blockedBadge"}>
-          {buy.canSubmit ? "Ready" : "Blocked"}
-        </span>
+        <StatusPill tone={buy.canSubmit ? "success" : "warning"}>{buy.canSubmit ? "Ready" : "Blocked"}</StatusPill>
       </div>
       <p>
-        DeepVol builds one transaction that calls `receipt::buy_move_receipt&lt;DUSDC&gt;`. The Move entrypoint derives the UP and
-        DOWN legs from the VolSeries, mints both Predict positions, deposits the Create Fee, and transfers a non-custodial
-        MoveReceipt to your wallet.
+        DeepVol builds one transaction for `receipt::buy_move_receipt&lt;DUSDC&gt;`. The Move entrypoint derives the UP and DOWN
+        legs from the VolSeries, mints both Predict positions, deposits the Create Fee, and transfers a non-custodial but
+        protocol-enforced MoveReceipt to your wallet.
       </p>
-      <dl className="detailsGrid">
-        <div>
-          <dt>Wallet</dt>
-          <dd>{wallet.address ? "Connected" : "Not connected"}</dd>
-        </div>
-        <div>
-          <dt>Network</dt>
-          <dd>{wallet.isTestnet ? "Sui Testnet" : "Blocked"}</dd>
-        </div>
-        <div>
-          <dt>PredictManager</dt>
-          <dd className="mono wrapText">{predictManagerId ?? "Required"}</dd>
-        </div>
-        <div>
-          <dt>Expected premium</dt>
-          <dd>{formatAtomicAmount(quote.expectedPremiumAtomic)} DUSDC</dd>
-        </div>
-      </dl>
+
+      <div className="transactionSummary">
+        <span>Expected premium</span>
+        <strong>{formatAtomicAmount(quote.expectedPremiumAtomic)} DUSDC</strong>
+      </div>
+
+      <StatusChecklist title="Transaction readiness" items={checklist} />
 
       {buy.blockers.length > 0 && (
-        <div className="blockerList">
-          <strong>Wallet prompt disabled</strong>
+        <StateCallout tone="warning" title="Wallet prompt disabled">
           <ul>
             {buy.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
           </ul>
-        </div>
+        </StateCallout>
       )}
 
       <button className="primaryButton" type="button" disabled={!buy.canSubmit} onClick={buy.submit}>
-        {buy.canSubmit ? "Review in wallet" : "Preflight required"}
+        {buy.canSubmit ? "Review BTC MOVE in wallet" : "Preflight required"}
       </button>
+      {!buy.canSubmit && <p className="buttonHelp">Resolve the readiness checklist before a wallet prompt can be shown.</p>}
       <TransactionStatus status={buy.transactionStatus} />
     </section>
   );
+}
+
+function buildChecklist({
+  wallet,
+  quote,
+  predictManagerId,
+}: {
+  wallet: ReturnType<typeof useSuiWallet>;
+  quote: DeepVolQuoteState;
+  predictManagerId: string | null;
+  blockers: readonly string[];
+}): StatusChecklistItem[] {
+  const preflightComplete = quote.preflight.binaryMintPassed && quote.preflight.buyReceiptPassed;
+
+  return [
+    {
+      label: "Wallet connected",
+      state: wallet.address && wallet.isConnected ? "complete" : "blocked",
+      detail: wallet.address ? "Account available" : "Connect a Sui wallet",
+    },
+    {
+      label: "Sui Testnet",
+      state: wallet.isTestnet ? "complete" : wallet.isConnected ? "blocked" : "pending",
+      detail: wallet.isTestnet ? "Network ready" : "Switch wallet to Sui Testnet",
+    },
+    {
+      label: "PredictManager supplied",
+      state: predictManagerId ? "complete" : "blocked",
+      detail: predictManagerId ? "Manager object stored for this flow" : "Paste a PredictManager object ID",
+    },
+    {
+      label: "UP quote ready",
+      state: quote.upQuoteAtomic ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: quote.upQuoteAtomic ? "Fresh UP leg quote loaded" : "Waiting for UP quote",
+    },
+    {
+      label: "DOWN quote ready",
+      state: quote.downQuoteAtomic ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: quote.downQuoteAtomic ? "Fresh DOWN leg quote loaded" : "Waiting for DOWN quote",
+    },
+    {
+      label: "Fee coin ready",
+      state: quote.feeCoin ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: quote.feeCoin ? "Sender-owned DUSDC fee coin selected" : "Needs one Coin<DUSDC> covering Create Fee",
+    },
+    {
+      label: "Full receipt preflight",
+      state: preflightComplete ? "complete" : quote.status === "loading" ? "pending" : "blocked",
+      detail: preflightComplete ? "Binary mint and receipt preflight passed" : quote.preflight.message,
+    },
+  ];
 }
 
 function TransactionStatus({ status }: { status: TransactionStatusType }) {
@@ -71,11 +113,11 @@ function TransactionStatus({ status }: { status: TransactionStatusType }) {
   }
 
   return (
-    <section className={`transactionStatus ${status.state}`}>
-      <strong>Transaction status:</strong> {status.state}
+    <section className={`transactionStatus ${status.state}`} aria-live="polite">
+      <strong>Transaction status: {status.state}</strong>
       {status.message && <p>{status.message}</p>}
       {status.error && <p className="errorText">{status.error}</p>}
-      {status.digest && <p>Digest: <span className="mono">{status.digest}</span></p>}
+      {status.digest && <p>Digest: <span className="mono wrapText">{status.digest}</span></p>}
       {status.explorerUrl && (
         <p>
           <a href={status.explorerUrl} target="_blank" rel="noreferrer">Open in Sui Explorer</a>

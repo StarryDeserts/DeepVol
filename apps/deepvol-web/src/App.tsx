@@ -7,7 +7,7 @@ export function App() {
   const path = window.location.pathname;
 
   return (
-    <AppShell>
+    <AppShell currentPath={path}>
       {renderRoute(path)}
     </AppShell>
   );

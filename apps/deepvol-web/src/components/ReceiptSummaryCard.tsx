@@ -1,5 +1,8 @@
 import type { DeepVolPortfolioReceipt } from "../hooks/useDeepVolPortfolio";
 import { formatAtomicAmount, formatTimestampMs, shortId } from "../lib/format";
+import { DataGrid } from "./ui/DataGrid";
+import { StateCallout } from "./ui/StateCallout";
+import { StatusPill } from "./ui/StatusPill";
 
 type ReceiptSummaryCardProps = {
   receipt: DeepVolPortfolioReceipt;
@@ -7,69 +10,82 @@ type ReceiptSummaryCardProps = {
 
 export function ReceiptSummaryCard({ receipt }: ReceiptSummaryCardProps) {
   const object = receipt.object;
+  const sourceLabel = receipt.source === "local" ? "Local browser record" : "Reference artifact";
 
   return (
     <section className="card receiptCard">
-      <div className="cardHeader">
+      <div className="receiptTopRow">
         <div>
-          <div className="eyebrow">
-            {receipt.source === "local" ? "Locally stored receipt" : "DeepVol-5 validation artifact"}
-          </div>
-          <h2>MoveReceipt</h2>
+          <div className="eyebrow">{sourceLabel}</div>
+          <h2>BTC MOVE Receipt</h2>
         </div>
-        <span className="statusBadge">{object ? statusLabel(object.status) : "Readback pending"}</span>
+        <div className="receiptStatusStack">
+          <StatusPill tone={object ? "success" : "warning"}>{object ? statusLabel(object.status) : "Readback pending"}</StatusPill>
+          <StatusPill tone={receipt.source === "local" ? "info" : "neutral"}>{sourceLabel}</StatusPill>
+        </div>
       </div>
-      <dl className="detailsGrid">
-        <div>
-          <dt>Receipt ID</dt>
-          <dd className="mono" title={receipt.receiptId}>{shortId(receipt.receiptId)}</dd>
-        </div>
-        <div>
-          <dt>Digest</dt>
-          <dd className="mono" title={receipt.digest ?? undefined}>{shortId(receipt.digest)}</dd>
-        </div>
-        <div>
-          <dt>Owner</dt>
-          <dd className="mono" title={object?.owner}>{shortId(object?.owner)}</dd>
-        </div>
-        <div>
-          <dt>VolSeries</dt>
-          <dd className="mono" title={object?.seriesId}>{shortId(object?.seriesId)}</dd>
-        </div>
-        <div>
-          <dt>PredictManager</dt>
-          <dd className="mono" title={object?.predictManagerId}>{shortId(object?.predictManagerId)}</dd>
-        </div>
-        <div>
-          <dt>Expiry</dt>
-          <dd>{formatTimestampMs(object?.expiry)}</dd>
-        </div>
-        <div>
-          <dt>DOWN / lower</dt>
-          <dd>{object?.lowerStrike ?? "Not available"}</dd>
-        </div>
-        <div>
-          <dt>UP / upper</dt>
-          <dd>{object?.upperStrike ?? "Not available"}</dd>
-        </div>
-        <div>
-          <dt>Quantity</dt>
-          <dd>{object?.quantity ?? "Not available"}</dd>
-        </div>
-        <div>
-          <dt>Premium paid</dt>
-          <dd>{formatAtomicAmount(object?.premiumPaid)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>Create Fee paid</dt>
-          <dd>{formatAtomicAmount(object?.createFeePaid)} DUSDC</dd>
-        </div>
-      </dl>
-      {receipt.readbackError && <p className="warningText">{receipt.readbackError}</p>}
-      <p className="muted">
-        This receipt is metadata and linkage only. The current UP/DOWN position quantities must be read from the underlying
-        PredictManager; this scaffold does not include a full indexer.
-      </p>
+
+      <div className="receiptMetricRow">
+        <article>
+          <span>Quantity</span>
+          <strong>{object?.quantity ?? "Not available"}</strong>
+        </article>
+        <article>
+          <span>Premium paid</span>
+          <strong>{formatAtomicAmount(object?.premiumPaid)} DUSDC</strong>
+        </article>
+        <article>
+          <span>Expiry</span>
+          <strong>{formatTimestampMs(object?.expiry)}</strong>
+        </article>
+      </div>
+
+      <div className="receiptLegRow">
+        <article>
+          <span>DOWN leg</span>
+          <strong>Below {object?.lowerStrike ?? "lower strike"}</strong>
+        </article>
+        <article>
+          <span>UP leg</span>
+          <strong>Above {object?.upperStrike ?? "upper strike"}</strong>
+        </article>
+      </div>
+
+      <DataGrid
+        variant="compact"
+        items={[
+          {
+            label: "Receipt ID",
+            value: <span className="mono" title={receipt.receiptId}>{shortId(receipt.receiptId)}</span>,
+          },
+          {
+            label: "Digest",
+            value: <span className="mono" title={receipt.digest ?? undefined}>{shortId(receipt.digest)}</span>,
+          },
+          {
+            label: "Owner",
+            value: <span className="mono" title={object?.owner}>{shortId(object?.owner)}</span>,
+          },
+          {
+            label: "VolSeries",
+            value: <span className="mono" title={object?.seriesId}>{shortId(object?.seriesId)}</span>,
+          },
+          {
+            label: "PredictManager",
+            value: <span className="mono" title={object?.predictManagerId}>{shortId(object?.predictManagerId)}</span>,
+          },
+          { label: "Create Fee", value: `${formatAtomicAmount(object?.createFeePaid)} DUSDC` },
+        ]}
+      />
+
+      {receipt.readbackError && (
+        <StateCallout tone="warning" title="Receipt readback limitation">
+          {receipt.readbackError}
+        </StateCallout>
+      )}
+      <StateCallout tone="info" title="Position boundary">
+        Underlying positions stay in PredictManager. This MVP reads known/local receipts; general receipt indexing is future work.
+      </StateCallout>
     </section>
   );
 }

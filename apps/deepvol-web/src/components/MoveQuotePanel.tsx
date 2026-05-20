@@ -1,5 +1,8 @@
 import type { DeepVolQuoteState } from "../hooks/useDeepVolQuote";
 import { formatAtomicAmount, formatTimestampMs, shortId } from "../lib/format";
+import { DataGrid } from "./ui/DataGrid";
+import { StateCallout } from "./ui/StateCallout";
+import { StatusPill } from "./ui/StatusPill";
 
 type MoveQuotePanelProps = {
   quote: DeepVolQuoteState;
@@ -13,87 +16,99 @@ export function MoveQuotePanel({ quote }: MoveQuotePanelProps) {
           <div className="eyebrow">Runtime quote and preflight</div>
           <h2>BTC MOVE preview</h2>
         </div>
-        <span className="statusBadge">{quote.status}</span>
+        <StatusPill tone={statusTone(quote.status)}>{quote.status}</StatusPill>
       </div>
 
-      {quote.error && <p className="errorText">{quote.error}</p>}
+      {quote.error && (
+        <StateCallout tone="danger" title="Quote error">
+          {quote.error}
+        </StateCallout>
+      )}
 
-      <dl className="detailsGrid">
-        <div>
-          <dt>VolSeries</dt>
-          <dd className="mono" title={quote.series?.seriesId}>{shortId(quote.series?.seriesId)}</dd>
-        </div>
-        <div>
-          <dt>Oracle</dt>
-          <dd className="mono" title={quote.series?.oracleId}>{shortId(quote.series?.oracleId)}</dd>
-        </div>
-        <div>
-          <dt>Expiry</dt>
-          <dd>{formatTimestampMs(quote.series?.expiry)}</dd>
-        </div>
-        <div>
-          <dt>Lower / DOWN strike</dt>
-          <dd>{quote.series?.lowerStrike ?? "Not available"}</dd>
-        </div>
-        <div>
-          <dt>Upper / UP strike</dt>
-          <dd>{quote.series?.upperStrike ?? "Not available"}</dd>
-        </div>
-        <div>
-          <dt>Quantity</dt>
-          <dd>{quote.quantity}</dd>
-        </div>
-        <div>
-          <dt>UP quote</dt>
-          <dd>{formatAtomicAmount(quote.upQuoteAtomic)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>DOWN quote</dt>
-          <dd>{formatAtomicAmount(quote.downQuoteAtomic)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>Expected premium</dt>
-          <dd>{formatAtomicAmount(quote.expectedPremiumAtomic)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>Max premium paid</dt>
-          <dd>{formatAtomicAmount(quote.maxPremiumPaidAtomic)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>Create Fee</dt>
-          <dd>{formatAtomicAmount(quote.createFeeAtomic)} DUSDC</dd>
-        </div>
-        <div>
-          <dt>Fee coin</dt>
-          <dd className="mono" title={quote.feeCoin?.coinObjectId}>{shortId(quote.feeCoin?.coinObjectId)}</dd>
-        </div>
-        <div>
-          <dt>Quoted at</dt>
-          <dd>{formatTimestampMs(quote.quotedAtMs)}</dd>
-        </div>
-        <div>
-          <dt>Preflight</dt>
-          <dd>{quote.preflight.message}</dd>
-        </div>
-      </dl>
+      <div className="metricGrid primaryMetrics">
+        <article className="metricCard metricCard-hero">
+          <span>Expected premium</span>
+          <strong>{formatAtomicAmount(quote.expectedPremiumAtomic)} DUSDC</strong>
+          <small>UP quote + DOWN quote for the selected binary leg quantity.</small>
+        </article>
+        <article className="metricCard">
+          <span>Create Fee</span>
+          <strong>{formatAtomicAmount(quote.createFeeAtomic)} DUSDC</strong>
+          <small>Protocol fee deposited during receipt creation.</small>
+        </article>
+        <article className="metricCard">
+          <span>Max premium paid</span>
+          <strong>{formatAtomicAmount(quote.maxPremiumPaidAtomic)} DUSDC</strong>
+          <small>Wallet-side ceiling for stale quote protection.</small>
+        </article>
+      </div>
+
+      <div className="legQuoteGrid">
+        <article>
+          <span className="legLabel">UP leg</span>
+          <strong>{formatAtomicAmount(quote.upQuoteAtomic)} DUSDC</strong>
+          <small>BTC above {quote.series?.upperStrike ?? "upper strike"}</small>
+        </article>
+        <article>
+          <span className="legLabel">DOWN leg</span>
+          <strong>{formatAtomicAmount(quote.downQuoteAtomic)} DUSDC</strong>
+          <small>BTC below {quote.series?.lowerStrike ?? "lower strike"}</small>
+        </article>
+      </div>
+
+      <DataGrid
+        variant="compact"
+        items={[
+          {
+            label: "VolSeries",
+            value: <span className="mono" title={quote.series?.seriesId}>{shortId(quote.series?.seriesId)}</span>,
+          },
+          {
+            label: "Oracle",
+            value: <span className="mono" title={quote.series?.oracleId}>{shortId(quote.series?.oracleId)}</span>,
+          },
+          { label: "Expiry", value: formatTimestampMs(quote.series?.expiry) },
+          { label: "Quantity", value: quote.quantity },
+          {
+            label: "Fee coin",
+            value: <span className="mono" title={quote.feeCoin?.coinObjectId}>{shortId(quote.feeCoin?.coinObjectId)}</span>,
+          },
+          { label: "Quoted at", value: formatTimestampMs(quote.quotedAtMs) },
+          { label: "Preflight", value: quote.preflight.message },
+        ]}
+      />
 
       {quote.warnings.length > 0 && (
-        <div className="warningList">
-          <strong>Warnings</strong>
+        <StateCallout tone="info" title="Quote warnings">
           <ul>
             {quote.warnings.map((warning) => <li key={warning}>{warning}</li>)}
           </ul>
-        </div>
+        </StateCallout>
       )}
 
       {quote.blockers.length > 0 && (
-        <div className="blockerList">
-          <strong>Buy blockers</strong>
+        <StateCallout tone="warning" title="Preflight blockers">
           <ul>
             {quote.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
           </ul>
-        </div>
+        </StateCallout>
       )}
     </section>
   );
+}
+
+function statusTone(status: DeepVolQuoteState["status"]) {
+  if (status === "ready") {
+    return "success";
+  }
+
+  if (status === "blocked" || status === "loading") {
+    return "warning";
+  }
+
+  if (status === "error") {
+    return "danger";
+  }
+
+  return "neutral";
 }

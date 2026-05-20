@@ -1,31 +1,69 @@
 import { ReceiptSummaryCard } from "../components/ReceiptSummaryCard";
+import { PageHero } from "../components/ui/PageHero";
+import { StateCallout } from "../components/ui/StateCallout";
+import { StatusPill } from "../components/ui/StatusPill";
 import { useDeepVolPortfolio } from "../hooks/useDeepVolPortfolio";
 
 export function PortfolioPage() {
   const portfolio = useDeepVolPortfolio();
+  const receiptCount = portfolio.receipts.length;
 
   return (
-    <div className="pageGrid">
-      <section className="introPanel">
-        <div className="eyebrow">Portfolio scaffold</div>
-        <h1>DeepVol receipts</h1>
+    <div className="pageGrid portfolioPage">
+      <PageHero
+        eyebrow="DeepVol receipts"
+        title="Track BTC MOVE receipts."
+        meta={(
+          <div className="heroMetaPills">
+            <StatusPill tone={portfolio.hasLocalReceipts ? "success" : "warning"}>
+              {portfolio.hasLocalReceipts ? "Local records" : "Reference artifact"}
+            </StatusPill>
+            <StatusPill tone="neutral">Indexer future work</StatusPill>
+          </div>
+        )}
+      >
         <p>
-          This page reads locally stored receipts from successful wallet flows. Without local records, it shows the DeepVol-5
-          validated receipt as a labeled reference artifact. General receipt enumeration requires a future indexer.
+          DeepVol receipts summarize the MOVE package while the underlying UP and DOWN Predict positions remain in the user's
+          PredictManager. This MVP reads known local receipts and a validation reference only.
         </p>
+      </PageHero>
+
+      <section className="portfolioSummaryBand">
+        <article>
+          <span>Receipt records</span>
+          <strong>{receiptCount}</strong>
+        </article>
+        <article>
+          <span>Source</span>
+          <strong>{portfolio.hasLocalReceipts ? "Local browser records" : "Validation reference"}</strong>
+        </article>
+        <article>
+          <span>Readback mode</span>
+          <strong>Known/local receipt only</strong>
+        </article>
+        <article>
+          <span>Indexer</span>
+          <strong>Future work</strong>
+        </article>
       </section>
 
       {!portfolio.hasLocalReceipts && (
-        <section className="noticeBanner">
+        <StateCallout tone="info" title="Reference artifact">
           No local receipt history was found for this browser, so the validation receipt is shown as reference evidence only.
-        </section>
+        </StateCallout>
       )}
 
-      {portfolio.isLoading && <section className="card">Loading receipt readback…</section>}
-      {portfolio.error && <section className="card errorText">{portfolio.error}</section>}
-      {portfolio.receipts.map((receipt) => (
-        <ReceiptSummaryCard key={`${receipt.source}:${receipt.receiptId}`} receipt={receipt} />
-      ))}
+      {portfolio.isLoading && <section className="card">Loading receipt readback...</section>}
+      {portfolio.error && (
+        <StateCallout tone="danger" title="Portfolio readback error">
+          {portfolio.error}
+        </StateCallout>
+      )}
+      <div className="receiptList">
+        {portfolio.receipts.map((receipt) => (
+          <ReceiptSummaryCard key={`${receipt.source}:${receipt.receiptId}`} receipt={receipt} />
+        ))}
+      </div>
     </div>
   );
 }

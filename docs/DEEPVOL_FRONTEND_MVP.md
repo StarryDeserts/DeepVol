@@ -1,7 +1,7 @@
 ---
-Purpose: Define the DeepVol wallet-gated frontend MVP scaffold and UX boundaries.
+Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: DeepVol-6 frontend scaffold plan and implementation record.
+Status: Updated for DeepVol-7 UI/UX redesign over the DeepVol-6 frontend scaffold.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 
@@ -9,19 +9,19 @@ Source of truth relationship: Derived from DeepVol foundation docs, deployed rec
 
 ## Summary
 
-DeepVol-6 adds a new DeepVol-first frontend scaffold under `apps/deepvol-web/`. The app focuses on the validated BTC MOVE receipt path while preserving strict wallet, Testnet, quote, fee coin, and preflight gates before any wallet prompt can submit `receipt::buy_move_receipt<DUSDC>`.
+DeepVol-6 added a DeepVol-first frontend scaffold under `apps/deepvol-web/`. DeepVol-7 redesigns that app into a more professional oceanic DeFi trading experience for the validated BTC MOVE receipt path while preserving strict wallet, Testnet, quote, fee coin, and preflight gates before any wallet prompt can submit `receipt::buy_move_receipt<DUSDC>`.
 
-This scaffold is not the final visual design. It establishes the product structure, safety copy, route map, wallet-gated transaction card, and portfolio/readback boundaries for future polishing.
+The redesigned frontend is still an MVP foundation, not a production launch. It improves product clarity, route hierarchy, transaction readiness states, portfolio receipt presentation, accessibility, and responsive layout without adding new chain behavior.
 
-## New app path
+## App path
 
 ```text
 apps/deepvol-web/
 ```
 
-`apps/deepvol-web/` is the current DeepVol-first frontend scaffold. It is separate from `apps/web/`, which remains the prior RangePilot/browser validation UI and should not become the primary DeepVol UX through incremental patches.
+`apps/deepvol-web/` is the current DeepVol-first frontend. It is separate from `apps/web/`, which remains the prior RangePilot/browser validation UI and should not become the primary DeepVol UX through incremental patches.
 
-The new app reuses existing packages for config, types, and transaction construction:
+The app reuses existing packages for config, types, and transaction construction:
 
 ```text
 packages/config/src/deepVolTestnet.ts
@@ -31,6 +31,19 @@ packages/sdk/src/deepVol/
 packages/sdk/src/deepbookPredict/
 ```
 
+## DeepVol-7 UI/UX redesign
+
+DeepVol-7 used the local `ui-ux-pro-max` skill during planning and implementation. The applied guidance includes strong dark-mode contrast, visible focus states, 44px touch targets, readable status labels, no emoji-as-icons, 150-300ms interaction transitions, `prefers-reduced-motion`, and responsive checks at mobile, tablet, laptop, and desktop widths.
+
+The visual direction is an oceanic DeFi terminal:
+
+- deep ocean and abyss backgrounds;
+- cyan glow for live/action emphasis;
+- seafoam and turquoise accents for positive/ready states;
+- glassy card surfaces with luminous borders;
+- clear warning and danger states for blockers and failures;
+- restrained professional layout rather than a game-like neon theme.
+
 ## Balancer reference source
 
 The Balancer v3 frontend source is present locally as UI/UX reference only:
@@ -39,34 +52,24 @@ The Balancer v3 frontend source is present locally as UI/UX reference only:
 frontend-monorepo/
 ```
 
-It may inform app-shell structure, route separation, transaction card rhythm, portfolio layout, advanced details, risk panels, and state presentation. It must not be copied wholesale into DeepVol code and must not be staged or committed.
+DeepVol-7 used it only for interaction and layout patterns: app shell rhythm, focused transaction cards, wallet-gated CTA placement, advanced details accordions, portfolio summary/position cards, semantic tokens, and responsive mobile behavior. It must not be copied wholesale into DeepVol code and must not be staged or committed.
 
-## Why `frontend-monorepo/` is ignored
+`frontend-monorepo/` is ignored because it is third-party reference source, not RangePilot or DeepVol project source. Local reference material, generated files, package lock churn, or unrelated upstream source must not enter this repository's review or commit surface.
 
-`frontend-monorepo/` is third-party reference source, not RangePilot or DeepVol project source. It is ignored so local reference material, generated files, package lock churn, or unrelated upstream source cannot enter this repository's review or commit surface.
-
-## Blue theme direction
-
-The DeepVol scaffold uses a dark DeFi app shell with blue primary accents, rounded cards, high-contrast status states, and monospace object IDs. The theme direction should support:
-
-- clear wallet and network state;
-- quote/preflight readiness;
-- explicit blockers;
-- success and error transaction states;
-- advanced details without crowding the primary buy flow.
-
-## Page map
+## Page map and interaction model
 
 | Route | Purpose |
 |---|---|
 | `/` | Alias to the markets page. |
-| `/markets` | Shows the BTC MOVE market card and the core message: `BTC MOVE = UP + DOWN` and `Trade movement, not direction.` |
-| `/buy/btc-move` | Shows configured VolSeries details, quantity input, PredictManager input, quote/preflight status, buy gating, and advanced config references. |
-| `/portfolio` | Shows locally stored receipt records or the DeepVol-5 validated receipt as a labeled reference artifact. |
+| `/markets` | Product entry page for BTC MOVE with `Trade movement, not direction.`, BTC MOVE payoff zones, CTA, and advanced primitive context. |
+| `/buy/btc-move` | Transaction workspace with product context, quantity/PredictManager setup, quote metrics, UP/DOWN leg quotes, readiness checklist, disabled buy CTA, and advanced protocol details. |
+| `/portfolio` | Receipt overview showing local browser records or the DeepVol-5 validation reference artifact, with explicit local/indexer limitations. |
+
+The redesigned Buy page follows a transaction workspace model: product explanation and payoff zones stay near the setup form, while quote metrics and wallet-gated execution sit in a focused action column. The buy button stays disabled until the existing hook-derived gates pass.
 
 ## Wallet and Testnet guard
 
-The app uses Sui dApp Kit with Testnet as the default network. The shell shows wallet connection state, connected address, active network, and whether the wallet supports `sui:testnet`.
+The app uses Sui dApp Kit with Testnet as the default network. The shell shows wallet connection state, connected address, active network, wallet name, and whether the wallet supports `sui:testnet`.
 
 Buy execution must remain disabled unless:
 
@@ -96,15 +99,32 @@ Connect wallet
 → persist successful digest and receipt ID locally
 ```
 
-The scaffold reads the configured validated VolSeries and attempts browser-safe quote helpers. Historical DeepVol-5 quote values are not treated as live offers. Fresh quote, premium, fee, and fee coin values are runtime state.
+The app reads the configured validated VolSeries and attempts browser-safe quote helpers. Historical DeepVol-5 quote values are not treated as live offers. Fresh quote, premium, fee, and fee coin values are runtime state.
 
-The current scaffold intentionally keeps submission blocked when full browser preflight is unavailable. In that state, the UI must show the exact blockers instead of prompting the wallet.
+The current frontend intentionally keeps submission blocked when full browser preflight is unavailable. In that state, the UI must show the exact blockers instead of prompting the wallet.
+
+## Product clarity requirements
+
+The UI must preserve these core messages:
+
+```text
+Trade movement, not direction.
+BTC MOVE = UP + DOWN.
+```
+
+BTC MOVE means the user buys exposure to BTC leaving the configured range:
+
+- UP leg: BTC above the upper strike;
+- DOWN leg: BTC below the lower strike;
+- premium risk zone: BTC stays inside the range;
+- receipt: non-custodial but protocol-enforced;
+- underlying positions: stay in the user's `PredictManager`.
 
 ## Portfolio and readback limitations
 
-The portfolio page reads locally stored successful buy records from browser storage. If no local receipt exists, it shows the DeepVol-5 validated receipt as reference evidence only.
+The portfolio page reads locally stored successful buy records from browser storage. If no local receipt exists, it shows the DeepVol-5 validated receipt as a labeled reference artifact.
 
-General receipt enumeration is not implemented in the scaffold. A future indexer or event-query layer is needed to discover all receipts for a wallet without local storage.
+General receipt enumeration is not implemented. A future indexer or event-query layer is needed to discover all receipts for a wallet without local storage.
 
 Receipt object readback is best-effort and displays only fields that can be parsed from the Move object. Wallet-critical underlying position quantities still require direct `PredictManager` binary position readback for the known UP and DOWN MarketKeys.
 
@@ -116,7 +136,7 @@ The UI must not imply that the receipt escrows, owns, redeems, or transfers the 
 
 ## Explicit non-actions
 
-The DeepVol-6 frontend scaffold does not:
+The DeepVol frontend does not:
 
 - publish or upgrade Move packages;
 - modify `move/deepvol/Move.toml`;
@@ -133,15 +153,13 @@ The DeepVol-6 frontend scaffold does not:
 
 ## Verification commands
 
-Run these before treating the scaffold as ready for review:
+Run these before treating the frontend as ready for review:
 
 ```bash
 npm run typecheck:deepvol-web
+npm run build:deepvol-web
 npm run typecheck
 npm run build:web
-npm run build:deepvol-web
-npm run move:build:deepvol
-npm run move:test:deepvol
 ```
 
-Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, explicit BTC MOVE copy, non-custodial receipt copy, and absence of historical validation quote values as live quotes.
+Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating, visible focus states, responsive layout, and absence of historical validation quote values as live quotes.
