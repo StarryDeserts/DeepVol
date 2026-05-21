@@ -98,6 +98,17 @@ export type BuyMoveReceiptParams = {
   maxPremiumPaid: string;
 };
 
+export type DeepVolBuyReceiptPreflightResult = {
+  passed: boolean;
+  managerBalanceAtomic: string | null;
+  expectedPremiumAtomic: string;
+  feeCoinId: string | null;
+  feeAmountAtomic: string;
+  devInspectError: string | null;
+  dryRunError?: string | null;
+  diagnostics: string[];
+};
+
 export type MarkMoveReceiptSettledParams = {
   receiptId: MoveReceiptObjectId;
 };

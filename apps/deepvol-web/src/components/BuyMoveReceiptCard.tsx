@@ -68,7 +68,7 @@ function buildChecklist({
   predictManagerId: string | null;
   walletDusdcChecked: boolean;
 }): StatusChecklistItem[] {
-  const preflightComplete = quote.preflight.binaryMintPassed && quote.preflight.buyReceiptPassed;
+  const preflightComplete = quote.preflight.buyReceiptPassed;
 
   return [
     {
@@ -93,8 +93,10 @@ function buildChecklist({
     },
     {
       label: "PredictManager funding checked",
-      state: walletDusdcChecked ? "pending" : "blocked",
-      detail: "Deposit premium DUSDC to PredictManager if needed; direct manager balance readback remains a preflight blocker.",
+      state: quote.preflight.managerBalanceAtomic ? "complete" : walletDusdcChecked ? "pending" : "blocked",
+      detail: quote.preflight.managerBalanceAtomic
+        ? `Manager DUSDC balance read: ${formatAtomicAmount(quote.preflight.managerBalanceAtomic)} DUSDC`
+        : "Run receipt preflight to confirm premium DUSDC inside PredictManager.",
     },
     {
       label: "BTC MOVE Series loaded",
@@ -117,14 +119,16 @@ function buildChecklist({
       detail: quote.feeCoin ? "Sender-owned DUSDC fee coin selected" : "Needs one Coin<DUSDC> covering Create Fee",
     },
     {
-      label: "Full binary mint preflight",
-      state: quote.preflight.binaryMintPassed ? "complete" : quote.status === "loading" ? "pending" : "blocked",
-      detail: quote.preflight.binaryMintPassed ? "Binary mint preflight passed" : quote.preflight.message,
+      label: "Direct binary mint diagnostics",
+      state: quote.preflight.binaryMintPassed ? "complete" : "pending",
+      detail: quote.preflight.binaryMintPassed
+        ? "Direct binary mint diagnostic passed"
+        : "Optional diagnostic only; the receipt entrypoint is the main wallet gate.",
     },
     {
       label: "DeepVol receipt preflight",
       state: preflightComplete ? "complete" : quote.status === "loading" ? "pending" : "blocked",
-      detail: preflightComplete ? "Receipt preflight passed" : quote.preflight.message,
+      detail: preflightComplete ? "buy_move_receipt<DUSDC> browser preflight passed" : quote.preflight.message,
     },
   ];
 }

@@ -88,7 +88,7 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
         quantity: quote.quantity,
         maxPremiumPaid,
         requireFreshBinaryQuotePassed: true,
-        requireBinaryMintPreflightPassed: true,
+        requireBuyMoveReceiptPreflightPassed: true,
         requireCreateFeeCoinPrepared: true,
       });
 

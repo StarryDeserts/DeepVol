@@ -89,16 +89,16 @@ export function MoveQuotePanel({ quote, preflight }: MoveQuotePanelProps) {
       <section className={`preflightAction state-${preflight.status}`} aria-live="polite">
         <div>
           <span className="eyebrow">Step 7</span>
-          <strong>Run preflight</strong>
+          <strong>Run receipt preflight</strong>
           <p>{preflight.preflight.message}</p>
         </div>
         <button className="primaryButton" type="button" disabled={!preflight.canRun || preflight.isRunning} onClick={preflight.runPreflight}>
-          {preflight.isRunning ? "Running preflight" : "Run preflight"}
+          {preflight.isRunning ? "Running receipt preflight" : "Run preflight"}
         </button>
       </section>
 
       {[...quote.warnings, ...preflight.warnings].length > 0 && (
-        <StateCallout tone="info" title="Quote warnings">
+        <StateCallout tone="info" title="Quote and preflight diagnostics">
           <ul>
             {[...quote.warnings, ...preflight.warnings].map((warning) => <li key={warning}>{warning}</li>)}
           </ul>

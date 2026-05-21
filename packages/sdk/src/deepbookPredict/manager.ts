@@ -1,3 +1,4 @@
+import { Transaction } from "@mysten/sui/transactions";
 import type {
   DeepBookPredictAmountLike,
   DeepBookPredictNetworkConfig,
@@ -7,6 +8,10 @@ import type {
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
+import {
+  inspectDevInspectU64,
+  summarizeDevInspectU64Diagnostic,
+} from "./quote.ts";
 
 export type FindPredictManagerByOwnerParams = {
   owner: string;
@@ -17,6 +22,16 @@ export type FindPredictManagerByOwnerParams = {
 export type GetManagerBalanceParams = {
   managerId: string;
   config?: DeepBookPredictNetworkConfig;
+};
+
+export type DevInspectManagerBalanceParams = GetManagerBalanceParams & {
+  client: {
+    devInspectTransactionBlock(input: {
+      sender: string;
+      transactionBlock: Transaction;
+    }): Promise<unknown>;
+  };
+  sender: string;
 };
 
 export type ManagerBalanceResult = {
@@ -91,8 +106,57 @@ export async function getManagerBalance(
   const config = resolveDeepBookPredictConfig(params.config);
 
   throw new DeepBookPredictUnconfirmedBindingError(
-    `MUST CONFIRM BEFORE CODING: predict_manager::balance<DUSDC> read strategy for manager ${params.managerId} is not validated. Expected coin type ${config.quoteAssets.DUSDC.coinType}.`,
+    `MUST CONFIRM BEFORE CODING: predict_manager::balance<DUSDC> read strategy for manager ${params.managerId} requires a browser client and sender. Use devInspectManagerBalance with coin type ${config.quoteAssets.DUSDC.coinType}.`,
   );
+}
+
+export function buildManagerBalanceTransaction(
+  params: GetManagerBalanceParams,
+): Transaction {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const tx = new Transaction();
+
+  tx.moveCall({
+    target: `${config.packageId}::predict_manager::balance`,
+    typeArguments: [config.quoteAssets.DUSDC.coinType],
+    arguments: [tx.object(params.managerId)],
+  });
+
+  return tx;
+}
+
+export async function devInspectManagerBalance(
+  params: DevInspectManagerBalanceParams,
+): Promise<ManagerBalanceResult> {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const result = await params.client.devInspectTransactionBlock({
+    sender: params.sender,
+    transactionBlock: buildManagerBalanceTransaction(params),
+  });
+
+  const error = readDevInspectError(result);
+
+  if (error) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `predict_manager::balance<DUSDC> devInspect failed: ${error}`,
+    );
+  }
+
+  const diagnostic = inspectDevInspectU64(result);
+
+  if (!diagnostic.decoded) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `predict_manager::balance<DUSDC> devInspect return shape did not decode to one u64. ${summarizeDevInspectU64Diagnostic(diagnostic)}`,
+    );
+  }
+
+  return {
+    managerId: params.managerId,
+    coinType: config.quoteAssets.DUSDC.coinType,
+    decimals: config.quoteAssets.DUSDC.decimals,
+    balanceAtomic: diagnostic.decoded,
+    source: "dev_inspect",
+  };
 }
 
 export function createManualPredictManagerRef(
@@ -122,4 +186,28 @@ export function normalizeManagerDepositAmount(
   }
 
   return amount.toString();
+}
+
+function readDevInspectError(result: unknown): string | null {
+  if (!isRecord(result)) {
+    return null;
+  }
+
+  if (typeof result.error === "string") {
+    return result.error;
+  }
+
+  const status = isRecord(result.effects) && isRecord(result.effects.status)
+    ? result.effects.status
+    : null;
+
+  if (status?.status === "success") {
+    return null;
+  }
+
+  return typeof status?.error === "string" ? status.error : "devInspect did not return success.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

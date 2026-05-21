@@ -35,6 +35,7 @@ type CoinSelection = {
 export type DeepVolPreflightState = {
   binaryMintPassed: boolean;
   buyReceiptPassed: boolean;
+  managerBalanceAtomic: string | null;
   message: string;
 };
 
@@ -310,7 +311,8 @@ function buildState(params: Partial<DeepVolQuoteState> & {
     preflight: {
       binaryMintPassed: false,
       buyReceiptPassed: false,
-      message: "Full browser preflight must pass before wallet submission is enabled.",
+      managerBalanceAtomic: null,
+      message: "buy_move_receipt<DUSDC> browser preflight must pass before wallet submission is enabled.",
     },
     error: null,
     isLoading: params.status === "loading",

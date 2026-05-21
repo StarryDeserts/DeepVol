@@ -1,7 +1,7 @@
 ---
 Purpose: Define the phased implementation roadmap for DeepVol BTC MOVE while preserving RangePilot validation history.
 Audience: Product engineers, protocol integrators, frontend developers, and project planners.
-Status: Updated for DeepVol-8 browser UX flow repair.
+Status: Updated for DeepVol-9 browser-safe receipt preflight.
 Source of truth relationship: Derived from DeepVol foundation docs, local protocol docs, and official-derived Testnet integration references; implementation details remain subject to confirmation.
 ---
 
@@ -68,9 +68,9 @@ The prior creator-follow strategy model is not the primary product direction bec
 | Field | Content |
 |---|---|
 | Goal | Establish and polish the DeepVol-first wallet-gated frontend before settlement UX. |
-| Deliverables | New `apps/deepvol-web` Vite app; BTC MOVE markets route; buy route; portfolio route; wallet status; Testnet guard; quote/preflight panels; transaction gating card; local/reference receipt readback; explicit blocker states; DeepVol-7 oceanic UI/UX redesign over the DeepVol-6 scaffold; DeepVol-8 browser flow repair with PredictManager create/store action visibility, DUSDC wallet/deposit visibility, explicit quote refresh, explicit preflight action, and first-receipt portfolio guidance. |
+| Deliverables | New `apps/deepvol-web` Vite app; BTC MOVE markets route; buy route; portfolio route; wallet status; Testnet guard; quote/preflight panels; transaction gating card; local/reference receipt readback; explicit blocker states; DeepVol-7 oceanic UI/UX redesign over the DeepVol-6 scaffold; DeepVol-8 browser flow repair with PredictManager create/store action visibility, DUSDC wallet/deposit visibility, explicit quote refresh, explicit preflight action, and first-receipt portfolio guidance; DeepVol-9 browser-safe `buy_move_receipt<DUSDC>` preflight with PredictManager DUSDC balance readback and receipt `devInspect` gating. |
 | Non-goals | Creator marketplace, secondary market, custodial settlement, Profit Fee enforcement, automatic execution, mainnet, redeem/withdraw actions, or protocol changes. |
-| Acceptance criteria | Users can connect a Testnet wallet, inspect the validated BTC MOVE VolSeries, understand `Trade movement, not direction.`, create or store a PredictManager, inspect wallet DUSDC funding, see quote/preflight state, understand why the buy button is disabled until all gates pass, and view local/reference receipt readback without treating the receipt as custody truth. |
+| Acceptance criteria | Users can connect a Testnet wallet, inspect the validated BTC MOVE VolSeries, understand `Trade movement, not direction.`, create or store a PredictManager, inspect wallet DUSDC funding, refresh quotes, run browser `buy_move_receipt<DUSDC>` preflight, understand why the buy button is disabled until receipt preflight and funding gates pass, and view local/reference receipt readback without treating the receipt as custody truth. |
 | Required docs | DeepVol frontend MVP; DeepVol protocol architecture; DeepVol data model; binary leg integration; PredictManager docs; protocol integration notes. |
 | Risks and fallback | Risk: users misunderstand receipts as tradable claims or assume the reference artifact is a live wallet position. Fallback: UI copy must state non-custodial receipt and local/indexer limitations clearly. |
 

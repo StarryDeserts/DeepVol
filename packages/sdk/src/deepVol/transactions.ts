@@ -20,8 +20,9 @@ export type BuildDeactivateVolSeriesTransactionOptions = DeactivateVolSeriesPara
 export type BuildBuyMoveReceiptTransactionOptions = BuyMoveReceiptParams &
   DeepVolPackageOptions & {
     requireFreshBinaryQuotePassed?: boolean;
-    requireBinaryMintPreflightPassed?: boolean;
+    requireBuyMoveReceiptPreflightPassed?: boolean;
     requireCreateFeeCoinPrepared?: boolean;
+    allowBrowserPreflightBuild?: boolean;
   };
 export type BuildMarkMoveReceiptSettledTransactionOptions = MarkMoveReceiptSettledParams & DeepVolPackageOptions;
 
@@ -135,9 +136,9 @@ function assertBuyMoveReceiptGates(params: BuildBuyMoveReceiptTransactionOptions
     );
   }
 
-  if (!params.requireBinaryMintPreflightPassed) {
+  if (!params.allowBrowserPreflightBuild && !params.requireBuyMoveReceiptPreflightPassed) {
     throw new DeepBookPredictUnconfirmedBindingError(
-      "DeepVol buy_move_receipt requires full binary mint preflight before building; this builder does not sign, dry-run, or execute transactions.",
+      "DeepVol buy_move_receipt requires browser receipt preflight before wallet submission; use the preflight helper for devInspect-only builds.",
     );
   }
 

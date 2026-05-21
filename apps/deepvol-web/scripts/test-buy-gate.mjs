@@ -28,14 +28,16 @@ const { getBuyMoveReceiptBlockers } = await import(`data:text/javascript;base64,
 const readyQuote = {
   blockers: [],
   series: {},
-  feeCoin: {},
+  feeCoin: { balanceAtomic: "25" },
   upQuoteAtomic: "100",
   downQuoteAtomic: "100",
   expectedPremiumAtomic: "200",
+  createFeeAtomic: "10",
   maxPremiumPaidAtomic: "210",
   preflight: {
     binaryMintPassed: false,
     buyReceiptPassed: false,
+    managerBalanceAtomic: "250",
   },
 };
 const wallet = {
@@ -44,33 +46,76 @@ const wallet = {
   walletTestnet: true,
   predictManagerId: "0xmanager",
 };
-const preflightBlocker = "Full binary mint and buy_move_receipt preflight must pass before wallet prompt.";
+const receiptPreflightBlocker = "buy_move_receipt<DUSDC> preflight must pass before wallet prompt.";
 
 assert.ok(
-  getBuyMoveReceiptBlockers({ quote: readyQuote, ...wallet }).includes(preflightBlocker),
-  "missing preflight must block the wallet prompt",
-);
-assert.ok(
-  getBuyMoveReceiptBlockers({
-    quote: {
-      ...readyQuote,
-      preflight: { binaryMintPassed: true, buyReceiptPassed: false },
-    },
-    ...wallet,
-  }).includes(preflightBlocker),
-  "receipt preflight alone must block the wallet prompt",
+  getBuyMoveReceiptBlockers({ quote: readyQuote, ...wallet }).includes(receiptPreflightBlocker),
+  "missing receipt preflight must block the wallet prompt",
 );
 assert.deepEqual(
   getBuyMoveReceiptBlockers({
     quote: {
       ...readyQuote,
-      preflight: { binaryMintPassed: true, buyReceiptPassed: true },
+      preflight: { ...readyQuote.preflight, buyReceiptPassed: true },
     },
     ...wallet,
   }),
   [],
-  "both preflight gates plus all prerequisites should allow submit",
+  "receipt preflight should allow submit even when direct binary preflight is only diagnostic",
+);
+assert.ok(
+  getBuyMoveReceiptBlockers({
+    quote: {
+      ...readyQuote,
+      preflight: { ...readyQuote.preflight, binaryMintPassed: true, buyReceiptPassed: false },
+    },
+    ...wallet,
+  }).includes(receiptPreflightBlocker),
+  "direct binary diagnostic passing alone must not allow submit",
+);
+assert.ok(
+  getBuyMoveReceiptBlockers({
+    quote: {
+      ...readyQuote,
+      preflight: { ...readyQuote.preflight, buyReceiptPassed: true },
+    },
+    ...wallet,
+    predictManagerId: null,
+  }).includes("A PredictManager ID is required before submitting."),
+  "missing manager must block submit",
+);
+assert.ok(
+  getBuyMoveReceiptBlockers({
+    quote: {
+      ...readyQuote,
+      preflight: { ...readyQuote.preflight, buyReceiptPassed: true, managerBalanceAtomic: "100" },
+    },
+    ...wallet,
+  }).includes("Deposit DUSDC to PredictManager before buying BTC MOVE."),
+  "insufficient manager balance must block submit",
+);
+assert.ok(
+  getBuyMoveReceiptBlockers({
+    quote: {
+      ...readyQuote,
+      feeCoin: { balanceAtomic: "5" },
+      preflight: { ...readyQuote.preflight, buyReceiptPassed: true },
+    },
+    ...wallet,
+  }).includes("A sender-owned Coin<DUSDC> must cover the quoted Create Fee."),
+  "insufficient fee coin must block submit",
+);
+assert.ok(
+  getBuyMoveReceiptBlockers({
+    quote: {
+      ...readyQuote,
+      upQuoteAtomic: null,
+      preflight: { ...readyQuote.preflight, buyReceiptPassed: true },
+    },
+    ...wallet,
+  }).includes("Fresh UP and DOWN quote data is required before submitting."),
+  "missing quote must block submit",
 );
 
-console.log("PASS buyMoveReceiptGate preflight gating");
+console.log("PASS buyMoveReceiptGate receipt preflight gating");
 console.log(`Loaded ${pathToFileURL("src/hooks/buyMoveReceiptGate.ts").href}`);

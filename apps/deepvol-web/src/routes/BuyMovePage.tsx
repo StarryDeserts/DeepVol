@@ -41,7 +41,7 @@ export function BuyMovePage() {
     managerId: predictManagerId,
     walletDusdcChecked: Boolean(dusdcBalance.data),
     quote,
-    preflightPassed: preflight.preflight.binaryMintPassed && preflight.preflight.buyReceiptPassed,
+    preflightPassed: preflight.preflight.buyReceiptPassed,
   });
   const validationMessage = manager.validatedHintQuery.isLoading
     ? "Checking PredictManager object type and owner on Sui Testnet."
@@ -191,12 +191,12 @@ function buildFlowSteps({ wallet, managerId, walletDusdcChecked, quote, prefligh
     {
       label: "Run preflight",
       state: preflightPassed ? "complete" : quotesReady ? "current" : "pending",
-      detail: preflightPassed ? "Full browser preflight passed." : "Run explicit preflight and review blockers.",
+      detail: preflightPassed ? "buy_move_receipt<DUSDC> browser preflight passed." : "Run explicit receipt preflight and review blockers.",
     },
     {
       label: "Buy BTC MOVE Receipt",
       state: preflightPassed ? "current" : "blocked",
-      detail: preflightPassed ? "Wallet review can be enabled." : "Buy stays disabled until full preflight passes.",
+      detail: preflightPassed ? "Wallet review can be enabled." : "Buy stays disabled until receipt preflight passes.",
     },
     {
       label: "View transaction result",

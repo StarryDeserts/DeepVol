@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-8 browser UX flow repair over the DeepVol-7 oceanic terminal.
+Status: Updated for DeepVol-9 browser-safe buy_move_receipt<DUSDC> preflight over the DeepVol-8 guided flow.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 
@@ -13,7 +13,9 @@ DeepVol-6 added a DeepVol-first frontend scaffold under `apps/deepvol-web/`. Dee
 
 The redesigned frontend is still an MVP foundation, not a production launch. It improves product clarity, route hierarchy, transaction readiness states, portfolio receipt presentation, accessibility, and responsive layout without adding production chain behavior.
 
-DeepVol-8 repairs the browser interaction flow for brand-new Sui Testnet users. The Buy page now exposes the path from wallet connection to PredictManager setup, DUSDC funding visibility, explicit quote refresh, explicit preflight, final buy gating, and portfolio guidance while preserving the rule that `buy_move_receipt<DUSDC>` cannot prompt the wallet until full browser-safe preflight passes.
+DeepVol-8 repairs the browser interaction flow for brand-new Sui Testnet users. The Buy page exposes the path from wallet connection to PredictManager setup, DUSDC funding visibility, explicit quote refresh, explicit preflight, final buy gating, and portfolio guidance.
+
+DeepVol-9 implements the browser-safe main preflight for `buy_move_receipt<DUSDC>`. The `Run preflight` action now reads the connected wallet's `PredictManager` DUSDC balance with `predict_manager::balance<DUSDC>`, verifies it covers the expected premium, builds the DeepVol receipt transaction in browser, and runs `devInspect` before the final wallet prompt can unlock. Direct two-leg binary mint preflight is diagnostic-only for the composed receipt path; the receipt entrypoint itself is the main gate.
 
 ## App path
 
@@ -98,8 +100,8 @@ Connect wallet
 → compute expected premium
 → compute Create Fee
 → select sender-owned Coin<DUSDC> for Create Fee
-→ run explicit browser preflight
-→ keep buy disabled unless binary mint and receipt preflight both pass
+→ run explicit browser buy_move_receipt<DUSDC> preflight
+→ keep buy disabled unless receipt preflight and all funding gates pass
 → enable explicit wallet approval only after all gates pass
 → persist successful digest and receipt ID locally
 ```
@@ -108,7 +110,7 @@ DeepVol-8 exposes `Create PredictManager`, `Deposit DUSDC to PredictManager`, `R
 
 The app reads the configured validated VolSeries and attempts browser-safe quote helpers. Historical DeepVol-5 quote values are not treated as live offers. Fresh quote, premium, fee, and fee coin values are runtime state.
 
-The current frontend intentionally keeps final `buy_move_receipt<DUSDC>` submission blocked when full browser preflight is unavailable. DeepVol-8 makes this an explicit `Run preflight` blocker state: direct two-leg binary mint preflight and DeepVol receipt preflight remain required before any final buy wallet prompt can appear.
+The current frontend keeps final `buy_move_receipt<DUSDC>` submission blocked until receipt preflight succeeds in the browser. DeepVol-9 replaces the old placeholder blocker with real `devInspect`-based receipt preflight and PredictManager DUSDC balance readback. The main gate checks that the manager balance can cover the expected premium and that the wallet has a sender-owned `Coin<DUSDC>` covering the Create Fee; these are separate balances. Direct two-leg binary mint preflight is not a main blocker because the DeepVol receipt entrypoint internally mints both legs.
 
 ## Product clarity requirements
 
@@ -163,10 +165,11 @@ The DeepVol frontend does not:
 Run these before treating the frontend as ready for review:
 
 ```bash
+npm --workspace apps/deepvol-web run test:buy-gate
 npm run typecheck:deepvol-web
 npm run build:deepvol-web
 npm run typecheck
 npm run build:web
 ```
 
-Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, explicit quote refresh, explicit preflight blockers, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating, visible focus states, responsive layout, and absence of historical validation quote values as live quotes.
+Manual browser checks should cover `/markets`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, explicit quote refresh, real receipt preflight pass/fail diagnostics, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating before preflight, enabled wallet review only after receipt preflight passes, visible focus states, responsive layout, and absence of historical validation quote values as live quotes.
