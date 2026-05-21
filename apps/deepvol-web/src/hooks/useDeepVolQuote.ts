@@ -36,6 +36,7 @@ export type DeepVolPreflightState = {
   binaryMintPassed: boolean;
   buyReceiptPassed: boolean;
   managerBalanceAtomic: string | null;
+  dependencyKey: string | null;
   message: string;
 };
 
@@ -312,6 +313,7 @@ function buildState(params: Partial<DeepVolQuoteState> & {
       binaryMintPassed: false,
       buyReceiptPassed: false,
       managerBalanceAtomic: null,
+      dependencyKey: null,
       message: "buy_move_receipt<DUSDC> browser preflight must pass before wallet submission is enabled.",
     },
     error: null,

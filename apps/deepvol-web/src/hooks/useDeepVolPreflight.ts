@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
@@ -9,6 +9,7 @@ import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
 
 type PreflightStatus = "idle" | "ready" | "running" | "blocked" | "passed";
+type KeyedDeepVolBuyReceiptPreflightResult = DeepVolBuyReceiptPreflightResult & { dependencyKey: string | null };
 
 type UseDeepVolPreflightParams = {
   quote: DeepVolQuoteState;
@@ -24,6 +25,7 @@ export type DeepVolPreflightController = {
   canRun: boolean;
   isRunning: boolean;
   lastRunAtMs: number | null;
+  dependencyKey: string;
   runPreflight: () => void;
 };
 
@@ -36,34 +38,29 @@ export function useDeepVolPreflight({
   const client = useSuiClient();
   const wallet = useSuiWallet();
   const config = useDeepVolConfig();
+  const latestRunId = useRef(0);
+  const latestDependencyKey = useRef("");
   const [runState, setRunState] = useState<{
     status: PreflightStatus;
     lastRunAtMs: number | null;
     blockers: string[];
-    result: DeepVolBuyReceiptPreflightResult | null;
+    result: KeyedDeepVolBuyReceiptPreflightResult | null;
   }>({
     status: "idle",
     lastRunAtMs: null,
     blockers: [],
     result: null,
   });
-  const dependencyKey = [
-    wallet.address ?? "",
-    wallet.isTestnet ? "testnet" : "not-testnet",
-    predictManagerId ?? "",
-    quote.series?.seriesId ?? "",
-    quote.quantity,
-    quote.upQuoteAtomic ?? "",
-    quote.downQuoteAtomic ?? "",
-    quote.maxPremiumPaidAtomic ?? "",
-    quote.expectedPremiumAtomic ?? "",
-    quote.createFeeAtomic ?? "",
-    quote.feeCoin?.coinObjectId ?? "",
-    quote.feeCoin?.balanceAtomic ?? "",
-    quote.series?.oracleId ?? "",
-  ].join(":");
+  const dependencyKey = buildPreflightDependencyKey({
+    walletAddress: wallet.address,
+    walletTestnet: wallet.isTestnet,
+    predictManagerId,
+    quote,
+  });
+  latestDependencyKey.current = dependencyKey;
 
   useEffect(() => {
+    latestRunId.current += 1;
     setRunState({
       status: "idle",
       lastRunAtMs: null,
@@ -135,6 +132,10 @@ export function useDeepVolPreflight({
       return;
     }
 
+    const runId = latestRunId.current + 1;
+    const runDependencyKey = dependencyKey;
+    latestRunId.current = runId;
+
     setRunState({
       status: "running",
       lastRunAtMs: Date.now(),
@@ -160,15 +161,25 @@ export function useDeepVolPreflight({
         config: DEEPVOL_TESTNET,
         predictConfig: DEEPBOOK_PREDICT_TESTNET,
       });
+
+      if (latestRunId.current !== runId || latestDependencyKey.current !== runDependencyKey) {
+        return;
+      }
+
+      const resultWithKey = { ...result, dependencyKey: runDependencyKey };
       const resultBlockers = result.passed ? [] : [result.devInspectError, result.dryRunError].filter(isString);
 
       setRunState({
         status: result.passed ? "passed" : "blocked",
         lastRunAtMs: Date.now(),
         blockers: resultBlockers.length > 0 ? resultBlockers : ["buy_move_receipt<DUSDC> browser preflight did not pass."],
-        result,
+        result: resultWithKey,
       });
     } catch (error) {
+      if (latestRunId.current !== runId || latestDependencyKey.current !== runDependencyKey) {
+        return;
+      }
+
       setRunState({
         status: "blocked",
         lastRunAtMs: Date.now(),
@@ -188,13 +199,42 @@ export function useDeepVolPreflight({
     canRun,
     isRunning: status === "running",
     lastRunAtMs: runState.lastRunAtMs,
+    dependencyKey,
     runPreflight,
   };
 }
 
+export function buildPreflightDependencyKey({
+  walletAddress,
+  walletTestnet,
+  predictManagerId,
+  quote,
+}: {
+  walletAddress: string | null;
+  walletTestnet: boolean;
+  predictManagerId: string | null;
+  quote: Pick<DeepVolQuoteState, "quantity" | "series" | "upQuoteAtomic" | "downQuoteAtomic" | "maxPremiumPaidAtomic" | "expectedPremiumAtomic" | "createFeeAtomic" | "feeCoin">;
+}) {
+  return [
+    walletAddress ?? "",
+    walletTestnet ? "testnet" : "not-testnet",
+    predictManagerId ?? "",
+    quote.series?.seriesId ?? "",
+    quote.quantity,
+    quote.upQuoteAtomic ?? "",
+    quote.downQuoteAtomic ?? "",
+    quote.maxPremiumPaidAtomic ?? "",
+    quote.expectedPremiumAtomic ?? "",
+    quote.createFeeAtomic ?? "",
+    quote.feeCoin?.coinObjectId ?? "",
+    quote.feeCoin?.balanceAtomic ?? "",
+    quote.series?.oracleId ?? "",
+  ].join(":");
+}
+
 function buildPreflightState(
   status: PreflightStatus,
-  result: DeepVolBuyReceiptPreflightResult | null,
+  result: KeyedDeepVolBuyReceiptPreflightResult | null,
   lastRunAtMs: number | null,
 ): DeepVolPreflightState {
   if (status === "passed" && result?.passed) {
@@ -202,6 +242,7 @@ function buildPreflightState(
       binaryMintPassed: false,
       buyReceiptPassed: true,
       managerBalanceAtomic: result.managerBalanceAtomic,
+      dependencyKey: result.dependencyKey,
       message: "buy_move_receipt<DUSDC> browser preflight passed. Wallet review is now available.",
     };
   }
@@ -211,6 +252,7 @@ function buildPreflightState(
       binaryMintPassed: false,
       buyReceiptPassed: false,
       managerBalanceAtomic: null,
+      dependencyKey: null,
       message: "Running browser buy_move_receipt<DUSDC> preflight.",
     };
   }
@@ -220,6 +262,7 @@ function buildPreflightState(
       binaryMintPassed: false,
       buyReceiptPassed: false,
       managerBalanceAtomic: result?.managerBalanceAtomic ?? null,
+      dependencyKey: null,
       message: "Run buy_move_receipt<DUSDC> browser preflight before wallet submission is enabled.",
     };
   }
@@ -228,6 +271,7 @@ function buildPreflightState(
     binaryMintPassed: false,
     buyReceiptPassed: false,
     managerBalanceAtomic: result?.managerBalanceAtomic ?? null,
+    dependencyKey: null,
     message: status === "blocked" && lastRunAtMs
       ? "Preflight ran and found blockers."
       : "buy_move_receipt<DUSDC> browser preflight must pass before wallet submission is enabled.",
@@ -237,7 +281,7 @@ function buildPreflightState(
 function buildWarnings(
   canRun: boolean,
   status: PreflightStatus,
-  result: DeepVolBuyReceiptPreflightResult | null,
+  result: KeyedDeepVolBuyReceiptPreflightResult | null,
 ): string[] {
   const warnings = [...(result?.diagnostics ?? [])];
 

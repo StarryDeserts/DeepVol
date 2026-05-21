@@ -107,11 +107,11 @@ Phase 1D-2 added redeem transaction helpers, `RangeRedeemed` parsing, and `npm r
 
 ## DeepVol browser wallet gate policy
 
-DeepVol browser buy flows live under `apps/deepvol-web/`. They must require a connected wallet, Sui Testnet, the configured `VolSeries`, fresh UP and DOWN quotes, a prepared sender-owned `Coin<DUSDC>` for Create Fee, full binary mint preflight, and full `buy_move_receipt<DUSDC>` preflight before enabling wallet approval.
+DeepVol browser buy flows live under `apps/deepvol-web/`. They must require a connected wallet, Sui Testnet, the configured `VolSeries`, fresh UP and DOWN quotes, PredictManager DUSDC balance readback, a prepared sender-owned `Coin<DUSDC>` for Create Fee, and browser `buy_move_receipt<DUSDC>` preflight before enabling wallet approval.
 
 The app must not use mainnet, local private keys, `.env.local`, CLI signing, validation scripts, automatic execution, publish, withdraw, redeem, or old RangePilot follow paths. Historical DeepVol-5 quotes are validation evidence only and are not live offers.
 
-The current scaffold can show quote/readback state but must keep the buy button disabled when browser-safe direct binary mint preflight or `buy_move_receipt<DUSDC>` preflight is unavailable. General portfolio enumeration/indexer support is not available in the scaffold; localStorage receipts and the labeled DeepVol-5 validation receipt are reference/readback surfaces only.
+The current scaffold can show quote/readback state but must keep the buy button disabled when browser `buy_move_receipt<DUSDC>` preflight is unavailable or stale for the current quote and wallet state. Direct two-leg binary mint preflight is diagnostic-only for the composed receipt path and must not block the receipt entrypoint by itself. General portfolio enumeration/indexer support is not available in the scaffold; localStorage receipts and the labeled DeepVol-5 validation receipt are reference/readback surfaces only.
 
 ## Phase 2A browser-wallet MVP scaffold
 

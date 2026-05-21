@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import type { TransactionStatus } from "@rangepilot/types/deepbookPredict";
-import { buildBuyMoveReceiptTransaction } from "@rangepilot/sdk/deepVol";
+import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
+import { buildBuyMoveReceiptTransaction, devInspectBuyMoveReceiptPreflight } from "@rangepilot/sdk/deepVol";
 import {
   buildSuiExplorerTransactionUrl,
   translateDeepBookPredictError,
@@ -10,6 +12,7 @@ import {
 import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
 import { getBuyMoveReceiptBlockers } from "./buyMoveReceiptGate";
+import { buildPreflightDependencyKey } from "./useDeepVolPreflight";
 import type { DeepVolQuoteState } from "./useDeepVolQuote";
 import { DEEPVOL_STORAGE_KEYS, TESTNET_CHAIN } from "../lib/constants";
 
@@ -34,13 +37,20 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>({
     state: "idle",
   });
+  const currentPreflightDependencyKey = useMemo(() => buildPreflightDependencyKey({
+    walletAddress: wallet.address,
+    walletTestnet: wallet.isTestnet,
+    predictManagerId,
+    quote,
+  }), [predictManagerId, quote, wallet.address, wallet.isTestnet]);
   const blockers = useMemo(() => getBuyMoveReceiptBlockers({
     quote,
     predictManagerId,
     walletAddress: wallet.address,
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
-  }), [predictManagerId, quote, wallet.address, wallet.isConnected, wallet.isTestnet]);
+    currentPreflightDependencyKey,
+  }), [currentPreflightDependencyKey, predictManagerId, quote, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const canSubmit = blockers.length === 0;
   const signAndExecuteTransaction = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
@@ -56,8 +66,8 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
       }),
   });
 
-  function submit() {
-    if (!canSubmit || !wallet.address || !quote.series || !quote.feeCoin || !predictManagerId || !quote.maxPremiumPaidAtomic || !config.protocolVaultId) {
+  async function submit() {
+    if (!canSubmit || !wallet.address || !quote.series || !quote.feeCoin || !predictManagerId || !quote.maxPremiumPaidAtomic || !quote.expectedPremiumAtomic || !quote.createFeeAtomic || !config.protocolVaultId) {
       setTransactionStatus({
         state: "blocked_unconfirmed",
         error: blockers.join(" "),
@@ -68,15 +78,43 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
     const series = quote.series;
     const feeCoin = quote.feeCoin;
     const maxPremiumPaid = quote.maxPremiumPaidAtomic;
+    const expectedPremiumAtomic = quote.expectedPremiumAtomic;
+    const createFeeAtomic = quote.createFeeAtomic;
     const protocolVaultId = config.protocolVaultId;
     const owner = wallet.address;
 
     setTransactionStatus({
       state: "building",
-      message: "Building a wallet-gated DeepVol buy_move_receipt transaction.",
+      message: "Re-running buy_move_receipt<DUSDC> browser preflight before wallet review.",
     });
 
     try {
+      const latestPreflight = await devInspectBuyMoveReceiptPreflight({
+        client,
+        sender: owner,
+        seriesId: series.seriesId,
+        predictId: config.predictId,
+        predictManagerId,
+        oracleId: series.oracleId,
+        protocolVaultId,
+        feeCoinId: feeCoin.coinObjectId,
+        quoteCoinType: config.dusdcCoinType,
+        quantity: quote.quantity,
+        maxPremiumPaid,
+        expectedPremiumAtomic,
+        feeAmountAtomic: createFeeAtomic,
+        config: DEEPVOL_TESTNET,
+        predictConfig: DEEPBOOK_PREDICT_TESTNET,
+      });
+
+      if (!latestPreflight.passed) {
+        setTransactionStatus({
+          state: "blocked_unconfirmed",
+          error: [latestPreflight.devInspectError, latestPreflight.dryRunError, "Run preflight again after resolving the latest blocker."].filter(isString).join(" "),
+        });
+        return;
+      }
+
       const transaction = buildBuyMoveReceiptTransaction({
         seriesId: series.seriesId,
         predictId: config.predictId,
@@ -148,6 +186,10 @@ export function useBuyMoveReceipt({ quote, predictManagerId }: UseBuyMoveReceipt
     transactionStatus,
     submit,
   };
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
 }
 
 function persistReceipt(record: StoredDeepVolReceipt) {

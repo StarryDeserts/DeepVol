@@ -434,7 +434,7 @@ async function preflightAndExecuteBuyReceipt({ client, server, sender, managerId
     quantity: refreshedPair.quantity,
     maxPremiumPaid,
     requireFreshBinaryQuotePassed: true,
-    requireBinaryMintPreflightPassed: true,
+    allowBrowserPreflightBuild: true,
     requireCreateFeeCoinPrepared: true,
   });
   assertBuyMoveReceiptTransaction(buyTx);
@@ -475,6 +475,22 @@ async function preflightAndExecuteBuyReceipt({ client, server, sender, managerId
   }
 
   const selectedGasBudget = selectedDryRun.gasBudgetMist;
+  const executionTx = buildBuyMoveReceiptTransaction({
+    config: deepVolConfig,
+    seriesId,
+    predictId: predictConfig.predictId,
+    predictManagerId: managerId,
+    oracleId: refreshedPair.oracleObjectId,
+    feeCoinId: selectedFeeCoin.coinObjectId,
+    protocolVaultId: deepVolConfig.protocolVaultId,
+    quoteCoinType: dusdcCoinType,
+    quantity: refreshedPair.quantity,
+    maxPremiumPaid,
+    requireFreshBinaryQuotePassed: true,
+    requireBuyMoveReceiptPreflightPassed: true,
+    requireCreateFeeCoinPrepared: true,
+  });
+  assertBuyMoveReceiptTransaction(executionTx);
   const gasBlocker = validateGasBudgetCoverage(gasCoins, selectedGasBudget);
   if (gasBlocker) {
     return {
@@ -501,7 +517,7 @@ async function preflightAndExecuteBuyReceipt({ client, server, sender, managerId
   try {
     assertCanSubmitBuyReceipt();
     execution = await executeWithSuiCli({
-      tx: buyTx,
+      tx: executionTx,
       client,
       sender,
       gasBudgetMist: selectedGasBudget,

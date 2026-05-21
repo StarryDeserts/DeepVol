@@ -11,6 +11,7 @@ type BuyMoveReceiptGateQuote = {
     binaryMintPassed: boolean;
     buyReceiptPassed: boolean;
     managerBalanceAtomic: string | null;
+    dependencyKey: string | null;
   };
 };
 
@@ -20,6 +21,7 @@ type BuyMoveReceiptGateParams = {
   walletAddress: string | null;
   walletConnected: boolean;
   walletTestnet: boolean;
+  currentPreflightDependencyKey: string;
 };
 
 export function getBuyMoveReceiptBlockers({
@@ -28,6 +30,7 @@ export function getBuyMoveReceiptBlockers({
   walletAddress,
   walletConnected,
   walletTestnet,
+  currentPreflightDependencyKey,
 }: BuyMoveReceiptGateParams) {
   const entries = [...quote.blockers];
 
@@ -65,6 +68,10 @@ export function getBuyMoveReceiptBlockers({
 
   if (!quote.preflight.buyReceiptPassed) {
     entries.push("buy_move_receipt<DUSDC> preflight must pass before wallet prompt.");
+  }
+
+  if (quote.preflight.buyReceiptPassed && quote.preflight.dependencyKey !== currentPreflightDependencyKey) {
+    entries.push("Run buy_move_receipt<DUSDC> preflight again for the current quote and wallet state.");
   }
 
   return [...new Set(entries)];
