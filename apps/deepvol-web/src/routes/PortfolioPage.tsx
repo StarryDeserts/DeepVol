@@ -1,17 +1,21 @@
 import { useState } from "react";
+import { PrimitiveTradeRecordCard } from "../components/PrimitiveTradeRecordCard";
 import { ReceiptSummaryCard } from "../components/ReceiptSummaryCard";
 import { PageHero } from "../components/ui/PageHero";
 import { StateCallout } from "../components/ui/StateCallout";
 import { StatusPill } from "../components/ui/StatusPill";
 import { useDeepVolPortfolio } from "../hooks/useDeepVolPortfolio";
+import { useDeepVolPrimitiveRecords } from "../hooks/useDeepVolPrimitiveRecords";
 import { usePrimitivePositionReadback } from "../hooks/usePrimitivePositionReadback";
 
 export function PortfolioPage() {
   const portfolio = useDeepVolPortfolio();
   const [predictManagerInput, setPredictManagerInput] = useState("");
+  const predictManagerId = predictManagerInput.trim() || null;
   const primitiveReadback = usePrimitivePositionReadback({
-    predictManagerId: predictManagerInput.trim() || null,
+    predictManagerId,
   });
+  const primitiveRecords = useDeepVolPrimitiveRecords(predictManagerId);
   const receiptCount = portfolio.receipts.length;
 
   return (
@@ -86,12 +90,36 @@ export function PortfolioPage() {
         <div className="cardHeader">
           <div>
             <div className="eyebrow">Primitive Positions</div>
+            <h2>Local primitive trade records</h2>
+          </div>
+          <StatusPill tone={primitiveRecords.hasLocalPrimitiveRecords ? "success" : "neutral"}>{primitiveRecords.records.length} records</StatusPill>
+        </div>
+        <StateCallout tone="warning" title="Primitive trades do not create DeepVol MoveReceipt">
+          Primitive trade records are local browser hints, not MoveReceipt objects and not indexer truth. Only BTC MOVE creates a receipt in this app.
+        </StateCallout>
+        {primitiveRecords.records.length > 0 ? (
+          <div className="primitiveGrid primitiveRecordGrid">
+            {primitiveRecords.records.map((record) => (
+              <PrimitiveTradeRecordCard key={record.digest} record={record} />
+            ))}
+          </div>
+        ) : (
+          <StateCallout tone="info" title="No primitive positions yet">
+            No primitive positions yet. Trade UP / DOWN / RANGE from the Predict Primitives page.
+          </StateCallout>
+        )}
+      </section>
+
+      <section className="card primitiveSection">
+        <div className="cardHeader">
+          <div>
+            <div className="eyebrow">Primitive Positions</div>
             <h2>Known-key readback groundwork</h2>
           </div>
           <StatusPill tone={primitiveReadback.status === "ready" ? "success" : primitiveReadback.status === "error" ? "danger" : "neutral"}>{primitiveReadback.status}</StatusPill>
         </div>
-        <StateCallout tone="warning" title="Primitive trades do not create DeepVol MoveReceipt">
-          Only BTC MOVE creates a receipt in this app. Known selected key readback is supported first. General primitive position indexing is future work.
+        <StateCallout tone="warning" title="Known selected key readback is supported first">
+          General primitive position indexing is future work. Enter a PredictManager ID to read configured or selected primitive keys directly.
         </StateCallout>
         <label className="fieldLabel" htmlFor="portfolio-predict-manager">
           PredictManager ID for primitive readback

@@ -879,7 +879,8 @@ dd {
 .primitiveFormGrid,
 .primitiveQuoteMetrics,
 .primitiveSelector,
-.primitiveExecutionDisabled {
+.primitiveExecutionDisabled,
+.primitiveExecutionPanel {
   display: grid;
   gap: 0.85rem;
 }
@@ -893,7 +894,8 @@ dd {
 
 .fundingSplitGrid article,
 .preflightAction,
-.primitiveExecutionDisabled {
+.primitiveExecutionDisabled,
+.primitiveExecutionPanel {
   min-width: 0;
   border: 1px solid rgba(116, 232, 255, 0.14);
   border-radius: var(--dv-radius-md);
@@ -932,8 +934,29 @@ dd {
 }
 
 .preflightAction p,
-.primitiveExecutionDisabled p {
+.primitiveExecutionDisabled p,
+.primitiveExecutionPanel p {
   margin: 0.35rem 0 0;
+}
+
+.primitiveExecutionPanel.ready {
+  border-color: rgba(124, 247, 212, 0.34);
+  background: linear-gradient(145deg, rgba(124, 247, 212, 0.09), rgba(3, 12, 24, 0.38));
+}
+
+.primitiveExecutionPanel.blocked,
+.primitiveExecutionPanel.policy-disabled {
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.primitiveTradeRecordCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.primitiveTradeRecordCard .dataGrid,
+.primitiveTradeRecordCard .dataGrid-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .primitiveSelector .secondaryButton,
@@ -1307,7 +1330,8 @@ input:focus {
   .preflightAction,
   .primitiveFormGrid,
   .primitiveQuoteMetrics,
-  .primitiveExecutionDisabled {
+  .primitiveExecutionDisabled,
+  .primitiveExecutionPanel {
     grid-template-columns: 1fr;
   }
 

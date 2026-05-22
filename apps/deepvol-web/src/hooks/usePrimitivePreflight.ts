@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import {
+  devInspectManagerBalance,
   devInspectMintBinaryPreflight,
   devInspectMintRangePreflight,
 } from "@rangepilot/sdk/deepbookPredict";
@@ -23,6 +24,8 @@ export type PrimitivePreflightController = {
   warnings: string[];
   lastRunAtMs: number | null;
   dependencyKey: string;
+  managerBalanceAtomic: string | null;
+  managerBalanceCheckedAtMs: number | null;
   abortMessage: string | null;
   abortKnownReason: string | null;
   runPreflight: () => void;
@@ -39,6 +42,8 @@ type PrimitivePreflightRunState = {
   lastRunAtMs: number | null;
   blockers: string[];
   warnings: string[];
+  managerBalanceAtomic: string | null;
+  managerBalanceCheckedAtMs: number | null;
   abortMessage: string | null;
   abortKnownReason: string | null;
 };
@@ -49,6 +54,8 @@ const EMPTY_PREFLIGHT_STATE: PrimitivePreflightRunState = {
   lastRunAtMs: null,
   blockers: [],
   warnings: [],
+  managerBalanceAtomic: null,
+  managerBalanceCheckedAtMs: null,
   abortMessage: null,
   abortKnownReason: null,
 };
@@ -96,6 +103,8 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
         lastRunAtMs: null,
         blockers: currentBlockers,
         warnings: [],
+        managerBalanceAtomic: null,
+        managerBalanceCheckedAtMs: null,
         abortMessage: null,
         abortKnownReason: null,
       });
@@ -116,58 +125,90 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
       lastRunAtMs: null,
       blockers: [],
       warnings: [],
+      managerBalanceAtomic: null,
+      managerBalanceCheckedAtMs: null,
       abortMessage: null,
       abortKnownReason: null,
     });
 
     void (async () => {
-      const result = input.primitiveKind === "RANGE"
-        ? await devInspectMintRangePreflight({
-            client,
-            sender,
-            managerId: predictManagerId,
-            oracleId: series.oracleId,
-            oracleObjectId: series.oracleId,
-            expiry: series.expiry,
-            lowerStrike: input.lowerStrike ?? "",
-            higherStrike: input.upperStrike ?? "",
-            quantity,
-            config: DEEPBOOK_PREDICT_TESTNET,
-            candidateParams: {
-              mintCostAtomic: input.mintCostAtomic ?? undefined,
-              redeemPayoutAtomic: input.redeemPayoutAtomic ?? undefined,
-            },
-          })
-        : await devInspectMintBinaryPreflight({
-            client,
-            sender,
-            managerId: predictManagerId,
-            oracleId: series.oracleId,
-            oracleObjectId: series.oracleId,
-            expiry: series.expiry,
-            strike: input.strike ?? "",
-            direction: input.primitiveKind === "UP" ? "up" : "down",
-            quantity,
-            config: DEEPBOOK_PREDICT_TESTNET,
-            candidateParams: {
-              mintCostAtomic: input.mintCostAtomic ?? undefined,
-              redeemPayoutAtomic: input.redeemPayoutAtomic ?? undefined,
-            },
-          });
+      try {
+        const managerBalance = await devInspectManagerBalance({
+          client,
+          sender,
+          managerId: predictManagerId,
+          config: DEEPBOOK_PREDICT_TESTNET,
+        });
+        const result = input.primitiveKind === "RANGE"
+          ? await devInspectMintRangePreflight({
+              client,
+              sender,
+              managerId: predictManagerId,
+              oracleId: series.oracleId,
+              oracleObjectId: series.oracleId,
+              expiry: series.expiry,
+              lowerStrike: input.lowerStrike ?? "",
+              higherStrike: input.upperStrike ?? "",
+              quantity,
+              config: DEEPBOOK_PREDICT_TESTNET,
+              candidateParams: {
+                mintCostAtomic: input.mintCostAtomic ?? undefined,
+                redeemPayoutAtomic: input.redeemPayoutAtomic ?? undefined,
+              },
+            })
+          : await devInspectMintBinaryPreflight({
+              client,
+              sender,
+              managerId: predictManagerId,
+              oracleId: series.oracleId,
+              oracleObjectId: series.oracleId,
+              expiry: series.expiry,
+              strike: input.strike ?? "",
+              direction: input.primitiveKind === "UP" ? "up" : "down",
+              quantity,
+              config: DEEPBOOK_PREDICT_TESTNET,
+              candidateParams: {
+                mintCostAtomic: input.mintCostAtomic ?? undefined,
+                redeemPayoutAtomic: input.redeemPayoutAtomic ?? undefined,
+              },
+            });
 
-      if (latestRunId.current !== runId) {
-        return;
+        if (latestRunId.current !== runId) {
+          return;
+        }
+
+        const balanceWarnings = input.mintCostAtomic && BigInt(managerBalance.balanceAtomic) < BigInt(input.mintCostAtomic)
+          ? ["PredictManager DUSDC balance is below the current primitive mint cost."]
+          : [];
+
+        setRunState({
+          status: result.status === "passed" ? "passed" : "failed",
+          dependencyKey,
+          lastRunAtMs: Date.now(),
+          blockers: [],
+          warnings: balanceWarnings,
+          managerBalanceAtomic: managerBalance.balanceAtomic,
+          managerBalanceCheckedAtMs: Date.now(),
+          abortMessage: result.status === "failed" ? result.abort.message : null,
+          abortKnownReason: result.status === "failed" ? result.abort.knownReason : null,
+        });
+      } catch (error) {
+        if (latestRunId.current !== runId) {
+          return;
+        }
+
+        setRunState({
+          status: "failed",
+          dependencyKey,
+          lastRunAtMs: Date.now(),
+          blockers: [],
+          warnings: [],
+          managerBalanceAtomic: null,
+          managerBalanceCheckedAtMs: null,
+          abortMessage: error instanceof Error ? error.message : String(error),
+          abortKnownReason: null,
+        });
       }
-
-      setRunState({
-        status: result.status === "passed" ? "passed" : "failed",
-        dependencyKey,
-        lastRunAtMs: Date.now(),
-        blockers: [],
-        warnings: [],
-        abortMessage: result.status === "failed" ? result.abort.message : null,
-        abortKnownReason: result.status === "failed" ? result.abort.knownReason : null,
-      });
     })();
   }, [client, dependencyKey, input, predictManagerId]);
 
@@ -184,6 +225,8 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
     warnings: freshRun.warnings,
     lastRunAtMs: freshRun.lastRunAtMs,
     dependencyKey,
+    managerBalanceAtomic: freshRun.managerBalanceAtomic,
+    managerBalanceCheckedAtMs: freshRun.managerBalanceCheckedAtMs,
     abortMessage: freshRun.abortMessage,
     abortKnownReason: freshRun.abortKnownReason,
     runPreflight,

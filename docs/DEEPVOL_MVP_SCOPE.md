@@ -1,7 +1,7 @@
 ---
 Purpose: Define the first DeepVol BTC MOVE MVP boundary.
 Audience: Project maintainers, Move developers, SDK implementers, frontend developers, reviewers, and AI agents.
-Status: Foundation MVP scope for the DeepVol refactor, updated for DeepVol-14 primitive quote/preflight previews.
+Status: Foundation MVP scope for the DeepVol refactor, updated for DeepVol-15 wallet-gated UP/DOWN primitive execution.
 ---
 
 # DeepVol MVP Scope
@@ -10,7 +10,7 @@ Status: Foundation MVP scope for the DeepVol refactor, updated for DeepVol-14 pr
 
 DeepVol MVP should prove one real BTC MOVE Receipt path on DeepBook Predict Testnet before expanding markets or fee models.
 
-DeepVol is a Predict-native structured product layer. BTC MOVE Receipt is the primary MVP product; UP, DOWN, and RANGE are advanced primitives, not the main MVP product surface.
+DeepVol is a Predict-native primitive trading terminal and structured product layer. BTC MOVE Receipt is the primary MVP structured product; UP and DOWN can be direct wallet-gated primitives, while RANGE remains quote/preflight-only until dedicated validation.
 
 The first product is:
 
@@ -25,7 +25,8 @@ The user buys exposure to BTC movement rather than choosing direction.
 The MVP includes:
 
 - BTC MOVE Receipt only as the primary composed product.
-- Advanced UP / DOWN / RANGE primitive surfaces only for validation, diagnostics, education, or future composer groundwork.
+- UP / DOWN primitive wallet execution behind fresh quote, PredictManager balance, and binary mint preflight gates.
+- RANGE primitive quote/preflight diagnostics only until dedicated mintability validation.
 - One active BTC oracle / expiry selected at runtime.
 - `VolSeries` object for BTC MOVE series metadata and leg truth.
 - `MoveReceipt` object for non-custodial receipt metadata and Predict position linkage.
@@ -39,14 +40,14 @@ The MVP includes:
 - Portfolio readback that combines `MoveReceipt` metadata with `PredictManager` binary position readback.
 - A DeepVol-first wallet-gated frontend under `apps/deepvol-web/`, redesigned in DeepVol-7 as an oceanic BTC MOVE UX/demo foundation.
 - Guided redeem / settlement path that directs users through the official DeepBook Predict binary redeem flow.
-- DeepVol-14 quote/preflight preview route for UP / DOWN / RANGE primitives that keeps direct primitive execution disabled.
+- DeepVol-15 primitive terminal route for UP / DOWN / RANGE that enables UP/DOWN wallet-gated execution, keeps RANGE execution disabled, and stores primitive local records separately from receipts.
 
 ## Explicitly out of MVP
 
 The MVP excludes:
 
 - Primitive UP / DOWN / RANGE as the main fee surface.
-- Protocol fees on primitive trades; primitive surfaces should be advanced/debug-only in MVP.
+- Protocol fees on primitive trades; primitive trades pay no DeepVol Create Fee in MVP.
 - SUI MOVE.
 - DEEP MOVE.
 - ETH MOVE.
@@ -85,7 +86,8 @@ The first implementation should prefer runtime discovery over hardcoded market a
 13. Add completed browser-safe portfolio readback and guided settlement UI.
 14. Record controlled browser guided redeem validation for the known receipt and introduce UP / DOWN / RANGE primitive surfaces in `apps/deepvol-web/`.
 15. Add DeepVol-14 primitive quote/preflight previews for UP / DOWN / RANGE using configured BTC MOVE series context while keeping direct primitive wallet execution disabled.
-16. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
+16. Add DeepVol-15 primitive execution policy, guarded SDK binary mint builder, UP/DOWN wallet execution gates, primitive local records, and Portfolio separation while keeping RANGE execution disabled.
+17. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
 
 ## Code organization
 

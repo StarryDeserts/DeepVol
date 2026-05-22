@@ -1,14 +1,14 @@
 ---
 Purpose: Explain DeepVol's Predict primitives layer and composed receipt products.
 Audience: Product maintainers, Move developers, SDK implementers, frontend developers, reviewers, and AI agents.
-Status: Product-layer clarification for DeepVol BTC MOVE, Route B receipts, and DeepVol-14 primitive quote/preflight previews.
+Status: Product-layer clarification for DeepVol BTC MOVE, Route B receipts, and DeepVol-15 wallet-gated UP/DOWN primitive execution.
 ---
 
 # DeepVol Primitives and Receipts
 
 ## Product layers
 
-DeepVol is a Predict-native structured product layer. It uses official DeepBook Predict primitives and packages selected combinations into product receipts.
+DeepVol is a Predict-native primitive trading terminal and structured product layer. It uses official DeepBook Predict primitives directly where product policy allows and packages selected combinations into product receipts.
 
 DeepVol exposes two product layers:
 
@@ -20,11 +20,11 @@ DeepVol exposes two product layers:
 2. Composed receipts:
    - BTC MOVE = UP + DOWN
 
-This framing keeps DeepVol from becoming a generic Predict UI. The primary product is the composed receipt layer, while primitives remain available for advanced validation, education, and future composer workflows.
+This framing keeps BTC MOVE as DeepVol's flagship receipt product while allowing DeepVol to grow into a Predict-native primitive terminal. The primary structured product is still the composed receipt layer, while primitives provide direct UP/DOWN terminal capability, RANGE diagnostics, and future composer workflows.
 
 ## Predict primitives
 
-UP, DOWN, and RANGE are official DeepBook Predict primitives. DeepVol should expose them only as advanced primitives in the MVP, not as the main product or the main fee source. DeepVol-14 exposes them in the frontend as quote/preflight previews for education, diagnostics, known-key readback groundwork, and future composer work; see [DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md](./DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md) and [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md).
+UP, DOWN, and RANGE are official DeepBook Predict primitives. DeepVol-15 enables UP and DOWN as wallet-gated raw primitive terminals after fresh quote, manager balance, and mint preflight gates pass. RANGE remains quote/preflight-only until dedicated mintability validation. Direct primitive trades are not the DeepVol fee surface and do not create `MoveReceipt` objects; see [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md), [DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md](./DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md), and [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md).
 
 Primitive responsibilities remain with DeepBook Predict:
 
@@ -60,7 +60,7 @@ A user buys movement exposure rather than choosing direction:
 - the DOWN leg covers a move below the lower strike;
 - the receipt aggregates those legs into one product-level portfolio item.
 
-The MVP should keep BTC MOVE front-and-center. UP, DOWN, and RANGE should be treated as advanced primitives, diagnostics, education, or future composer building blocks. Direct primitive buys do not create a DeepVol `MoveReceipt`; only the BTC MOVE receipt route creates a receipt in the MVP app.
+The MVP should keep BTC MOVE front-and-center. UP and DOWN may be traded as raw wallet-gated primitives; RANGE remains diagnostics-only for now. Direct primitive buys do not create a DeepVol `MoveReceipt`; only the BTC MOVE receipt route creates a receipt in the MVP app.
 
 ## Can users manually buy UP + DOWN themselves?
 
@@ -86,7 +86,7 @@ Advanced users can construct the raw legs themselves, but most users should not 
 
 ## Fee model boundary
 
-Primitive UP, DOWN, and RANGE trades are not the primary MVP monetization surface. In DeepVol-14, primitive surfaces are quote/preflight previews only: they do not submit wallet transactions, do not create `MoveReceipt` objects, and do not charge DeepVol Create Fee.
+Primitive UP, DOWN, and RANGE trades are not the primary MVP monetization surface. In DeepVol-15, UP/DOWN primitive trades may submit wallet transactions after strict gates pass, but they do not create `MoveReceipt` objects and do not charge DeepVol Create Fee. RANGE remains quote/preflight-only.
 
 BTC MOVE Receipt is the MVP monetization surface:
 

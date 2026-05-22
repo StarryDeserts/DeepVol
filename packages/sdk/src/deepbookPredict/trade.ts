@@ -61,6 +61,11 @@ export type DevInspectMintBinaryPreflightParams = BinaryMintParams & {
   candidateParams?: MintAbortCandidateParams;
 };
 
+export type BuildMintBinaryPrimitiveTransactionOptions = BinaryMintParams & {
+  config?: DeepBookPredictNetworkConfig;
+  allowRealTestnetMint?: boolean;
+};
+
 export type BuildRedeemBinaryPositionTransactionOptions = BinaryRedeemParams & {
   config?: DeepBookPredictNetworkConfig;
   allowPreflightOnlyBinaryRedeem?: boolean;
@@ -196,6 +201,33 @@ export function buildRedeemRangeTransaction(
   return tx;
 }
 
+export function buildMintBinaryPrimitiveTransaction(
+  params: BuildMintBinaryPrimitiveTransactionOptions,
+): Transaction {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const quantity = normalizePositiveInteger(params.quantity, "Binary mint quantity");
+
+  if (!params.allowRealTestnetMint) {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      `MUST CONFIRM BEFORE REAL MINT: ${config.packageId}::predict::mint<${config.quoteAssets.DUSDC.coinType}> must only be built by the gated Testnet primitive execution flow after fresh quote, manager balance, position readback, and preflight gates pass.`,
+    );
+  }
+
+  if (config.network !== "testnet") {
+    throw new DeepBookPredictUnconfirmedBindingError(
+      "Binary mint transaction building is only allowed for Sui Testnet validation.",
+    );
+  }
+
+  const tx = new Transaction();
+  appendMintBinaryPrimitiveCall(tx, {
+    ...params,
+    quantity,
+  }, config);
+
+  return tx;
+}
+
 export function buildRedeemBinaryPositionTransaction(
   params: BuildRedeemBinaryPositionTransactionOptions,
 ): Transaction {
@@ -265,7 +297,7 @@ export async function devInspectMintBinaryPreflight(
   params: DevInspectMintBinaryPreflightParams,
 ): Promise<BinaryMintPreflightResult> {
   try {
-    const transactionBlock = buildMintBinaryPositionPreflightTransaction(params);
+    const transactionBlock = buildMintBinaryPrimitivePreflightTransaction(params);
     const result = await params.client.devInspectTransactionBlock({
       sender: params.sender,
       transactionBlock,
@@ -539,17 +571,32 @@ async function devInspectRedeemTransactionBlock({
   return { status: "passed" };
 }
 
-function buildMintBinaryPositionPreflightTransaction(params: BinaryMintParams & { config?: DeepBookPredictNetworkConfig }): Transaction {
+function buildMintBinaryPrimitivePreflightTransaction(
+  params: BinaryMintParams & { config?: DeepBookPredictNetworkConfig },
+): Transaction {
   const config = resolveDeepBookPredictConfig(params.config);
   const quantity = normalizePositiveInteger(params.quantity, "Binary mint quantity");
 
   if (config.network !== "testnet") {
     throw new DeepBookPredictUnconfirmedBindingError(
-      "Binary mint preflight is only allowed for Sui Testnet validation.",
+      "Binary mint preflight transaction building is only allowed for Sui Testnet validation.",
     );
   }
 
   const tx = new Transaction();
+  appendMintBinaryPrimitiveCall(tx, {
+    ...params,
+    quantity,
+  }, config);
+
+  return tx;
+}
+
+function appendMintBinaryPrimitiveCall(
+  tx: Transaction,
+  params: BinaryMintParams,
+  config: DeepBookPredictNetworkConfig,
+) {
   const marketKey = buildMarketKeyTransactionArgument(tx, params, config);
 
   tx.moveCall({
@@ -560,12 +607,10 @@ function buildMintBinaryPositionPreflightTransaction(params: BinaryMintParams & 
       tx.object(params.managerId),
       tx.object(params.oracleObjectId),
       marketKey,
-      tx.pure.u64(quantity),
+      tx.pure.u64(params.quantity),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
-
-  return tx;
 }
 
 function appendRedeemBinaryPositionCall(

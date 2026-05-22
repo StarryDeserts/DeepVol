@@ -9,7 +9,7 @@ export type PredictPrimitive = {
   meaning: string;
   winsWhen: string;
   riskCopy: string;
-  status: "Quote/preflight preview";
+  status: "Wallet-gated terminal" | "Quote/preflight only";
   ctaLabel: string;
   previewHref: string;
 };
@@ -19,27 +19,27 @@ export const PREDICT_PRIMITIVES = [
     kind: "UP",
     meaning: "Buy upside.",
     winsWhen: "BTC expires above the selected strike.",
-    riskCopy: "Raw Predict primitive; it does not create a DeepVol MoveReceipt.",
-    status: "Quote/preflight preview",
-    ctaLabel: "Direct UP execution disabled",
+    riskCopy: "Raw Predict primitive; wallet execution requires fresh quote, manager balance, and preflight gates.",
+    status: "Wallet-gated terminal",
+    ctaLabel: "Open UP terminal",
     previewHref: "/primitives?type=UP",
   },
   {
     kind: "DOWN",
     meaning: "Buy downside.",
     winsWhen: "BTC expires below the selected strike.",
-    riskCopy: "Raw Predict primitive; it does not create a DeepVol MoveReceipt.",
-    status: "Quote/preflight preview",
-    ctaLabel: "Direct DOWN execution disabled",
+    riskCopy: "Raw Predict primitive; wallet execution requires fresh quote, manager balance, and preflight gates.",
+    status: "Wallet-gated terminal",
+    ctaLabel: "Open DOWN terminal",
     previewHref: "/primitives?type=DOWN",
   },
   {
     kind: "RANGE",
     meaning: "Buy inside-range exposure.",
     winsWhen: "BTC expires inside the selected lower / upper range.",
-    riskCopy: "Complement to MOVE; direct RANGE execution is not enabled in DeepVol MVP yet.",
-    status: "Quote/preflight preview",
-    ctaLabel: "Direct RANGE execution disabled",
+    riskCopy: "Complement to MOVE; RANGE execution remains disabled until dedicated mintability validation.",
+    status: "Quote/preflight only",
+    ctaLabel: "Preview RANGE gates",
     previewHref: "/primitives?type=RANGE",
   },
 ] as const satisfies readonly PredictPrimitive[];
@@ -49,14 +49,14 @@ export function PredictPrimitiveCards() {
     <section className="card primitiveSection">
       <div className="cardHeader">
         <div>
-          <div className="eyebrow">Advanced primitives</div>
+          <div className="eyebrow">Predict primitive terminal</div>
           <h2>Predict building blocks</h2>
         </div>
-        <StatusPill tone="info">Preview only</StatusPill>
+        <StatusPill tone="info">BTC MOVE remains flagship</StatusPill>
       </div>
 
-      <StateCallout tone="info" title="BTC MOVE remains the enabled receipt product">
-        Direct primitives now open quote/preflight preview only and do not create MoveReceipt. Only BTC MOVE creates a DeepVol receipt in this app.
+      <StateCallout tone="info" title="Primitive trades do not create MoveReceipt">
+        UP and DOWN open wallet-gated primitive terminals. RANGE remains quote/preflight-only. Only BTC MOVE creates a DeepVol receipt in this app.
       </StateCallout>
 
       <div className="primitiveGrid">
@@ -64,7 +64,7 @@ export function PredictPrimitiveCards() {
           <article className="primitiveCard primitiveCardScaffold" key={primitive.kind}>
             <div className="primitiveCardTop">
               <span>{primitive.kind}</span>
-              <StatusPill tone="warning">{primitive.status}</StatusPill>
+              <StatusPill tone={primitive.status === "Wallet-gated terminal" ? "success" : "warning"}>{primitive.status}</StatusPill>
             </div>
             <DataGrid
               variant="compact"
@@ -76,11 +76,8 @@ export function PredictPrimitiveCards() {
             />
             <div className="cardActions primitiveActions">
               <a className="secondaryButton" href={primitive.previewHref}>
-                Preview quote/preflight
-              </a>
-              <button className="secondaryButton" type="button" disabled>
                 {primitive.ctaLabel}
-              </button>
+              </a>
               <a className="primaryLink" href="/buy/btc-move">
                 Trade BTC MOVE receipt
               </a>

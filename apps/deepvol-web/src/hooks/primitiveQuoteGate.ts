@@ -1,4 +1,6 @@
 import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { PrimitivePreflightStatus } from "./usePrimitivePreflight";
+import type { PrimitiveQuoteStatus } from "./usePrimitiveQuote";
 
 export type PrimitiveKind = "UP" | "DOWN" | "RANGE";
 
@@ -19,7 +21,23 @@ export type PrimitiveInputState = {
   preflightQuoteDependencyKey?: string | null;
 };
 
-export const PRIMITIVE_EXECUTION_DISABLED_BLOCKER = "Primitive wallet execution is disabled in DeepVol-14.";
+export type PrimitiveExecutionInput = PrimitiveInputState & {
+  quoteStatus: PrimitiveQuoteStatus;
+  quotedAtMs: number | null;
+  quoteDependencyKey: string | null;
+  expectedQuoteDependencyKey: string;
+  preflightStatus: PrimitivePreflightStatus;
+  preflightDependencyKey: string | null;
+  expectedPreflightDependencyKey: string;
+  preflightLastRunAtMs: number | null;
+  managerBalanceAtomic: string | null;
+  isSubmitting: boolean;
+  nowMs?: number;
+};
+
+export const PRIMITIVE_RANGE_EXECUTION_DISABLED_BLOCKER = "RANGE wallet execution remains disabled until dedicated mintability validation passes.";
+export const PRIMITIVE_QUOTE_FRESHNESS_MS = 120_000;
+export const PRIMITIVE_PREFLIGHT_FRESHNESS_MS = 120_000;
 
 export function buildPrimitiveQuoteBlockers(input: PrimitiveInputState): string[] {
   const blockers: string[] = [];
@@ -81,8 +99,55 @@ export function buildPrimitivePreflightBlockers(input: PrimitiveInputState): str
   return [...new Set(blockers)];
 }
 
-export function buildPrimitiveExecutionBlockers(): string[] {
-  return [PRIMITIVE_EXECUTION_DISABLED_BLOCKER];
+export function buildPrimitiveExecutionBlockers(input: PrimitiveExecutionInput): string[] {
+  const blockers = [...buildPrimitivePreflightBlockers(input)];
+  const nowMs = input.nowMs ?? Date.now();
+
+  if (input.primitiveKind === "RANGE") {
+    blockers.push(PRIMITIVE_RANGE_EXECUTION_DISABLED_BLOCKER);
+  }
+
+  if (input.isSubmitting) {
+    blockers.push("Wait for the current primitive wallet request to finish.");
+  }
+
+  if (input.quoteStatus !== "ready" || !input.mintCostAtomic || !input.redeemPayoutAtomic || !input.quotedAtMs) {
+    blockers.push("Refresh quote before wallet review.");
+  }
+
+  if (input.mintCostAtomic && BigInt(input.mintCostAtomic) <= 0n) {
+    blockers.push("Primitive mint cost must be positive before wallet review.");
+  }
+
+  if (!input.quoteDependencyKey || input.quoteDependencyKey !== input.expectedQuoteDependencyKey) {
+    blockers.push("Refresh quote before wallet review.");
+  }
+
+  if (input.quotedAtMs && nowMs - input.quotedAtMs > PRIMITIVE_QUOTE_FRESHNESS_MS) {
+    blockers.push("Primitive quote expired; refresh quote before wallet review.");
+  }
+
+  if (input.preflightStatus !== "passed" || !input.preflightLastRunAtMs) {
+    blockers.push("Run primitive mint preflight again for the current quote and wallet state.");
+  }
+
+  if (!input.preflightDependencyKey || input.preflightDependencyKey !== input.expectedPreflightDependencyKey) {
+    blockers.push("Run primitive mint preflight again for the current quote and wallet state.");
+  }
+
+  if (input.preflightLastRunAtMs && nowMs - input.preflightLastRunAtMs > PRIMITIVE_PREFLIGHT_FRESHNESS_MS) {
+    blockers.push("Primitive mint preflight expired; run preflight again before wallet review.");
+  }
+
+  if (!input.managerBalanceAtomic) {
+    blockers.push("PredictManager DUSDC balance must be read before wallet review.");
+  }
+
+  if (input.managerBalanceAtomic && input.mintCostAtomic && BigInt(input.managerBalanceAtomic) < BigInt(input.mintCostAtomic)) {
+    blockers.push("PredictManager DUSDC balance must cover the current mint cost.");
+  }
+
+  return [...new Set(blockers)];
 }
 
 export function buildPrimitiveQuoteDependencyKey(input: PrimitiveInputState): string {

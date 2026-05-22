@@ -17,6 +17,7 @@ export const TESTNET_CHAIN = "sui:testnet";
 export const DEEPVOL_STORAGE_KEYS = {
   predictManager: "deepvol:predict-manager",
   receipts: "deepvol:move-receipts",
+  primitiveTrades: "deepvol:primitive-trades",
   recentTransactions: "deepvol:recent-transactions",
   redeemAttempts: "deepvol:controlled-redeem-attempts",
 } as const;

@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:buy-gate": "node scripts/test-buy-gate.mjs",
     "test:primitive-gates": "node scripts/test-primitive-gates.mjs",
-    "test:primitive-quote-gates": "node scripts/test-primitive-quote-gates.mjs"
+    "test:primitive-quote-gates": "node scripts/test-primitive-quote-gates.mjs",
+    "test:primitive-execution-gates": "node scripts/test-primitive-execution-gates.mjs"
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.6",

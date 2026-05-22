@@ -7,6 +7,7 @@ import { StatusPill } from "../components/ui/StatusPill";
 import { usePrimitivePositionReadback } from "../hooks/usePrimitivePositionReadback";
 import { usePrimitivePreflight } from "../hooks/usePrimitivePreflight";
 import { usePrimitiveQuote } from "../hooks/usePrimitiveQuote";
+import { usePrimitiveWalletExecution } from "../hooks/usePrimitiveWalletExecution";
 import type { PrimitiveKind } from "../hooks/primitiveQuoteGate";
 import { DEFAULT_MOVE_QUANTITY } from "../lib/constants";
 import { formatTimestampMs, shortId } from "../lib/format";
@@ -27,12 +28,18 @@ export function PrimitiveQuotePage() {
     lowerStrikeInput,
     upperStrikeInput,
   });
+  const predictManagerId = predictManagerInput.trim() || null;
   const preflight = usePrimitivePreflight({
     quote,
-    predictManagerId: predictManagerInput.trim() || null,
+    predictManagerId,
+  });
+  const execution = usePrimitiveWalletExecution({
+    quote,
+    preflight,
+    predictManagerId,
   });
   const readback = usePrimitivePositionReadback({
-    predictManagerId: predictManagerInput.trim() || null,
+    predictManagerId,
     primitiveKind,
     strikeInput,
     lowerStrikeInput,
@@ -78,10 +85,10 @@ export function PrimitiveQuotePage() {
   return (
     <div className="primitiveTradeWorkspace">
       <section className="tradeContextColumn">
-        <PageHero eyebrow="Predict primitives" title="Primitive quote / preflight preview">
+        <PageHero eyebrow="Predict primitives" title="Predict-native primitive terminal">
           <p>
-            UP, DOWN, and RANGE are advanced DeepBook Predict primitives. DeepVol keeps BTC MOVE as the primary receipt product;
-            this page only quotes and preflights primitives without wallet execution.
+            UP and DOWN are raw DeepBook Predict primitives with wallet execution gated by fresh quote, manager balance, and mint preflight.
+            BTC MOVE remains the flagship DeepVol receipt product, while RANGE stays quote/preflight-only until dedicated validation.
           </p>
         </PageHero>
 
@@ -91,7 +98,7 @@ export function PrimitiveQuotePage() {
               <div className="eyebrow">Primitive selector</div>
               <h2>{primitiveKind} preview inputs</h2>
             </div>
-            <StatusPill tone="warning">Preview only</StatusPill>
+            <StatusPill tone={primitiveKind === "RANGE" ? "warning" : "success"}>{primitiveKind === "RANGE" ? "Execution disabled" : "Wallet gated"}</StatusPill>
           </div>
 
           <div className="primitiveSelector" role="group" aria-label="Primitive type">
@@ -217,7 +224,7 @@ export function PrimitiveQuotePage() {
       </section>
 
       <section className="tradeActionColumn">
-        <PrimitiveQuotePanel quote={quote} preflight={preflight} />
+        <PrimitiveQuotePanel quote={quote} preflight={preflight} execution={execution} predictManagerId={predictManagerId} />
       </section>
     </div>
   );
@@ -232,19 +239,19 @@ function getPrimitiveCopy(kind: PrimitiveKind) {
   if (kind === "UP") {
     return {
       title: "UP wins above the selected strike",
-      body: "UP is a direct Predict primitive for directional upside exposure. It does not create a DeepVol MoveReceipt.",
+      body: "UP is a direct Predict primitive for directional upside exposure. It can unlock wallet execution after fresh quote, manager balance, and preflight gates pass; it does not create a DeepVol MoveReceipt.",
     };
   }
 
   if (kind === "DOWN") {
     return {
       title: "DOWN wins below the selected strike",
-      body: "DOWN is a direct Predict primitive for directional downside exposure. It does not create a DeepVol MoveReceipt.",
+      body: "DOWN is a direct Predict primitive for directional downside exposure. It can unlock wallet execution after fresh quote, manager balance, and preflight gates pass; it does not create a DeepVol MoveReceipt.",
     };
   }
 
   return {
     title: "RANGE wins inside the selected interval",
-    body: "RANGE is complementary to MOVE: it wins if BTC expires inside the lower / upper range. It does not create a DeepVol MoveReceipt.",
+    body: "RANGE is complementary to MOVE: it wins if BTC expires inside the lower / upper range. RANGE execution requires stricter mintability gates and remains disabled until dedicated validation.",
   };
 }

@@ -1,14 +1,14 @@
 ---
 Purpose: Record the DeepBook Predict binary-leg entrypoints DeepVol depends on.
 Audience: Move developers, SDK implementers, frontend developers, reviewers, and AI agents.
-Status: Source-confirmed entrypoints; direct two-leg primitive mint, deployed DeepVol buy_move_receipt<DUSDC>, DeepVol-11 binary redeem read/preflight, DeepVol-13 known-receipt browser redeem, and DeepVol-14 primitive quote/preflight previews validated or wired on Testnet.
+Status: Source-confirmed entrypoints; direct two-leg primitive mint, deployed DeepVol buy_move_receipt<DUSDC>, DeepVol-11 binary redeem read/preflight, DeepVol-13 known-receipt browser redeem, DeepVol-14 primitive quote/preflight previews, and DeepVol-15 guarded UP/DOWN primitive execution code validated or wired on Testnet.
 ---
 
 # DeepVol Binary Leg Integration
 
 ## Why this matters
 
-DeepVol is a Predict-native structured product layer. UP, DOWN, and RANGE are advanced primitives; BTC MOVE Receipt is the primary composed MVP product.
+DeepVol is a Predict-native primitive trading terminal and structured product layer. UP and DOWN can be wallet-gated raw primitives after fresh quote, manager balance, and binary mint preflight gates pass; RANGE remains quote/preflight-only until dedicated validation; BTC MOVE Receipt is the primary composed MVP product.
 
 DeepVol BTC MOVE depends on composing two DeepBook Predict binary legs:
 
@@ -107,7 +107,7 @@ Required objects and type parameters:
 
 The mint path checks manager ownership, trading pause state, positive quantity, quote asset, oracle/key match, live oracle state, mintable ask, manager balance, and vault exposure limits. DeepVol must not duplicate that pricing/risk logic.
 
-DeepVol-14 exposes direct binary primitive mint only as `devInspect` preflight through `devInspectMintBinaryPreflight(...)`. The helper builds `predict::mint<DUSDC>` for UP or DOWN diagnostics, but the binary mint transaction builder remains internal and unexported. The `/primitives` route must not import signing hooks or a real primitive execution builder, and a passed direct primitive preflight must not unlock wallet execution.
+DeepVol-15 exposes a guarded direct binary primitive mint builder as `buildMintBinaryPrimitiveTransaction(...)`. The public builder constructs `predict::mint<DUSDC>` for UP or DOWN only when passed an explicit real-Testnet gate flag and only for Testnet config. `devInspectMintBinaryPreflight(...)` uses a private preflight transaction helper so preflight-only construction is not exposed as a signable public builder. The `/primitives` route and quote panel must not own signing logic; `usePrimitiveWalletExecution(...)` reruns quote, manager balance, binary position readback, and binary mint preflight immediately before building the real-Testnet wallet transaction. A passed direct primitive preflight alone does not unlock wallet review if quote, balance, freshness, Testnet, PredictManager, or in-flight gates fail.
 
 ## Route B DeepVol entrypoint
 
@@ -150,7 +150,7 @@ Safety properties:
 
 Latest controlled mint-mode result from 2026-05-19 is recorded in [DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md](./DEEPVOL_BINARY_MINT_TESTNET_VALIDATION.md): the old `100000000` MIST gas budget reproduced `InsufficientGas in command 3`; raising the budget to `200000000` MIST passed SDK dry-run and CLI `serialized-tx-kind` dry-run, then one real Testnet two-leg mint executed with digest `4fMQtu8mFB6jLa5gtSWBsDj3gYp8u9AjQw3xs2VcNJoh`. UP and DOWN positions each increased by `1000`, and manager DUSDC decreased by `1003` atomic units.
 
-That digest is primitive evidence only. It did not execute DeepVol `buy_move_receipt<Quote>`, did not create a DeepVol `MoveReceipt`, and did not deposit a DeepVol Create Fee. DeepVol-4 later records the manual Testnet package publish and shared `ProtocolVault<DUSDC>` setup in [DEEPVOL_TESTNET_PUBLISH_RESULT.md](./DEEPVOL_TESTNET_PUBLISH_RESULT.md). DeepVol-5 then validates the deployed receipt path in [DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md](./DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md) with buy digest `GVyMBH9kB6nTSuWoULFZ5ir3yhFnRC8LNoRz9EEDQXbd`.
+That digest is primitive evidence only. It did not execute DeepVol `buy_move_receipt<Quote>`, did not create a DeepVol `MoveReceipt`, and did not deposit a DeepVol Create Fee. DeepVol-15 uses the same binary primitive path for wallet-gated UP/DOWN terminal execution, but successful primitive trades remain raw Predict positions and local browser records, not receipts. DeepVol-4 later records the manual Testnet package publish and shared `ProtocolVault<DUSDC>` setup in [DEEPVOL_TESTNET_PUBLISH_RESULT.md](./DEEPVOL_TESTNET_PUBLISH_RESULT.md). DeepVol-5 then validates the deployed receipt path in [DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md](./DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md) with buy digest `GVyMBH9kB6nTSuWoULFZ5ir3yhFnRC8LNoRz9EEDQXbd`.
 
 ## Binary redeem entrypoints
 
@@ -260,12 +260,14 @@ DeepVol-specific validation status:
 - Deployed `buy_move_receipt<DUSDC>` preflight, execution, event parsing, and post-state validation are recorded in [DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md](./DEEPVOL_BUY_MOVE_RECEIPT_TESTNET_VALIDATION.md).
 - Binary redeem read/preflight validation exists for the known browser receipt; DeepVol-13 validated one controlled browser-wallet redeem for that receipt with fresh gates and post-state readback.
 - Production SDK event normalization remains pending.
-- Production SDK binary direct readback helper exists for known keys; DeepVol-14 uses known-key primitive readback groundwork, and general position enumeration remains pending.
+- Production SDK binary direct readback helper exists for known keys; DeepVol-15 uses known-key primitive readback groundwork plus local primitive trade records, and general position enumeration remains pending.
 
 ## Open blockers
 
 - Active BTC oracle, expiry, and strikes are `MUST CONFIRM AT RUNTIME`.
-- Production DeepVol flows must preserve the validated two-leg mint gates before wallet approval.
+- Production DeepVol receipt flows must preserve the validated two-leg mint gates before wallet approval.
+- Direct UP/DOWN primitive wallet execution must preserve fresh quote, manager balance, and binary mint preflight gates immediately before wallet prompt.
+- RANGE primitive wallet execution remains disabled until dedicated mintability validation.
 - DeepVol package, admin cap, upgrade cap, and DUSDC protocol vault IDs are configured after DeepVol-4; see [DEEPVOL_TESTNET_PUBLISH_RESULT.md](./DEEPVOL_TESTNET_PUBLISH_RESULT.md).
 - DeepVol-5 executed one real `VolSeries` creation and one deployed `buy_move_receipt<DUSDC>` validation; future buys still require fresh runtime gates.
 - Binary redeem signatures and read/preflight call shapes are source-confirmed and implemented for devInspect; DeepVol-13 validated one known-receipt browser redeem, but future redeems still require fresh runtime gates and event/readback reconciliation before any local receipt status is treated as payout evidence.
