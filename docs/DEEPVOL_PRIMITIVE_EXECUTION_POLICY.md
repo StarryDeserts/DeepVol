@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive execution policy for UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-16 records browser smoke and source/test verification for wallet-gated UP/DOWN primitive execution; real browser execution remains blocked until a Sui wallet extension is available in the validation browser profile. RANGE remains quote/preflight-only.
+Status: DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive quote/preflight contract, frontend MVP docs, and binary-leg integration notes; on-chain protocol behavior remains authoritative.
 ---
 
@@ -14,8 +14,8 @@ DeepVol is expanding into a Predict-native primitive trading terminal while keep
 | Product | Product role | Creates `MoveReceipt` | DeepVol Create Fee | DeepVol-16 status |
 |---|---|---:|---:|---|
 | BTC MOVE | Featured DeepVol receipt product for outside-range movement exposure | Yes | Yes | Existing buy/redeem loop remains enabled behind receipt gates. |
-| UP | Raw DeepBook Predict primitive for upside exposure | No | No | Execution-ready in code after fresh quote, balance, and mint preflight; real browser execution is still unvalidated because the Playwright browser had no installed Sui wallet extension. |
-| DOWN | Raw DeepBook Predict primitive for downside exposure | No | No | Execution-ready in code after fresh quote, balance, and mint preflight; real browser execution is still unvalidated because the Playwright browser had no installed Sui wallet extension. |
+| UP | Raw DeepBook Predict primitive for upside exposure | No | No | Wallet-gated in code after active BTC market discovery, fresh quote, balance, and mint preflight; stale/non-live markets block before wallet review. |
+| DOWN | Raw DeepBook Predict primitive for downside exposure | No | No | Wallet-gated in code after active BTC market discovery, fresh quote, balance, and mint preflight; stale/non-live markets block before wallet review. |
 | RANGE | Raw DeepBook Predict primitive for inside-range exposure | No | No | Quote/preflight-only until dedicated mintability validation hardens execution gates. |
 
 BTC MOVE remains the primary DeepVol product narrative:
@@ -34,20 +34,21 @@ UP/DOWN wallet execution must remain disabled until every gate passes:
 
 - connected Sui wallet;
 - active Sui Testnet account;
-- configured BTC MOVE `VolSeries` loaded and active;
+- selected active BTC primitive market loaded with oracle object, oracle ID, expiry, and suggested strike context;
+- selected market effective status is `Live`, not `Unknown`, `Stale`, or `Expired`;
 - valid quantity;
 - valid selected UP/DOWN strike;
 - PredictManager ID present;
-- fresh quote for the current wallet, series, primitive, strike, and quantity;
+- fresh quote for the current wallet, active market, primitive, strike, and quantity;
 - positive mint cost;
 - PredictManager DUSDC balance readback;
 - PredictManager DUSDC balance greater than or equal to the current mint cost;
 - fresh binary mint preflight for the current quote and wallet state;
 - no in-flight primitive wallet submission.
 
-Clicking wallet review must rerun quote, manager balance readback, and binary mint preflight immediately before the wallet prompt. The app must not automatically execute primitive trades.
+Clicking wallet review must rerun quote, manager balance readback, and binary mint preflight immediately before the wallet prompt. It must also fail closed if the selected market expiry has passed since the last render. The app must not automatically execute primitive trades.
 
-DeepVol-16 confirmed the browser smoke and source/test gate review for this policy, but did not execute UP or DOWN because the Playwright browser profile had no installed Sui wallet extension. See [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) for the blocker and zero-count attestation.
+DeepVol-16 confirmed browser smoke and source/test gate review, and the follow-up real-browser preflight exposed a stale/non-live oracle blocker (`oracle_config::assert_live_oracle` abort code `3`). See [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) and [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) for the blocker, fix, and zero-count attestation.
 
 RANGE execution stays quote/preflight-only. RANGE wins if BTC expires inside the selected lower / upper interval, but its mintability, ask-bounds, and runtime quoteability gates require a dedicated validation round before wallet execution can open. A passed RANGE quote or preflight is diagnostic only in DeepVol-15.
 

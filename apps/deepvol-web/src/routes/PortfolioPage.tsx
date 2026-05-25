@@ -14,6 +14,8 @@ export function PortfolioPage() {
   const predictManagerId = predictManagerInput.trim() || null;
   const primitiveReadback = usePrimitivePositionReadback({
     predictManagerId,
+    series: null,
+    oracleObjectId: null,
   });
   const primitiveRecords = useDeepVolPrimitiveRecords(predictManagerId);
   const receiptCount = portfolio.receipts.length;

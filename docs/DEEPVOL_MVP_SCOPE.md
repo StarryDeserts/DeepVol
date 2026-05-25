@@ -85,9 +85,10 @@ The first implementation should prefer runtime discovery over hardcoded market a
 12. Apply DeepVol-7 BTC MOVE UX/demo polish to Markets, Buy, Portfolio, and the oceanic app shell without adding mainnet, redeem, withdraw, marketplace, or protocol changes.
 13. Add completed browser-safe portfolio readback and guided settlement UI.
 14. Record controlled browser guided redeem validation for the known receipt and introduce UP / DOWN / RANGE primitive surfaces in `apps/deepvol-web/`.
-15. Add DeepVol-14 primitive quote/preflight previews for UP / DOWN / RANGE using configured BTC MOVE series context while keeping direct primitive wallet execution disabled.
+15. Add DeepVol-14 primitive quote/preflight previews for UP / DOWN / RANGE while keeping direct primitive wallet execution disabled.
 16. Add DeepVol-15 primitive execution policy, guarded SDK binary mint builder, UP/DOWN wallet execution gates, primitive local records, and Portfolio separation while keeping RANGE execution disabled.
-17. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
+17. Add DeepVol-16-fix active BTC primitive market discovery, stale/non-live oracle blockers, and selected oracle object propagation so `/primitives` no longer treats historical BTC validation oracle/expiry snapshots as live defaults.
+18. Revisit V2 custodial / escrow receipts and Profit Fee only after the non-custodial MVP is validated.
 
 ## Code organization
 

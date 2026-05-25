@@ -399,7 +399,21 @@ export function inferAskBoundSide(params: InferAskBoundSideParams): AskBoundSide
   };
 }
 
+export function isNonLiveOracleAbort(error: unknown): boolean {
+  const abort = classifyDeepBookPredictAbort(error);
+
+  if (abort.module !== "oracle_config") {
+    return false;
+  }
+
+  return abort.code === "3" || abort.code === "4" || abort.code === "5" || abort.code === "6";
+}
+
 export function translateDeepBookPredictError(error: unknown): string {
+  if (isNonLiveOracleAbort(error)) {
+    return "This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.";
+  }
+
   if (error instanceof DeepBookPredictUnconfirmedBindingError) {
     return error.message;
   }

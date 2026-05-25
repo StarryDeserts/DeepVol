@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { useQuery } from "@tanstack/react-query";
 import type { VolSeries } from "@rangepilot/types/deepVol";
+import type {
+  PrimitiveActiveMarketContext,
+  PrimitiveMarketStatus,
+} from "@rangepilot/types/deepbookPredict";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import {
   devInspectBinaryQuote,
   devInspectRangeQuote,
+  translateDeepBookPredictError,
 } from "@rangepilot/sdk/deepbookPredict";
-import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
-import { readVolSeries } from "../lib/deepVolSeries";
 import { normalizePositiveIntegerInput } from "../lib/format";
 import {
   buildPrimitiveQuoteBlockers,
@@ -24,6 +26,9 @@ export type PrimitiveQuoteState = {
   status: PrimitiveQuoteStatus;
   primitiveKind: PrimitiveKind;
   series: VolSeries | null;
+  oracleObjectId: string | null;
+  marketStatus: PrimitiveMarketStatus;
+  marketStatusMessage: string | null;
   quantity: string;
   strike: string | null;
   lowerStrike: string | null;
@@ -43,6 +48,7 @@ export type PrimitiveQuoteState = {
 };
 
 type UsePrimitiveQuoteParams = {
+  activeMarket: PrimitiveActiveMarketContext | null;
   primitiveKind: PrimitiveKind;
   quantityInput: string;
   strikeInput: string;
@@ -74,7 +80,10 @@ const EMPTY_RUN_STATE: PrimitiveQuoteRunState = {
   diagnostic: null,
 };
 
+const MARKET_REFRESH_MESSAGE = "Refresh the active BTC market before trading this primitive.";
+
 export function usePrimitiveQuote({
+  activeMarket,
   primitiveKind,
   quantityInput,
   strikeInput,
@@ -83,16 +92,41 @@ export function usePrimitiveQuote({
 }: UsePrimitiveQuoteParams): PrimitiveQuoteState {
   const client = useSuiClient();
   const wallet = useSuiWallet();
-  const config = useDeepVolConfig();
   const latestRunId = useRef(0);
   const [runState, setRunState] = useState<PrimitiveQuoteRunState>(EMPTY_RUN_STATE);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const seriesQuery = useQuery({
-    queryKey: ["primitive-vol-series", config.configuredSeriesId],
-    enabled: Boolean(config.configuredSeriesId),
-    queryFn: async () => readVolSeries(client, config.configuredSeriesId),
-  });
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, [activeMarket?.oracleObjectId, activeMarket?.expiry]);
 
+  useEffect(() => {
+    const activeMarketExpiry = activeMarket?.expiry;
+    if (!activeMarketExpiry) {
+      return;
+    }
+
+    let expiryMs: number;
+    try {
+      expiryMs = Number(BigInt(activeMarketExpiry));
+    } catch {
+      return;
+    }
+
+    if (!Number.isFinite(expiryMs) || nowMs >= expiryMs) {
+      return;
+    }
+
+    const delayMs = Math.min(Math.max(0, expiryMs - Date.now() + 1), 2_147_483_647);
+    const expiryTimer = setTimeout(() => {
+      setNowMs(Date.now());
+    }, delayMs);
+
+    return () => clearTimeout(expiryTimer);
+  }, [activeMarket?.expiry, nowMs]);
+
+  const marketStatus: PrimitiveMarketStatus = deriveEffectiveMarketStatus(activeMarket, nowMs);
+  const series = useMemo(() => buildSelectedMarketSeries(activeMarket, marketStatus), [activeMarket, marketStatus]);
   const quantity = normalizePositiveIntegerInput(quantityInput);
   const strike = primitiveKind === "UP" || primitiveKind === "DOWN"
     ? normalizePositiveIntegerInput(strikeInput)
@@ -103,18 +137,25 @@ export function usePrimitiveQuote({
   const upperStrike = primitiveKind === "RANGE"
     ? normalizePositiveIntegerInput(upperStrikeInput)
     : null;
+  const marketStatusMessage = marketStatus === "live"
+    ? null
+    : marketStatusMessageForActiveMarket(activeMarket, marketStatus);
+  const oracleObjectId = activeMarket?.oracleObjectId ?? null;
 
   const currentInput = useMemo<PrimitiveInputState>(() => ({
     primitiveKind,
     walletAddress: wallet.address,
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
-    series: seriesQuery.data ?? null,
+    series,
+    oracleObjectId,
+    marketStatus,
+    marketStatusMessage,
     quantity,
     strike,
     lowerStrike,
     upperStrike,
-  }), [lowerStrike, primitiveKind, quantity, seriesQuery.data, strike, upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [lowerStrike, marketStatus, marketStatusMessage, oracleObjectId, primitiveKind, quantity, series, strike, upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
   const dependencyKey = useMemo(() => buildPrimitiveQuoteDependencyKey(currentInput), [currentInput]);
   const baseBlockers = useMemo(() => buildPrimitiveQuoteBlockers(currentInput), [currentInput]);
@@ -127,12 +168,25 @@ export function usePrimitiveQuote({
   const refreshQuote = useCallback(() => {
     const runId = latestRunId.current + 1;
     latestRunId.current = runId;
-    const blockers = buildPrimitiveQuoteBlockers(currentInput);
+    const refreshNowMs = Date.now();
+    const freshMarketStatus: PrimitiveMarketStatus = deriveEffectiveMarketStatus(activeMarket, refreshNowMs);
+    if (freshMarketStatus !== currentInput.marketStatus) {
+      setNowMs(refreshNowMs);
+    }
+    const refreshInput: PrimitiveInputState = {
+      ...currentInput,
+      series: buildSelectedMarketSeries(activeMarket, freshMarketStatus),
+      marketStatus: freshMarketStatus,
+      marketStatusMessage: freshMarketStatus === "live"
+        ? null
+        : marketStatusMessageForActiveMarket(activeMarket, freshMarketStatus),
+    };
+    const blockers = buildPrimitiveQuoteBlockers(refreshInput);
 
     if (blockers.length > 0) {
       setRunState({
         status: "blocked",
-        dependencyKey,
+        dependencyKey: buildPrimitiveQuoteDependencyKey(refreshInput),
         mintCostAtomic: null,
         redeemPayoutAtomic: null,
         quotedAtMs: null,
@@ -144,11 +198,12 @@ export function usePrimitiveQuote({
       return;
     }
 
-    const series = currentInput.series;
-    const sender = currentInput.walletAddress;
-    const normalizedQuantity = currentInput.quantity;
+    const selectedSeries = refreshInput.series;
+    const sender = refreshInput.walletAddress;
+    const normalizedQuantity = refreshInput.quantity;
+    const selectedOracleObjectId = refreshInput.oracleObjectId;
 
-    if (!series || !sender || !normalizedQuantity) {
+    if (!selectedSeries || !sender || !normalizedQuantity || !selectedOracleObjectId) {
       return;
     }
 
@@ -170,9 +225,9 @@ export function usePrimitiveQuote({
           ? await devInspectRangeQuote({
               client,
               sender,
-              oracleId: series.oracleId,
-              oracleObjectId: series.oracleId,
-              expiry: series.expiry,
+              oracleId: selectedSeries.oracleId,
+              oracleObjectId: selectedOracleObjectId,
+              expiry: selectedSeries.expiry,
               lowerStrike: lowerStrike ?? "",
               higherStrike: upperStrike ?? "",
               quantity: normalizedQuantity,
@@ -181,9 +236,9 @@ export function usePrimitiveQuote({
           : await devInspectBinaryQuote({
               client,
               sender,
-              oracleId: series.oracleId,
-              oracleObjectId: series.oracleId,
-              expiry: series.expiry,
+              oracleId: selectedSeries.oracleId,
+              oracleObjectId: selectedOracleObjectId,
+              expiry: selectedSeries.expiry,
               strike: strike ?? "",
               direction: primitiveKind === "UP" ? "up" : "down",
               quantity: normalizedQuantity,
@@ -218,43 +273,26 @@ export function usePrimitiveQuote({
           quotedAtMs: null,
           blockers: [],
           warnings: [],
-          error: error instanceof Error ? error.message : String(error),
+          error: translateDeepBookPredictError(error),
           diagnostic: null,
         });
       }
     })();
-  }, [client, currentInput, dependencyKey, lowerStrike, primitiveKind, strike, upperStrike]);
-
-  if (seriesQuery.isError) {
-    return buildPrimitiveQuoteState({
-      primitiveKind,
-      series: null,
-      quantity: quantity ?? quantityInput,
-      strike,
-      lowerStrike,
-      upperStrike,
-      dependencyKey,
-      status: "error",
-      blockers: baseBlockers,
-      warnings: [],
-      error: seriesQuery.error instanceof Error ? seriesQuery.error.message : String(seriesQuery.error),
-      isLoading: false,
-      isRefreshing: false,
-      canRefresh: false,
-      refreshQuote,
-    });
-  }
+  }, [activeMarket, client, currentInput, dependencyKey, lowerStrike, primitiveKind, strike, upperStrike]);
 
   const freshRun = runState.dependencyKey === dependencyKey ? runState : EMPTY_RUN_STATE;
-  const loadingSeries = seriesQuery.isLoading && !seriesQuery.data;
-  const status = loadingSeries ? "loading" : freshRun.status === "idle" && baseBlockers.length > 0 ? "blocked" : freshRun.status;
+  const status = freshRun.status === "idle" && baseBlockers.length > 0 ? "blocked" : freshRun.status;
   const staleWarning = runState.dependencyKey && runState.dependencyKey !== dependencyKey
     ? ["Primitive quote inputs changed; refresh quote before preflight."]
     : [];
+  const isRefreshing = freshRun.status === "loading";
 
   return buildPrimitiveQuoteState({
     primitiveKind,
-    series: seriesQuery.data ?? null,
+    series,
+    oracleObjectId,
+    marketStatus,
+    marketStatusMessage,
     quantity: quantity ?? quantityInput,
     strike,
     lowerStrike,
@@ -268,11 +306,65 @@ export function usePrimitiveQuote({
     warnings: [...freshRun.warnings, ...staleWarning],
     error: freshRun.error,
     diagnostic: freshRun.diagnostic,
-    isLoading: loadingSeries || freshRun.status === "loading",
-    isRefreshing: freshRun.status === "loading",
-    canRefresh: !loadingSeries,
+    isLoading: isRefreshing,
+    isRefreshing,
+    canRefresh: baseBlockers.length === 0 && !isRefreshing,
     refreshQuote,
   });
+}
+
+function buildSelectedMarketSeries(
+  activeMarket: PrimitiveActiveMarketContext | null,
+  marketStatus: PrimitiveMarketStatus,
+): VolSeries | null {
+  if (!activeMarket) {
+    return null;
+  }
+
+  return {
+    seriesId: `${activeMarket.source}:${activeMarket.oracleId}:${activeMarket.expiry}`,
+    creator: "",
+    oracleId: activeMarket.oracleId,
+    expiry: activeMarket.expiry,
+    lowerStrike: activeMarket.suggestedLowerStrike ?? activeMarket.suggestedDownStrike ?? "0",
+    upperStrike: activeMarket.suggestedUpperStrike ?? activeMarket.suggestedUpStrike ?? "0",
+    metadataUri: "",
+    createFeeBps: 0,
+    active: marketStatus === "live",
+    createdAtMs: "",
+  };
+}
+
+function deriveEffectiveMarketStatus(activeMarket: PrimitiveActiveMarketContext | null, nowMs: number): PrimitiveMarketStatus {
+  if (!activeMarket) {
+    return "unknown";
+  }
+
+  try {
+    if (BigInt(activeMarket.expiry) <= BigInt(nowMs)) {
+      return "expired";
+    }
+  } catch {
+    return "unknown";
+  }
+
+  return activeMarket.status;
+}
+
+function marketStatusMessageForActiveMarket(
+  activeMarket: PrimitiveActiveMarketContext | null,
+  marketStatus: PrimitiveMarketStatus,
+): string {
+  switch (marketStatus) {
+    case "expired":
+      return "The selected BTC market has expired. Refresh or select a new active BTC market before trading primitives.";
+    case "stale":
+      return "This BTC market is no longer live for minting. Refresh or select a new active market.";
+    case "live":
+      return "Active BTC market is live for primitive quote and mint preflight.";
+    case "unknown":
+      return activeMarket ? "Refresh the active BTC market before trading this primitive." : MARKET_REFRESH_MESSAGE;
+  }
 }
 
 function buildPrimitiveQuoteState(params: Partial<PrimitiveQuoteState> & {
@@ -289,6 +381,9 @@ function buildPrimitiveQuoteState(params: Partial<PrimitiveQuoteState> & {
 }): PrimitiveQuoteState {
   return {
     series: null,
+    oracleObjectId: null,
+    marketStatus: "unknown",
+    marketStatusMessage: MARKET_REFRESH_MESSAGE,
     strike: null,
     lowerStrike: null,
     upperStrike: null,

@@ -1,7 +1,7 @@
 ---
 Purpose: Record the DeepVol-16 controlled UP/DOWN primitive wallet execution validation attempt.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: Browser smoke passed; real UP/DOWN primitive execution blocked because the Playwright browser had no installed Sui wallet extension.
+Status: Browser smoke passed; real UP/DOWN primitive execution first blocked in Playwright by a missing wallet extension, then real browser preflight exposed a stale/non-live BTC oracle blocker. DeepVol-16-fix adds active BTC market discovery and stale-oracle gating before any new validation attempt.
 Source of truth relationship: Extends the primitive execution policy, quote/preflight contract, primitives frontend docs, and binary leg integration notes; on-chain protocol behavior remains authoritative.
 ---
 
@@ -11,13 +11,19 @@ Source of truth relationship: Extends the primitive execution policy, quote/pref
 
 DeepVol-16 attempted to validate the real browser-wallet path for one UP primitive mint and one DOWN primitive mint from `apps/deepvol-web` on Sui Testnet.
 
-Result: browser smoke and source/test verification passed, but real primitive execution was blocked before quote/preflight because the Playwright browser did not have an installed Sui wallet extension. The dApp Kit wallet dialog rendered the Slush option, but selecting it showed the install flow instead of connecting an existing wallet.
+Initial result: browser smoke and source/test verification passed, but the Playwright validation browser did not have an installed Sui wallet extension. The dApp Kit wallet dialog rendered the Slush option, but selecting it showed the install flow instead of connecting an existing wallet.
 
-No UP mint, DOWN mint, RANGE mint, BTC MOVE buy, BTC MOVE redeem, withdraw, publish, upgrade, mainnet transaction, or repeated primitive mint occurred.
+Follow-up real-browser finding: when a wallet-enabled browser reached primitive mint preflight, DeepBook Predict aborted in `oracle_config::assert_live_oracle` with abort code `3`. The controlled oracle/expiry from prior BTC binary validation is stale/non-live for new primitive minting and must not remain the default primitive trading context.
+
+DeepVol-16-fix adds active BTC primitive market discovery, `Live / Stale / Expired / Unknown` status, stale-oracle blockers, selected oracle object propagation, and friendly `assert_live_oracle` copy before any renewed UP/DOWN execution validation.
+
+No UP mint, DOWN mint, RANGE mint, BTC MOVE buy, BTC MOVE redeem, withdraw, publish, upgrade, mainnet transaction, or repeated primitive mint occurred during this validation record.
 
 ## Date and baseline
 
 Date: 2026-05-23
+
+DeepVol-16-fix follow-up smoke date: 2026-05-24
 
 Controlled context intended for validation:
 
@@ -62,7 +68,7 @@ Source review confirmed that UP/DOWN execution requires:
 
 - connected wallet;
 - Sui Testnet;
-- configured active `VolSeries`;
+- selected active/live BTC primitive market context, including oracle object, oracle ID, expiry, and effective market status;
 - positive quantity;
 - valid selected UP/DOWN strike;
 - PredictManager ID;
@@ -101,6 +107,7 @@ The required pre-execution verification suite passed:
 | `npm --workspace apps/deepvol-web run test:primitive-gates` | Passed |
 | `npm --workspace apps/deepvol-web run test:primitive-quote-gates` | Passed |
 | `npm --workspace apps/deepvol-web run test:primitive-execution-gates` | Passed |
+| `npm --workspace apps/deepvol-web run test:primitive-active-market` | Passed |
 
 Observed warnings only:
 
@@ -128,6 +135,8 @@ Console status:
 
 No accidental wallet prompt occurred during route smoke.
 
+DeepVol-16-fix follow-up browser smoke on 2026-05-24 rechecked `/markets`, `/primitives?type=UP`, `/primitives?type=DOWN`, `/primitives?type=RANGE`, `/buy/btc-move`, and `/portfolio` after active market wiring. The primitive pages showed the active BTC market panel, refresh action, selected-market readback copy, disabled quote/preflight/wallet actions while gates failed, and RANGE execution remained disabled. `/buy/btc-move` rendered with the buy action disabled while gates failed, and `/portfolio` rendered MOVE Receipts, local primitive trade records, and known-key readback as separate sections. No console warnings or errors were observed during this follow-up smoke, and no wallet prompt appeared.
+
 ## Wallet blocker
 
 The controlled execution path requires a connected Sui Testnet wallet. Browser validation reached the wallet selector but could not connect:
@@ -138,7 +147,29 @@ The controlled execution path requires a connected Sui Testnet wallet. Browser v
 4. Dialog changed to `Get Started with Sui` and showed `Install the Slush Extension`.
 5. The Playwright browser had no installed Slush/Sui wallet extension, so no account was connected.
 
-Because no wallet connected, the app correctly kept primitive quote, preflight, and wallet execution gates blocked. The validation stopped there. No extension was installed, no private key path was used, and no retry was attempted.
+Because no wallet connected in the Playwright profile, the app correctly kept primitive quote, preflight, and wallet execution gates blocked. That browser-smoke validation stopped there. No extension was installed, no private key path was used, and no retry was attempted.
+
+## Follow-up stale oracle blocker
+
+A later wallet-enabled browser attempt reached `Run primitive mint preflight` and failed with:
+
+```text
+oracle_config::assert_live_oracle abort code 3
+```
+
+Known interpretation:
+
+```text
+assert_live_oracle::3 = stale / non-live oracle for the mint path
+```
+
+User-facing DeepVol copy:
+
+```text
+This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.
+```
+
+The previously controlled BTC oracle `0xc746336e790db7e93a34b684fa3768f43a7c3171d0262d0f2c71dc0a2ab5fe22` and expiry `1779436800000` are historical validation evidence only. DeepVol-16-fix records the required correction in [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md): `/primitives` must discover or select a fresh active BTC market and block `Unknown`, `Stale`, or `Expired` markets before quote, preflight, or wallet review.
 
 ## UP primitive
 
@@ -213,10 +244,10 @@ private-key or raw-signature paths: 0
 
 ## Next step
 
-Run DeepVol-16 again in a browser profile where the controlled Sui Testnet wallet extension is installed and connected to:
+Run DeepVol-16 execution validation again only after `/primitives` has discovered or selected a live active BTC market and the controlled Sui Testnet wallet extension is installed and connected to:
 
 ```text
 0x60ce00b02feafce805f1c3c8a7beaf7db8e903d73610fb232ad928d31fcd9349
 ```
 
-Then rerun the strict UP/DOWN flow with the same limits: at most one UP mint, at most one DOWN mint, no RANGE mint, no BTC MOVE buy/redeem, no withdraw, no publish/upgrade, no mainnet, and no blind retries.
+Before any wallet prompt, confirm market status is `Live`, quote/preflight use the selected oracle object and expiry, stale/non-live oracle copy is absent, and the PredictManager ID remains controlled. Then rerun the strict UP/DOWN flow with the same limits: at most one UP mint, at most one DOWN mint, no RANGE mint, no BTC MOVE buy/redeem, no withdraw, no publish/upgrade, no mainnet, and no blind retries.

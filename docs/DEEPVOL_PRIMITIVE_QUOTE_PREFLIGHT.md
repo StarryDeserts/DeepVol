@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive quote, preflight, and execution gate contract for UP, DOWN, and RANGE.
 Audience: Frontend developers, SDK implementers, product maintainers, reviewers, and AI agents.
-Status: DeepVol-16 confirms the UP/DOWN gate contract by source review, tests, and browser smoke; real UP/DOWN execution remains blocked until validation runs in a browser profile with an installed Sui wallet extension. RANGE execution remains disabled.
+Status: DeepVol-16-fix updates the UP/DOWN/RANGE primitive gate contract to require an active/live BTC market context, stale-oracle blockers, and friendly assert_live_oracle error copy before quote, preflight, or wallet execution. RANGE execution remains disabled.
 Source of truth relationship: Extends the DeepVol primitive execution policy, primitives/receipts model, frontend MVP, protocol integration, and binary leg integration docs; on-chain protocol behavior remains authoritative.
 ---
 
@@ -9,14 +9,15 @@ Source of truth relationship: Extends the DeepVol primitive execution policy, pr
 
 ## Scope
 
-DeepVol-15 advances UP and DOWN from static education and quote/preflight previews into wallet-gated primitive terminals under `apps/deepvol-web/`. DeepVol-16 confirmed the gate contract through source review, tests, and disconnected-wallet browser smoke, but real UP/DOWN quote/preflight/execution was blocked because the Playwright browser had no installed Sui wallet extension. RANGE stays quote/preflight-only until dedicated mintability validation.
+DeepVol-15 advances UP and DOWN from static education and quote/preflight previews into wallet-gated primitive terminals under `apps/deepvol-web/`. DeepVol-16-fix adds the missing market-liveness layer: primitives now use a selected active BTC market context instead of defaulting to historical configured BTC MOVE `VolSeries` values. RANGE stays quote/preflight-only until dedicated mintability validation.
 
 The route flow is:
 
 ```text
 select primitive type
-→ use the configured BTC MOVE VolSeries oracle/expiry
-→ input strike or lower/upper range
+→ discover or manually select active BTC market context
+→ require effective market status Live
+→ input strike or lower/upper range from selected market suggestions
 → input quantity
 → Refresh quote
 → show mint cost / redeem payout preview
@@ -37,7 +38,7 @@ BTC MOVE remains the primary enabled DeepVol receipt product. Direct primitive t
 | RANGE | Buy inside-range exposure | BTC expires inside the selected lower / upper range | Quote/preflight only; execution disabled |
 | BTC MOVE | Buy movement | BTC expires below the lower strike or above the upper strike | Primary enabled receipt product |
 
-DeepVol uses the configured BTC MOVE `VolSeries` as the known oracle/expiry context for primitive terminal inputs. Arbitrary oracle discovery and generic market routing are future work.
+DeepVol primitives use active BTC primitive market discovery as the oracle/expiry context for quote, preflight, execution, and selected-key readback. Historical BTC MOVE `VolSeries` and prior binary-validation oracle snapshots are evidence only; they are not live primitive trading defaults. Generic multi-asset market routing remains future work.
 
 ## Quote sources
 
@@ -53,7 +54,7 @@ predict::get_trade_amounts(
 ): (u64, u64)
 ```
 
-The browser calls the SDK `devInspectBinaryQuote` helper with `market_key::up` or `market_key::down` semantics, the selected strike, selected quantity, configured oracle, configured expiry, and DUSDC Testnet config.
+The browser calls the SDK `devInspectBinaryQuote` helper with `market_key::up` or `market_key::down` semantics, the selected strike, selected quantity, selected active market oracle object, selected active market oracle ID, selected active market expiry, and DUSDC Testnet config.
 
 RANGE quote preview uses the official range quote path:
 
@@ -67,9 +68,9 @@ predict::get_range_trade_amounts(
 ): (u64, u64)
 ```
 
-The browser calls the SDK `devInspectRangeQuote` helper with the selected lower/upper strikes, selected quantity, configured oracle, configured expiry, and DUSDC Testnet config.
+The browser calls the SDK `devInspectRangeQuote` helper with the selected lower/upper strikes, selected quantity, selected active market oracle object, selected active market oracle ID, selected active market expiry, and DUSDC Testnet config.
 
-Quote success is not mintability proof. Runtime market state, ask bounds, vault exposure, manager balance, oracle freshness, and preflight can still block.
+Quote success is not mintability proof. Runtime market state, ask bounds, vault exposure, manager balance, oracle freshness, and preflight can still block. `oracle_config::assert_live_oracle` abort code `3` means the selected oracle is stale/non-live for the mint path and should render: `This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.`
 
 ## Preflight sources
 
@@ -98,8 +99,9 @@ Primitive preflight now also reads `predict_manager::balance<DUSDC>` so the UI c
 |---|---:|---:|---:|---:|
 | Connected wallet | Required | Required | Required | Blocked by policy |
 | Sui Testnet | Required | Required | Required | Blocked by policy |
-| Configured VolSeries loaded | Required | Required | Required | Blocked by policy |
-| Active VolSeries | Required | Required | Required | Blocked by policy |
+| Active BTC market context loaded | Required | Required | Required | Blocked by policy |
+| Selected oracle object available | Required | Required | Required | Blocked by policy |
+| Market status `Live` | Required | Required | Required | Blocked by policy |
 | Valid quantity | Required | Required | Required | Blocked by policy |
 | Valid UP/DOWN strike | Required for UP/DOWN | Required for UP/DOWN | Required for UP/DOWN | Not applicable |
 | Valid RANGE lower/upper strikes | Required for RANGE | Required for RANGE | Not applicable | Blocked by policy |
@@ -115,6 +117,9 @@ Execution blocker copy:
 
 ```text
 RANGE wallet execution remains disabled until dedicated mintability validation passes.
+Refresh the active BTC market before trading this primitive.
+Selected BTC market is no longer live for new primitive minting.
+This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.
 Refresh quote before wallet review.
 Run primitive mint preflight again for the current quote and wallet state.
 PredictManager DUSDC balance must cover the current mint cost.
@@ -124,20 +129,21 @@ PredictManager DUSDC balance must cover the current mint cost.
 
 UP/DOWN wallet execution must rerun all runtime-sensitive checks immediately before the wallet prompt:
 
-1. Re-run `devInspectBinaryQuote(...)` for the current UP/DOWN input.
-2. Require a positive fresh mint cost.
-3. Require the fresh quote to match the displayed quote context or force the user to refresh and rerun preflight.
-4. Re-read `predict_manager::balance<DUSDC>` and require it to cover the fresh mint cost.
-5. Re-run `devInspectMintBinaryPreflight(...)`.
-6. Build `buildMintBinaryPrimitiveTransaction({ allowRealTestnetMint: true, ... })` only after all fresh gates pass.
-7. Show a wallet prompt only after an explicit user click.
-8. Store a local primitive trade record after success.
+1. Re-check the selected market expiry/status and block if it is no longer effectively `Live`.
+2. Re-run `devInspectBinaryQuote(...)` for the current UP/DOWN input and selected oracle object.
+3. Require a positive fresh mint cost.
+4. Require the fresh quote to match the displayed quote context or force the user to refresh and rerun preflight.
+5. Re-read `predict_manager::balance<DUSDC>` and require it to cover the fresh mint cost.
+6. Re-run `devInspectMintBinaryPreflight(...)` for the selected oracle object.
+7. Build `buildMintBinaryPrimitiveTransaction({ allowRealTestnetMint: true, ... })` only after all fresh gates pass.
+8. Show a wallet prompt only after an explicit user click.
+9. Store a local primitive trade record after success.
 
 The route and panel should not import signing hooks directly. Wallet signing is isolated in `usePrimitiveWalletExecution(...)`.
 
 ## Portfolio readback boundary
 
-DeepVol-15 keeps known-key primitive position readback groundwork. Portfolio can read configured UP, DOWN, and RANGE keys for a manually entered `PredictManager` ID when wallet, Sui Testnet, and configured series are available.
+DeepVol keeps known-key primitive position readback groundwork. The primitive route can read selected active-market UP, DOWN, and RANGE keys for a manually entered `PredictManager` ID when wallet, Sui Testnet, selected series, and selected oracle object are available. Portfolio keeps this as future-work groundwork and does not fall back to historical configured series when no selected market context exists.
 
 This is not general indexing. The app must continue to say:
 

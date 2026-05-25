@@ -1,13 +1,13 @@
 ---
 Purpose: Navigation index for RangePilot and DeepVol architecture documentation.
 Audience: Developers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol BTC MOVE, DeepVol-16 browser-smoke validation of wallet-gated UP/DOWN primitive execution, the missing-wallet-extension blocker, and RANGE-disabled policy.
+Status: Updated for DeepVol BTC MOVE, DeepVol-16-fix active BTC primitive market discovery, stale-oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE-disabled policy.
 Source of truth relationship: Indexes local source-of-truth documents, official-derived protocol references, generated companion docs, and pivot ADRs; does not replace source docs.
 ---
 
 # Architecture Index
 
-DeepVol BTC MOVE is the flagship structured product direction. DeepVol is a Predict-native primitive trading terminal and structured product layer on Sui: UP and DOWN can be wallet-gated raw primitives, RANGE remains quote/preflight-only until dedicated validation, and BTC MOVE Receipt is the primary composed product so users can trade movement, not direction. DeepVol-16 confirmed browser smoke and source/test gates for UP/DOWN primitive execution, but real browser execution remains blocked until validation runs in a browser profile with an installed Sui wallet extension.
+DeepVol BTC MOVE is the flagship structured product direction. DeepVol is a Predict-native primitive trading terminal and structured product layer on Sui: UP and DOWN can be wallet-gated raw primitives, RANGE remains quote/preflight-only until dedicated validation, and BTC MOVE Receipt is the primary composed product so users can trade movement, not direction. DeepVol-16-fix adds active BTC primitive market discovery and stale/non-live oracle blockers after a wallet-enabled preflight exposed `oracle_config::assert_live_oracle` abort code `3` on the historical validation oracle.
 
 RangePilot's guided range trading and Route B creator-follow wrapper work remains preserved as validated prior infrastructure. The creator-follow strategy model is no longer the primary product direction because public on-chain strategy parameters can be copied and used to bypass a high follow fee.
 
@@ -23,7 +23,8 @@ RangePilot's guided range trading and Route B creator-follow wrapper work remain
 | [DEEPVOL_MVP_SCOPE.md](./DEEPVOL_MVP_SCOPE.md) | Current MVP scope | Deciding what belongs in the BTC MOVE MVP and what stays future scope |
 | [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md) | Current primitive execution policy | Defining UP/DOWN wallet gates, RANGE disabled policy, fee policy, and primitive portfolio boundaries |
 | [DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md](./DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md) | Current primitives frontend scope | Explaining UP / DOWN / RANGE / MOVE UX relationships, wallet-gated UP/DOWN, and RANGE quote/preflight-only policy |
-| [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) | Current primitive quote/preflight contract | Defining UP / DOWN / RANGE quote, preflight, blocker matrix, SDK helper boundaries, and execution gates |
+| [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) | Current primitive quote/preflight contract | Defining UP / DOWN / RANGE quote, preflight, active-market blocker matrix, SDK helper boundaries, and execution gates |
+| [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) | Current primitive active-market discovery note | Explaining stale oracle root cause, `assert_live_oracle::3`, active BTC market refresh, manual override fallback, and no-real-mint boundaries |
 | [ADR/0003-pivot-to-deepvol-btc-move.md](./ADR/0003-pivot-to-deepvol-btc-move.md) | Accepted pivot decision | Explaining why DeepVol supersedes creator-follow as the primary direction |
 
 Do not edit the original product or protocol-analysis source docs for normal implementation tasks unless the user explicitly requests source-doc maintenance. If older RangePilot docs conflict with the DeepVol pivot, use the DeepVol foundation docs and ADR-0003 for current direction while preserving historical validation records.
@@ -38,7 +39,8 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 | [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md) | Defines UP/DOWN execution gates, RANGE disabled policy, fee policy, and primitive portfolio boundaries | Product / frontend / SDK |
 | [DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md](./DEEPVOL_PREDICT_PRIMITIVES_FRONTEND.md) | Defines wallet-gated UP / DOWN frontend surfaces, RANGE quote/preflight-only UX, and BTC MOVE priority | Product / frontend |
 | [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) | Defines the DeepVol-15 UP / DOWN / RANGE quote, preflight, and execution gate contract | Frontend / SDK / protocol |
-| [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) | Records DeepVol-16 browser smoke, source/test verification, missing-wallet-extension blocker, and zero-count attestation for controlled UP/DOWN primitive execution validation | Frontend / protocol / validation |
+| [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) | Records DeepVol-16 browser smoke, source/test verification, stale/non-live oracle blocker, missing-wallet-extension blocker, active-market fix pointer, and zero-count attestation for controlled UP/DOWN primitive execution validation | Frontend / protocol / validation |
+| [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) | Documents active BTC primitive market discovery, stale oracle diagnostics, friendly error copy, manual override fallback, and no-real-mint boundaries | Frontend / SDK / protocol |
 | [DEEPVOL_PROTOCOL_ARCHITECTURE.md](./DEEPVOL_PROTOCOL_ARCHITECTURE.md) | Defines VolSeries, MoveReceipt, ProtocolVault, PredictManager, transaction/readback/settlement paths | Protocol / architecture |
 | [DEEPVOL_DATA_MODEL.md](./DEEPVOL_DATA_MODEL.md) | Proposes VolSeries, MoveReceipt, and receipt lifecycle event fields | Move / SDK / product |
 | [DEEPVOL_BINARY_LEG_INTEGRATION.md](./DEEPVOL_BINARY_LEG_INTEGRATION.md) | Records source-confirmed binary entrypoints, MarketKey construction, events, and validation blockers | Protocol / SDK / PTB |
@@ -189,7 +191,7 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 | DeepVol binary quote/mint/redeem validation | Binary leg integration, buy receipt validation, redeem preflight validation, official contract info, protocol integration notes, entrypoint bindings plan, PredictManager flow, range quote units and decoding |
 | DeepVol SDK transaction builders | Binary leg integration, buy receipt validation, official contract info, entrypoint bindings plan, protocol integration notes, Sui transaction-building docs/skills |
 | DeepVol portfolio/settlement UX | DeepVol frontend MVP, browser buy validation, browser redeem validation, redeem and settlement flow, redeem preflight validation, DeepVol protocol architecture, data model, binary leg integration, PredictManager validation, protocol integration notes |
-| DeepVol Predict primitives frontend | DeepVol product direction, primitives and receipts, primitive execution policy, Predict primitives frontend, primitive quote/preflight, MVP scope, frontend MVP, protocol integration notes, entrypoint bindings plan |
+| DeepVol Predict primitives frontend | DeepVol product direction, primitives and receipts, primitive execution policy, Predict primitives frontend, primitive quote/preflight, primitive active market discovery, MVP scope, frontend MVP, protocol integration notes, entrypoint bindings plan |
 | Prior guided range UI maintenance | Guided range trading MVP, range mint validation, portfolio readback validation, range redeem validation, browser wallet fixes |
 | Prior wrapper/follow maintenance | Wrapper contract architecture, wrapper publish result, wrapper follow validation, ProtocolVault design, follow strategy transaction flow, strategy data model, ADR-0002 |
 | New ADR | Agent workflow, source documents, existing ADRs |

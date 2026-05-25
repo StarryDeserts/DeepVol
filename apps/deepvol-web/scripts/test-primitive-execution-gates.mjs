@@ -86,15 +86,36 @@ const freshQuoteCallIndex = executionSource.indexOf("const freshQuote = await de
 const managerBalanceCallIndex = executionSource.indexOf("const managerBalance = await devInspectManagerBalance");
 const latestPreflightCallIndex = executionSource.indexOf("const latestPreflight = await devInspectMintBinaryPreflight");
 const transactionBuildIndex = executionSource.indexOf("const transaction = buildMintBinaryPrimitiveTransaction");
+const finalExpiryCheckIndex = executionSource.indexOf("BigInt(series.expiry) <= BigInt(Date.now())");
+const inFlightSetIndex = executionSource.indexOf("inFlightRef.current = true");
 
 for (const [label, index] of [
   ["fresh quote call", freshQuoteCallIndex],
   ["manager balance call", managerBalanceCallIndex],
   ["latest preflight call", latestPreflightCallIndex],
   ["transaction build call", transactionBuildIndex],
+  ["final submit-time expiry check", finalExpiryCheckIndex],
+  ["in-flight marker", inFlightSetIndex],
 ]) {
   assert.notEqual(index, -1, `missing ${label}`);
 }
+
+assert.ok(
+  finalExpiryCheckIndex < inFlightSetIndex,
+  "wallet execution must re-check series expiry before marking submit in-flight",
+);
+assert.ok(
+  finalExpiryCheckIndex < freshQuoteCallIndex,
+  "wallet execution must re-check series expiry before fresh quote refresh",
+);
+assert.ok(
+  finalExpiryCheckIndex < transactionBuildIndex,
+  "wallet execution must re-check series expiry before building transaction",
+);
+assert.ok(
+  executionSource.includes("This BTC market is no longer live for minting. Refresh or select a new active market."),
+  "stale/expired active-market blocker must be reported before wallet review",
+);
 
 assert.ok(
   freshQuoteCallIndex < transactionBuildIndex,

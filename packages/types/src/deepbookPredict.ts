@@ -580,6 +580,52 @@ export type ActiveOracleCandidate = {
   expiry: string;
 };
 
+export type PrimitiveMarketStatus = "live" | "stale" | "expired" | "unknown";
+
+export type PrimitiveActiveMarketSource =
+  | "active_oracle_discovery"
+  | "manual_override"
+  | "configured_vol_series_reference";
+
+export type PrimitiveActiveMarketContext = {
+  oracleId: DeepBookPredictObjectId;
+  oracleObjectId: DeepBookPredictObjectId;
+  underlyingAsset: string | null;
+  expiry: string;
+  minStrike: string | null;
+  tickSize: string | null;
+  spot: string | null;
+  forward: string | null;
+  status: PrimitiveMarketStatus;
+  source: PrimitiveActiveMarketSource;
+  suggestedUpStrike: string | null;
+  suggestedDownStrike: string | null;
+  suggestedLowerStrike: string | null;
+  suggestedUpperStrike: string | null;
+  diagnostics: string[];
+};
+
+export type PrimitiveActiveMarketDiscoveryResult =
+  | {
+      status: "found";
+      market: PrimitiveActiveMarketContext;
+      candidates: MarketQuoteCandidate[];
+      diagnostics: string[];
+    }
+  | {
+      status: "not_found";
+      market: null;
+      candidates: MarketQuoteCandidate[];
+      diagnostics: string[];
+    }
+  | {
+      status: "error";
+      market: null;
+      candidates: MarketQuoteCandidate[];
+      diagnostics: string[];
+      error: string;
+    };
+
 export type StrikeGrid = {
   minStrike: string;
   tickSize: string;

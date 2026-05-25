@@ -5,6 +5,7 @@ import {
   devInspectManagerBalance,
   devInspectMintBinaryPreflight,
   devInspectMintRangePreflight,
+  translateDeepBookPredictError,
 } from "@rangepilot/sdk/deepbookPredict";
 import { useSuiWallet } from "./useSuiWallet";
 import type { PrimitiveQuoteState } from "./usePrimitiveQuote";
@@ -72,6 +73,9 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
     series: quote.series,
+    oracleObjectId: quote.oracleObjectId,
+    marketStatus: quote.marketStatus,
+    marketStatusMessage: quote.marketStatusMessage,
     quantity: quote.quantity,
     strike: quote.strike,
     lowerStrike: quote.lowerStrike,
@@ -81,7 +85,7 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
     redeemPayoutAtomic: quote.redeemPayoutAtomic,
     quoteDependencyKey: quote.dependencyKey,
     preflightQuoteDependencyKey: quote.dependencyKey,
-  }), [predictManagerId, quote.dependencyKey, quote.lowerStrike, quote.mintCostAtomic, quote.primitiveKind, quote.quantity, quote.redeemPayoutAtomic, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [predictManagerId, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.redeemPayoutAtomic, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
   const dependencyKey = useMemo(() => buildPrimitivePreflightDependencyKey(input), [input]);
   const blockers = useMemo(() => buildPrimitivePreflightBlockers(input), [input]);
@@ -114,8 +118,9 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
     const series = input.series;
     const sender = input.walletAddress;
     const quantity = input.quantity;
+    const oracleObjectId = input.oracleObjectId;
 
-    if (!series || !sender || !predictManagerId || !quantity) {
+    if (!series || !sender || !predictManagerId || !quantity || !oracleObjectId) {
       return;
     }
 
@@ -145,7 +150,7 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
               sender,
               managerId: predictManagerId,
               oracleId: series.oracleId,
-              oracleObjectId: series.oracleId,
+              oracleObjectId,
               expiry: series.expiry,
               lowerStrike: input.lowerStrike ?? "",
               higherStrike: input.upperStrike ?? "",
@@ -161,7 +166,7 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
               sender,
               managerId: predictManagerId,
               oracleId: series.oracleId,
-              oracleObjectId: series.oracleId,
+              oracleObjectId,
               expiry: series.expiry,
               strike: input.strike ?? "",
               direction: input.primitiveKind === "UP" ? "up" : "down",
@@ -189,7 +194,7 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
           warnings: balanceWarnings,
           managerBalanceAtomic: managerBalance.balanceAtomic,
           managerBalanceCheckedAtMs: Date.now(),
-          abortMessage: result.status === "failed" ? result.abort.message : null,
+          abortMessage: result.status === "failed" ? translateDeepBookPredictError(result.abort.message) : null,
           abortKnownReason: result.status === "failed" ? result.abort.knownReason : null,
         });
       } catch (error) {
@@ -205,7 +210,7 @@ export function usePrimitivePreflight({ quote, predictManagerId }: UsePrimitiveP
           warnings: [],
           managerBalanceAtomic: null,
           managerBalanceCheckedAtMs: null,
-          abortMessage: error instanceof Error ? error.message : String(error),
+          abortMessage: translateDeepBookPredictError(error),
           abortKnownReason: null,
         });
       }

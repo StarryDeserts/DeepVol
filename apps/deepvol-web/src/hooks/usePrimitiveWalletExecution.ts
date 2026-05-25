@@ -62,17 +62,23 @@ export function usePrimitiveWalletExecution({
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
     series: quote.series,
+    oracleObjectId: quote.oracleObjectId,
+    marketStatus: quote.marketStatus,
+    marketStatusMessage: quote.marketStatusMessage,
     quantity: quote.quantity,
     strike: quote.strike,
     lowerStrike: quote.lowerStrike,
     upperStrike: quote.upperStrike,
-  }), [quote.lowerStrike, quote.primitiveKind, quote.quantity, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const expectedPreflightDependencyKey = useMemo(() => buildPrimitivePreflightDependencyKey({
     primitiveKind: quote.primitiveKind,
     walletAddress: wallet.address,
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
     series: quote.series,
+    oracleObjectId: quote.oracleObjectId,
+    marketStatus: quote.marketStatus,
+    marketStatusMessage: quote.marketStatusMessage,
     quantity: quote.quantity,
     strike: quote.strike,
     lowerStrike: quote.lowerStrike,
@@ -82,13 +88,16 @@ export function usePrimitiveWalletExecution({
     redeemPayoutAtomic: quote.redeemPayoutAtomic,
     quoteDependencyKey: quote.dependencyKey,
     preflightQuoteDependencyKey: quote.dependencyKey,
-  }), [predictManagerId, quote.dependencyKey, quote.lowerStrike, quote.mintCostAtomic, quote.primitiveKind, quote.quantity, quote.redeemPayoutAtomic, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [predictManagerId, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.redeemPayoutAtomic, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const executionInput = useMemo<PrimitiveExecutionInput>(() => ({
     primitiveKind: quote.primitiveKind,
     walletAddress: wallet.address,
     walletConnected: wallet.isConnected,
     walletTestnet: wallet.isTestnet,
     series: quote.series,
+    oracleObjectId: quote.oracleObjectId,
+    marketStatus: quote.marketStatus,
+    marketStatusMessage: quote.marketStatusMessage,
     quantity: quote.quantity,
     strike: quote.strike,
     lowerStrike: quote.lowerStrike,
@@ -106,7 +115,7 @@ export function usePrimitiveWalletExecution({
     preflightLastRunAtMs: preflight.lastRunAtMs,
     managerBalanceAtomic: preflight.managerBalanceAtomic,
     isSubmitting,
-  }), [expectedPreflightDependencyKey, expectedQuoteDependencyKey, isSubmitting, predictManagerId, preflight.dependencyKey, preflight.lastRunAtMs, preflight.managerBalanceAtomic, preflight.status, quote.dependencyKey, quote.lowerStrike, quote.mintCostAtomic, quote.primitiveKind, quote.quantity, quote.quotedAtMs, quote.redeemPayoutAtomic, quote.series, quote.status, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [expectedPreflightDependencyKey, expectedQuoteDependencyKey, isSubmitting, predictManagerId, preflight.dependencyKey, preflight.lastRunAtMs, preflight.managerBalanceAtomic, preflight.status, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.quotedAtMs, quote.redeemPayoutAtomic, quote.series, quote.status, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const blockers = useMemo(() => buildPrimitiveExecutionBlockers(executionInput), [executionInput]);
   const canSubmit = blockers.length === 0;
   const signAndExecuteTransaction = useSignAndExecuteTransaction();
@@ -116,7 +125,7 @@ export function usePrimitiveWalletExecution({
       return;
     }
 
-    if (!canSubmit || !wallet.address || !quote.series || !predictManagerId || !quote.quantity || !quote.strike || quote.primitiveKind === "RANGE") {
+    if (!canSubmit || !wallet.address || !quote.series || !quote.oracleObjectId || !predictManagerId || !quote.quantity || !quote.strike || quote.primitiveKind === "RANGE") {
       setTransactionStatus({
         state: "blocked_unconfirmed",
         error: blockers.join(" "),
@@ -126,9 +135,26 @@ export function usePrimitiveWalletExecution({
 
     const owner = wallet.address;
     const series = quote.series;
+    const oracleObjectId = quote.oracleObjectId;
     const primitiveType = quote.primitiveKind;
     const direction = primitiveType === "UP" ? "up" : "down";
     const strike = quote.strike;
+
+    try {
+      if (BigInt(series.expiry) <= BigInt(Date.now())) {
+        setTransactionStatus({
+          state: "blocked_unconfirmed",
+          error: "This BTC market is no longer live for minting. Refresh or select a new active market.",
+        });
+        return;
+      }
+    } catch {
+      setTransactionStatus({
+        state: "blocked_unconfirmed",
+        error: "This BTC market is no longer live for minting. Refresh or select a new active market.",
+      });
+      return;
+    }
 
     inFlightRef.current = true;
     setTransactionStatus({
@@ -151,7 +177,7 @@ export function usePrimitiveWalletExecution({
         client,
         sender: owner,
         oracleId: series.oracleId,
-        oracleObjectId: series.oracleId,
+        oracleObjectId,
         expiry: series.expiry,
         strike,
         direction,
@@ -186,7 +212,7 @@ export function usePrimitiveWalletExecution({
         sender: owner,
         managerId: predictManagerId,
         oracleId: series.oracleId,
-        oracleObjectId: series.oracleId,
+        oracleObjectId,
         expiry: series.expiry,
         strike,
         direction,
@@ -199,14 +225,14 @@ export function usePrimitiveWalletExecution({
       });
 
       if (latestPreflight.status !== "passed") {
-        blockBeforeWallet(latestPreflight.abort.message);
+        blockBeforeWallet(translateDeepBookPredictError(latestPreflight.abort.message));
         return;
       }
 
       const transaction = buildMintBinaryPrimitiveTransaction({
         managerId: predictManagerId,
         oracleId: series.oracleId,
-        oracleObjectId: series.oracleId,
+        oracleObjectId,
         expiry: series.expiry,
         strike,
         direction,

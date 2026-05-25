@@ -1,4 +1,5 @@
 import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
 import type { PrimitivePreflightStatus } from "./usePrimitivePreflight";
 import type { PrimitiveQuoteStatus } from "./usePrimitiveQuote";
 
@@ -10,6 +11,9 @@ export type PrimitiveInputState = {
   walletConnected: boolean;
   walletTestnet: boolean;
   series: VolSeries | null;
+  oracleObjectId: string | null;
+  marketStatus: PrimitiveMarketStatus | null;
+  marketStatusMessage: string | null;
   quantity: string | null;
   strike: string | null;
   lowerStrike: string | null;
@@ -36,8 +40,20 @@ export type PrimitiveExecutionInput = PrimitiveInputState & {
 };
 
 export const PRIMITIVE_RANGE_EXECUTION_DISABLED_BLOCKER = "RANGE wallet execution remains disabled until dedicated mintability validation passes.";
+export const PRIMITIVE_MARKET_REFRESH_BLOCKER = "Refresh the active BTC market before trading this primitive.";
+export const PRIMITIVE_MARKET_NON_LIVE_BLOCKER = "Selected BTC market is no longer live for new primitive minting.";
 export const PRIMITIVE_QUOTE_FRESHNESS_MS = 120_000;
 export const PRIMITIVE_PREFLIGHT_FRESHNESS_MS = 120_000;
+
+function buildPrimitiveMarketBlockers(input: PrimitiveInputState): string[] {
+  if (!input.marketStatus || input.marketStatus === "unknown") {
+    return [PRIMITIVE_MARKET_REFRESH_BLOCKER];
+  }
+  if (input.marketStatus !== "live") {
+    return [input.marketStatusMessage ?? PRIMITIVE_MARKET_NON_LIVE_BLOCKER];
+  }
+  return [];
+}
 
 export function buildPrimitiveQuoteBlockers(input: PrimitiveInputState): string[] {
   const blockers: string[] = [];
@@ -51,8 +67,10 @@ export function buildPrimitiveQuoteBlockers(input: PrimitiveInputState): string[
   }
 
   if (!input.series) {
-    blockers.push("Configured BTC MOVE VolSeries must be loaded before primitive quotes.");
+    blockers.push("Active BTC primitive market must be loaded before primitive quotes.");
   }
+
+  blockers.push(...buildPrimitiveMarketBlockers(input));
 
   if (input.series && !input.series.active) {
     blockers.push("Configured BTC MOVE VolSeries is inactive.");
@@ -156,7 +174,9 @@ export function buildPrimitiveQuoteDependencyKey(input: PrimitiveInputState): st
     input.walletTestnet ? "testnet" : "not-testnet",
     input.series?.seriesId ?? "no-series",
     input.series?.oracleId ?? "no-oracle",
+    input.oracleObjectId ?? "no-oracle-object",
     input.series?.expiry ?? "no-expiry",
+    input.marketStatus ?? "no-market-status",
     input.primitiveKind,
     input.quantity ?? "no-quantity",
     input.strike ?? "no-strike",

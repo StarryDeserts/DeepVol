@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol web information architecture for Predict primitives UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-16 primitive terminal validation status: UP/DOWN are wallet-gated in code and browser smoke passed, but real UP/DOWN execution remains blocked until validation runs in a browser profile with an installed Sui wallet extension. RANGE remains quote/preflight-only.
+Status: DeepVol-16-fix primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` now discovers/refreshes active BTC market context and blocks stale/non-live or expired markets before quote/preflight/wallet review. RANGE remains quote/preflight-only.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive execution policy, primitive quote/preflight contract, and frontend MVP docs; protocol docs and on-chain state remain authoritative for Predict semantics.
 ---
 
@@ -11,7 +11,7 @@ Source of truth relationship: Extends the DeepVol primitives/receipts model, pri
 
 DeepVol is expanding into a Predict-native primitive trading terminal while keeping BTC MOVE as the featured structured receipt product. BTC MOVE packages official DeepBook Predict UP and DOWN binary legs into one protocol-enforced, non-custodial `MoveReceipt` so users can trade movement, not direction.
 
-DeepVol-15 upgrades UP and DOWN from quote/preflight previews into wallet-gated primitive terminals. They can open wallet review only after fresh quote, PredictManager DUSDC balance, and binary mint preflight gates pass. DeepVol-16 confirmed the browser smoke and source/test gate review, but real UP/DOWN execution was blocked before quote/preflight because the Playwright browser profile had no installed Sui wallet extension; see [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md). RANGE remains quote/preflight-only until a dedicated mintability validation round hardens its execution gates.
+DeepVol-15 upgrades UP and DOWN from quote/preflight previews into wallet-gated primitive terminals. They can open wallet review only after active BTC market discovery, fresh quote, PredictManager DUSDC balance, and binary mint preflight gates pass. DeepVol-16 confirmed browser smoke and source/test gate review; a follow-up wallet-enabled preflight exposed a stale/non-live oracle blocker (`oracle_config::assert_live_oracle` abort code `3`). DeepVol-16-fix adds active market refresh, effective `Live / Stale / Expired / Unknown` status, stale-oracle copy, and selected oracle object propagation; see [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) and [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md). RANGE remains quote/preflight-only until a dedicated mintability validation round hardens its execution gates.
 
 See [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md) for the execution, fee, and portfolio policy. See [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) for the quote/preflight contract and blocker matrix.
 
@@ -49,7 +49,7 @@ DeepVol-15 uses the primitive route as a guarded terminal:
 |---|---|
 | `/markets` | BTC MOVE remains featured first; UP and DOWN cards link to wallet-gated primitive terminals; RANGE links to quote/preflight gates. |
 | `/buy/btc-move` | Existing wallet-gated BTC MOVE receipt transaction workspace remains the enabled receipt route. |
-| `/primitives` | Defaults to UP and renders primitive quote/preflight controls for the configured BTC MOVE series. |
+| `/primitives` | Defaults to UP, discovers/refreshes active BTC primitive market context, renders `Live / Stale / Expired / Unknown` status, and blocks quote/preflight/wallet review unless the selected market is live. |
 | `/primitives?type=UP` | Shows UP strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
 | `/primitives?type=DOWN` | Shows DOWN strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
 | `/primitives?type=RANGE` | Shows lower/upper strikes, quantity, range quote, range mint preflight, diagnostics, and disabled execution policy. |
@@ -68,8 +68,8 @@ Allowed:
 - Use browser-safe devInspect quote helpers for UP, DOWN, and RANGE.
 - Use mint preflight helpers for UP, DOWN, and RANGE.
 - Read PredictManager DUSDC balance during primitive preflight.
-- Enable UP/DOWN wallet review only after fresh quote, sufficient balance, fresh preflight, Testnet wallet, PredictManager ID, and no active submission.
-- Rerun quote, manager balance, and binary mint preflight immediately before the UP/DOWN wallet prompt.
+- Enable UP/DOWN wallet review only after active/live BTC market context, fresh quote, sufficient balance, fresh preflight, Testnet wallet, PredictManager ID, and no active submission.
+- Rerun market expiry/status checks, quote, manager balance, and binary mint preflight immediately before the UP/DOWN wallet prompt.
 - Store successful UP/DOWN primitive trade digests as local primitive records.
 - Read known primitive keys for a manually entered PredictManager ID.
 - Keep RANGE execution disabled.
@@ -90,7 +90,8 @@ Current SDK and validation work covers the terminal surface:
 
 | Capability | Status |
 |---|---|
-| Binary UP/DOWN quote | Browser-safe `devInspectBinaryQuote` support. |
+| Active BTC market discovery | Browser-safe active market refresh, status diagnostics, selected oracle object, suggested strike context, and manual override fallback. |
+| Binary UP/DOWN quote | Browser-safe `devInspectBinaryQuote` support using selected active market context. |
 | Binary UP/DOWN mint preflight | `devInspectMintBinaryPreflight` support using a private preflight transaction helper. |
 | Binary UP/DOWN mint execution | `buildMintBinaryPrimitiveTransaction(...)` can build the wallet PTB only with an explicit real-Testnet gate flag. |
 | Binary UP/DOWN redeem | Existing guarded builder/preflight support for controlled BTC MOVE receipt redeem; primitive redeem UX remains future work. |

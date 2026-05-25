@@ -1,5 +1,6 @@
 export * from "./config.ts";
 export * from "./server.ts";
+export * from "./market.ts";
 export * from "./coins.ts";
 export * from "./events.ts";
 export * from "./errors.ts";

@@ -6,14 +6,15 @@ import {
   readBinaryPositionQuantity,
   readRangePositionQuantity,
 } from "@rangepilot/sdk/deepbookPredict";
-import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
-import { readVolSeries } from "../lib/deepVolSeries";
 import { normalizePositiveIntegerInput } from "../lib/format";
+import type { VolSeries } from "@rangepilot/types/deepVol";
 import type { PrimitiveKind } from "./primitiveQuoteGate";
 
 type PrimitivePositionReadbackParams = {
   predictManagerId: string | null;
+  series: VolSeries | null;
+  oracleObjectId: string | null;
   primitiveKind?: PrimitiveKind;
   strikeInput?: string;
   lowerStrikeInput?: string;
@@ -36,6 +37,8 @@ export type PrimitivePositionReadbackState = {
 
 export function usePrimitivePositionReadback({
   predictManagerId,
+  series,
+  oracleObjectId,
   primitiveKind,
   strikeInput,
   lowerStrikeInput,
@@ -43,7 +46,6 @@ export function usePrimitivePositionReadback({
 }: PrimitivePositionReadbackParams): PrimitivePositionReadbackState {
   const client = useSuiClient();
   const wallet = useSuiWallet();
-  const config = useDeepVolConfig();
   const selectedStrike = normalizePositiveIntegerInput(strikeInput ?? "");
   const selectedLowerStrike = normalizePositiveIntegerInput(lowerStrikeInput ?? "");
   const selectedUpperStrike = normalizePositiveIntegerInput(upperStrikeInput ?? "");
@@ -63,12 +65,16 @@ export function usePrimitivePositionReadback({
       entries.push("Enter a PredictManager ID to read known primitive keys.");
     }
 
-    if (!config.configuredSeriesId) {
-      entries.push("Configured BTC MOVE VolSeries must be available for known-key readback.");
+    if (!series) {
+      entries.push("Active BTC primitive market must be loaded before reading known primitive keys.");
+    }
+
+    if (!oracleObjectId) {
+      entries.push("Selected active BTC market oracle object must be available before reading primitive positions.");
     }
 
     return entries;
-  }, [config.configuredSeriesId, predictManagerId, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }, [oracleObjectId, predictManagerId, series, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
   const query = useQuery({
     queryKey: [
@@ -76,7 +82,10 @@ export function usePrimitivePositionReadback({
       wallet.address,
       wallet.isTestnet,
       predictManagerId,
-      config.configuredSeriesId,
+      series?.seriesId,
+      series?.oracleId,
+      oracleObjectId,
+      series?.expiry,
       primitiveKind,
       selectedStrike,
       selectedLowerStrike,
@@ -84,11 +93,10 @@ export function usePrimitivePositionReadback({
     ],
     enabled: blockers.length === 0,
     queryFn: async () => {
-      if (!wallet.address || !predictManagerId) {
+      if (!wallet.address || !predictManagerId || !series || !oracleObjectId) {
         return [];
       }
 
-      const series = await readVolSeries(client, config.configuredSeriesId);
       const upStrike = primitiveKind === "UP" && selectedStrike ? selectedStrike : series.upperStrike;
       const downStrike = primitiveKind === "DOWN" && selectedStrike ? selectedStrike : series.lowerStrike;
       const rangeLower = primitiveKind === "RANGE" && selectedLowerStrike ? selectedLowerStrike : series.lowerStrike;
