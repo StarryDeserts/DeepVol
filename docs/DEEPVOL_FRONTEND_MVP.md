@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-16-fix-2: active market discovery UX simplified with auto-discovery, granular discovery-phase feedback, and manual override collapsed under Advanced fallback. UP/DOWN wallet-gated, RANGE quote/preflight-only.
+Status: Updated for DeepVol-17: BuyMovePage detects stale/missing VolSeries against active BTC market, provides Create BTC MOVE Series CTA with wallet execution, and gates buy behind fresh series. create_series is permissionless. See DEEPVOL_ACTIVE_MOVE_SERIES.md.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 

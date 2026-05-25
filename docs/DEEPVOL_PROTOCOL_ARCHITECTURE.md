@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol BTC MOVE protocol architecture and custody boundaries.
 Audience: Project maintainers, Move developers, SDK implementers, frontend developers, reviewers, and AI agents.
-Status: DeepVol-5 Route B architecture; package, DUSDC ProtocolVault, first BTC VolSeries, and first buy_move_receipt<DUSDC> are validated on Testnet.
+Status: Updated for DeepVol-17: create_series confirmed permissionless (public entry, no AdminCap). Fresh VolSeries required for new BTC MOVE buy when active BTC market oracle/expiry changes. See DEEPVOL_ACTIVE_MOVE_SERIES.md for lifecycle.
 ---
 
 # DeepVol Protocol Architecture

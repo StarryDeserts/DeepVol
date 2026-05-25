@@ -1,7 +1,7 @@
 ---
 Purpose: Track confirmed DeepBook Predict integration values and remaining runtime details for RangePilot.
 Audience: Protocol integrators, transaction-builder authors, frontend developers, and AI agents.
-Status: Updated with confirmed official DeepBook Predict Testnet values, DeepVol-16-fix active BTC primitive market discovery, stale/non-live oracle blocker handling, and primitive execution gate policy.
+Status: Updated for DeepVol-17: create_series confirmed permissionless (public entry, no AdminCap). Fresh VolSeries required for new BTC MOVE buy when active BTC market oracle/expiry changes. BuyMovePage now detects stale/missing series and gates buy. See DEEPVOL_ACTIVE_MOVE_SERIES.md.
 Source of truth relationship: Deployment values in this file are confirmed for the official Testnet setup and source branch listed below; runtime market state, response schemas, and exact generated-binding call shapes still require confirmation.
 ---
 

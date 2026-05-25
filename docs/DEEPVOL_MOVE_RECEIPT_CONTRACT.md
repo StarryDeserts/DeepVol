@@ -65,8 +65,10 @@ Entrypoints:
 
 | Entrypoint | Behavior |
 |---|---|
-| `series::create_series` | Creates and shares a validated `VolSeries`, then emits `VolSeriesCreated`. |
+| `series::create_series` | Creates and shares a validated `VolSeries`, then emits `VolSeriesCreated`. **Permissionless** — no AdminCap required. Any wallet can create a series. |
 | `series::deactivate_series` | Creator-only state update that sets `active = false` and emits `VolSeriesDeactivated`. |
+
+Note: `create_series` is `public entry` and permissionless. A fresh VolSeries is required for new BTC MOVE buys when the active BTC market oracle/expiry changes. See `docs/DEEPVOL_ACTIVE_MOVE_SERIES.md` for the active series lifecycle.
 
 ## ProtocolVault
 

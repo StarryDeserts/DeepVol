@@ -1,7 +1,7 @@
 ---
 Purpose: Define the phased implementation roadmap for DeepVol BTC MOVE while preserving RangePilot validation history.
 Audience: Product engineers, protocol integrators, frontend developers, and project planners.
-Status: Updated for DeepVol-16-fix-2: active market discovery UX simplified with auto-discovery, granular discovery-phase feedback, and manual override collapsed under Advanced fallback. UP/DOWN wallet-gated, RANGE-disabled.
+Status: Updated for DeepVol-17: active BTC MOVE VolSeries creation flow. BuyMovePage detects stale/missing series against active market, provides Create BTC MOVE Series CTA, gates buy behind fresh series. create_series confirmed permissionless.
 Source of truth relationship: Derived from DeepVol foundation docs, local protocol docs, and official-derived Testnet integration references; implementation details remain subject to confirmation.
 ---
 

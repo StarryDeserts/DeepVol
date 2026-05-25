@@ -1,0 +1,70 @@
+# Active BTC MOVE VolSeries
+
+## Overview
+
+A **VolSeries** is DeepVol's on-chain product series object. It is **not** a DeepBook Predict object. Predict provides oracle / mint / redeem; VolSeries binds an active BTC oracle + expiry + lower/upper strike range into a BTC MOVE product.
+
+## Ownership
+
+- VolSeries is a **shared object** on Sui (created via `transfer::share_object`).
+- `buy_move_receipt` takes `series: &VolSeries` (immutable reference) — any wallet can buy against an active series.
+- `deactivate_series` requires `sender == series.creator` — only the creator can deactivate.
+
+## Creation
+
+`create_series` in `move/deepvol/sources/series.move` is **permissionless** (`public entry`, no AdminCap required).
+
+Parameters:
+- `oracle_id: ID` — the Predict oracle object
+- `expiry: u64` — must be in the future
+- `lower_strike: u64` — must be < upper_strike
+- `upper_strike: u64`
+- `create_fee_bps: u64` — must be <= 100
+- `metadata_uri: vector<u8>` — must be non-empty
+- `clock: &Clock`
+- `ctx: &mut TxContext`
+
+The SDK builder `buildCreateVolSeriesTransaction` in `packages/sdk/src/deepVol/transactions.ts` wraps this with typed parameters.
+
+## Lifecycle
+
+1. **Active BTC market discovered** — `useActiveBtcPredictMarket` finds a live oracle with future expiry.
+2. **VolSeries checked** — `useActiveBtcMoveSeries` compares the selected series's oracle/expiry against the active market.
+3. **If matching** — status is `Ready`, BTC MOVE quote/preflight/buy are enabled.
+4. **If stale** — oracle/expiry mismatch, deactivated, or invalid strike ordering. Buy is gated.
+5. **If missing** — no series selected. User creates one via the "Create BTC MOVE Series" CTA.
+6. **After creation** — new series ID is stored in localStorage (`deepvol:created-series`) and auto-selected.
+
+## MoveSeriesStatus
+
+| Status | Meaning |
+|--------|---------|
+| `ready` | Series matches active market, is active, has valid strikes |
+| `stale` | Oracle/expiry mismatch, deactivated, or lower >= upper |
+| `missing` | No series selected or could not load from chain |
+| `loading` | Reading VolSeries from Sui Testnet |
+| `idle` | No active BTC market yet |
+
+## Old Receipts
+
+Old VolSeries remain valid for historical receipts. Active market refresh does **not** mutate or hide old VolSeries. Portfolio displays old receipts regardless of whether their series matches the current active market.
+
+- Historical receipts use old VolSeries for display / redeem / settlement.
+- New BTC MOVE buys require a fresh series matching the current active market.
+
+## Suggested Range
+
+Active market discovery suggests lower/upper strikes from the quote scan. If `lower >= upper` (can happen when the same candidate is found for both directions), the SDK normalizes by offsetting one tick in each direction using the oracle's `tick_size`.
+
+## Frontend Hooks
+
+- `useActiveBtcMoveSeries` — series detection and status derivation
+- `useCreateVolSeries` — wallet execution for `create_series`
+- `useDeepVolQuote` — accepts dynamic `seriesId` parameter (falls back to configured constant)
+
+## localStorage
+
+Key: `deepvol:created-series`
+Value: `{ "seriesId": "0x..." }`
+
+Stored when a series is created via wallet or manually selected. Loaded on page mount.

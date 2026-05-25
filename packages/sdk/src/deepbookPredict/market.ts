@@ -269,6 +269,21 @@ function buildPrimitiveMarketContext(params: {
   const upCandidate = params.candidates.find((candidate) => candidate.direction === "up") ?? null;
   const downCandidate = params.candidates.find((candidate) => candidate.direction === "down") ?? null;
 
+  let suggestedLowerStrike = downCandidate?.strike?.toString() ?? null;
+  let suggestedUpperStrike = upCandidate?.strike?.toString() ?? null;
+
+  if (
+    suggestedLowerStrike !== null &&
+    suggestedUpperStrike !== null &&
+    BigInt(suggestedLowerStrike) >= BigInt(suggestedUpperStrike) &&
+    tickSize !== null &&
+    BigInt(tickSize) > 0n
+  ) {
+    const anchor = BigInt(suggestedLowerStrike);
+    suggestedLowerStrike = (anchor - BigInt(tickSize)).toString();
+    suggestedUpperStrike = (anchor + BigInt(tickSize)).toString();
+  }
+
   return {
     oracleId,
     oracleObjectId: oracleId,
@@ -287,8 +302,8 @@ function buildPrimitiveMarketContext(params: {
     source: "active_oracle_discovery",
     suggestedUpStrike: upCandidate?.strike?.toString() ?? null,
     suggestedDownStrike: downCandidate?.strike?.toString() ?? null,
-    suggestedLowerStrike: downCandidate?.strike?.toString() ?? null,
-    suggestedUpperStrike: upCandidate?.strike?.toString() ?? null,
+    suggestedLowerStrike,
+    suggestedUpperStrike,
     diagnostics: params.diagnostics,
   };
 }

@@ -20,4 +20,5 @@ export const DEEPVOL_STORAGE_KEYS = {
   primitiveTrades: "deepvol:primitive-trades",
   recentTransactions: "deepvol:recent-transactions",
   redeemAttempts: "deepvol:controlled-redeem-attempts",
+  createdSeries: "deepvol:created-series",
 } as const;

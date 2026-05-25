@@ -54,15 +54,18 @@ export type DeepVolQuoteState = {
 type UseDeepVolQuoteParams = {
   quantityInput: string;
   predictManagerId: string | null;
+  seriesId?: string | null;
 };
 
 export function useDeepVolQuote({
   quantityInput,
   predictManagerId,
+  seriesId,
 }: UseDeepVolQuoteParams): DeepVolQuoteState {
   const client = useSuiClient();
   const wallet = useSuiWallet();
   const config = useDeepVolConfig();
+  const effectiveSeriesId = seriesId ?? config.configuredSeriesId;
   const quantity = normalizePositiveIntegerInput(quantityInput);
   const baseBlockers = useMemo(() => {
     const blockers: string[] = [];
@@ -95,13 +98,13 @@ export function useDeepVolQuote({
       "deepvol-quote",
       wallet.address,
       wallet.isTestnet,
-      config.configuredSeriesId,
+      effectiveSeriesId,
       quantity,
       predictManagerId,
     ],
-    enabled: Boolean(config.configuredSeriesId && quantity),
+    enabled: Boolean(effectiveSeriesId && quantity),
     queryFn: async () => {
-      const series = await readVolSeries(client, config.configuredSeriesId);
+      const series = await readVolSeries(client, effectiveSeriesId);
       const blockers = [...baseBlockers];
       const warnings: string[] = [];
 
