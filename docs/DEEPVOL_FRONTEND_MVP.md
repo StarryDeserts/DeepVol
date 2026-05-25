@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-16-fix active BTC primitive market discovery, stale-oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
+Status: Updated for DeepVol-16-fix-2: active market discovery UX simplified with auto-discovery, granular discovery-phase feedback, and manual override collapsed under Advanced fallback. UP/DOWN wallet-gated, RANGE quote/preflight-only.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 

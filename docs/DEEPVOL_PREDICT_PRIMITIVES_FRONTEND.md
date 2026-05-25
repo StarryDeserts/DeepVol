@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol web information architecture for Predict primitives UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-16-fix primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` now discovers/refreshes active BTC market context and blocks stale/non-live or expired markets before quote/preflight/wallet review. RANGE remains quote/preflight-only.
+Status: DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback. RANGE remains quote/preflight-only.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive execution policy, primitive quote/preflight contract, and frontend MVP docs; protocol docs and on-chain state remain authoritative for Predict semantics.
 ---
 
@@ -49,7 +49,7 @@ DeepVol-15 uses the primitive route as a guarded terminal:
 |---|---|
 | `/markets` | BTC MOVE remains featured first; UP and DOWN cards link to wallet-gated primitive terminals; RANGE links to quote/preflight gates. |
 | `/buy/btc-move` | Existing wallet-gated BTC MOVE receipt transaction workspace remains the enabled receipt route. |
-| `/primitives` | Defaults to UP, discovers/refreshes active BTC primitive market context, renders `Live / Stale / Expired / Unknown` status, and blocks quote/preflight/wallet review unless the selected market is live. |
+| `/primitives` | Defaults to UP, auto-discovers active BTC primitive market on page load, renders granular discovery-phase feedback (Connect wallet / Refreshing / Live / Not found / Server error / Quote failed / Stale / Expired), collapses manual override under Advanced fallback, and blocks quote/preflight/wallet review unless the selected market is live. |
 | `/primitives?type=UP` | Shows UP strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
 | `/primitives?type=DOWN` | Shows DOWN strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
 | `/primitives?type=RANGE` | Shows lower/upper strikes, quantity, range quote, range mint preflight, diagnostics, and disabled execution policy. |
@@ -90,7 +90,7 @@ Current SDK and validation work covers the terminal surface:
 
 | Capability | Status |
 |---|---|
-| Active BTC market discovery | Browser-safe active market refresh, status diagnostics, selected oracle object, suggested strike context, and manual override fallback. |
+| Active BTC market discovery | Browser-safe auto-discovery on page load, granular discovery-phase feedback, selected oracle object, suggested strike context, and manual override collapsed under Advanced fallback. Users no longer manually enter oracle IDs by default. |
 | Binary UP/DOWN quote | Browser-safe `devInspectBinaryQuote` support using selected active market context. |
 | Binary UP/DOWN mint preflight | `devInspectMintBinaryPreflight` support using a private preflight transaction helper. |
 | Binary UP/DOWN mint execution | `buildMintBinaryPrimitiveTransaction(...)` can build the wallet PTB only with an explicit real-Testnet gate flag. |

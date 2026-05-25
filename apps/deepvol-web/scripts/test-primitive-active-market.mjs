@@ -24,6 +24,34 @@ for (const expected of [
   assert.ok(hookSource.includes(expected), `missing active market hook behavior: ${expected}`);
 }
 
+for (const expected of [
+  "export type DiscoveryPhase =",
+  "\"idle\"",
+  "\"refreshing\"",
+  "\"found\"",
+  "\"not_found\"",
+  "\"server_error\"",
+  "\"quote_failed\"",
+  "\"preflight_failed\"",
+  "discoveryPhase: DiscoveryPhase;",
+  "deriveDiscoveryPhase",
+  "statusLabelForDiscovery",
+  "statusMessageForDiscovery",
+]) {
+  assert.ok(hookSource.includes(expected), `missing discovery phase hook export: ${expected}`);
+}
+
+for (const expected of [
+  "Connect a Sui Testnet wallet to discover active BTC markets.",
+  "Discovering active BTC markets on Predict server...",
+  "No active BTC Predict market found.",
+  "Could not reach the Predict server.",
+  "A BTC oracle was found, but quote validation failed.",
+  "A BTC oracle was found, but mint preflight validation failed.",
+]) {
+  assert.ok(hookSource.includes(expected), `missing discovery phase message: ${expected}`);
+}
+
 assert.match(
   hookSource,
   /const discoveredMarket = canDiscover \? discoveryQuery\.data\?\.market \?\? null : null;/,
@@ -93,7 +121,7 @@ for (const expected of [
   "const activeMarket = useActiveBtcPredictMarket();",
   "activeMarket: activeMarket.market,",
   "const displayedMarketStatus = quote.marketStatus;",
-  "const displayedMarketStatusLabel = primitiveMarketStatusLabel(displayedMarketStatus);",
+  "const displayedMarketStatusLabel = activeMarket.statusLabel;",
   "const displayedMarketStatusMessage = quote.marketStatusMessage ?? activeMarket.statusMessage;",
   "Market status:",
   "Refresh active BTC market",
@@ -108,9 +136,7 @@ for (const expected of [
   "activeMarket.manualInput.downStrike",
   "activeMarket.manualInput.lowerStrike",
   "activeMarket.manualInput.upperStrike",
-  "This BTC market is no longer live for minting. Refresh or select a new active market.",
-  "Refresh the active BTC market before trading primitives.",
-  "Manual overrides remain Unknown and must still pass quote/preflight gates before wallet execution.",
+  "activeMarket.discoveryPhase",
 ]) {
   assert.ok(routeSource.includes(expected), `missing active market UI source: ${expected}`);
 }
@@ -137,8 +163,8 @@ assert.match(
 );
 assert.match(
   routeSource,
-  /<StatusPill tone=\{activeMarketStatusTone\(displayedMarketStatus\)\}>\{displayedMarketStatusLabel\}<\/StatusPill>/,
-  "active market UI must render the quote gate effective Live/Stale/Expired/Unknown status through StatusPill",
+  /<StatusPill tone=\{activeMarketStatusTone\(displayedMarketStatus, activeMarket\.discoveryPhase\)\}>\{displayedMarketStatusLabel\}<\/StatusPill>/,
+  "active market UI must render the discovery-aware status through StatusPill with discoveryPhase",
 );
 assert.match(
   routeSource,
@@ -157,9 +183,31 @@ assert.match(
 );
 assert.match(
   routeSource,
-  /const activeMarketBlocked = displayedMarketStatus !== "live";[\s\S]*?activeMarketBlocked[\s\S]*?This BTC market is no longer live for minting/,
-  "non-live active market UI must show explicit minting blocker copy from the quote gate effective status",
+  /const activeMarketBlocked = displayedMarketStatus !== "live";/,
+  "non-live active market must be blocked based on quote gate effective status",
 );
+
+assert.ok(
+  routeSource.includes('<details className="advancedDetails">'),
+  "manual override must be wrapped in a collapsed <details> element",
+);
+assert.ok(
+  routeSource.includes("Advanced: manual market override"),
+  "collapsed manual override must have a clear summary label",
+);
+assert.ok(
+  routeSource.includes("Developer fallback only"),
+  "collapsed manual override must warn that it is a developer fallback",
+);
+
+const detailsStart = routeSource.indexOf('<details className="advancedDetails">');
+const detailsEnd = routeSource.indexOf("</details>", detailsStart);
+assert.notEqual(detailsStart, -1, "details element must exist");
+assert.notEqual(detailsEnd, -1, "details element must close");
+const detailsBlock = routeSource.slice(detailsStart, detailsEnd);
+assert.ok(detailsBlock.includes("activeMarket.applyManualOverride"), "manual override apply must be inside collapsed details");
+assert.ok(detailsBlock.includes("activeMarket.manualInput.oracleId"), "manual override oracle input must be inside collapsed details");
+assert.ok(detailsBlock.includes("activeMarket.manualInput.expiry"), "manual override expiry input must be inside collapsed details");
 assert.match(
   routeSource,
   /usePrimitivePositionReadback\(\{[\s\S]*?series: quote\.series,[\s\S]*?oracleObjectId: quote\.oracleObjectId,/,

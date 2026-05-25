@@ -1,7 +1,7 @@
 ---
 Purpose: Document DeepVol primitive active BTC market discovery, stale oracle detection, and user-facing blockers.
 Audience: Frontend developers, SDK implementers, protocol integrators, reviewers, and AI agents.
-Status: DeepVol-16-fix adds active BTC primitive market discovery, stale/non-live oracle blocking, manual market override diagnostics, and friendly assert_live_oracle error mapping; no real primitive mint is executed by this fix.
+Status: DeepVol-16-fix adds active BTC primitive market discovery, stale/non-live oracle blocking, manual market override diagnostics, and friendly assert_live_oracle error mapping. DeepVol-16-fix-2 simplifies the discovery UX: automatic discovery on page load, granular discovery-phase feedback, manual override collapsed under Advanced fallback. No real primitive mint is executed by these fixes.
 Source of truth relationship: Extends the primitive execution policy, primitive quote/preflight contract, primitives frontend docs, protocol integration notes, and binary leg integration docs; on-chain DeepBook Predict behavior remains authoritative.
 ---
 
@@ -11,7 +11,7 @@ Source of truth relationship: Extends the primitive execution policy, primitive 
 
 DeepVol-16 originally used the historical BTC oracle / expiry from prior binary and BTC MOVE validation as the primitive terminal context. A later real browser preflight showed that this market was no longer live for new primitive minting: DeepBook Predict aborted in `oracle_config::assert_live_oracle` with abort code `3`.
 
-DeepVol-16-fix changes `/primitives?type=UP|DOWN|RANGE` to fail closed unless a selected active BTC market context is available and effectively live. The page now exposes active market discovery, `Live / Stale / Expired / Unknown` status, refresh diagnostics, manual override input, stale-oracle copy, and gate propagation into quote, preflight, wallet execution, and known-key readback.
+DeepVol-16-fix changes `/primitives?type=UP|DOWN|RANGE` to fail closed unless a selected active BTC market context is available and effectively live. DeepVol-16-fix-2 simplifies the user-facing discovery experience: automatic discovery runs on page load when a Testnet wallet is connected, granular discovery-phase feedback replaces the generic Unknown label, and the manual override form is collapsed under an Advanced fallback section. Users no longer need to manually enter oracle object IDs.
 
 No UP, DOWN, RANGE, BTC MOVE buy, BTC MOVE redeem, withdraw, publish, upgrade, mainnet, or private-key path is executed by this fix.
 
@@ -91,14 +91,30 @@ If discovery cannot find a live quoteable market, the primitive terminal shows p
 
 The UI renders the effective quote-gate status, not only the cached discovery status, so an idle page rolls from `Live` to `Expired` when the selected market expiry passes.
 
+## Discovery phase feedback (DeepVol-16-fix-2)
+
+The `DiscoveryPhase` type on the UI controller provides granular user-facing feedback while keeping the core `PrimitiveMarketStatus` 4-state union unchanged for gate logic:
+
+| Phase | UI label | User-facing message |
+|---|---|---|
+| `idle` | Connect wallet | Connect a Sui Testnet wallet to discover active BTC markets. |
+| `refreshing` | Refreshing | Discovering active BTC markets on Predict server... |
+| `found` | Live | Active BTC market is live for primitive quote and mint preflight. |
+| `not_found` | Not found | No active BTC Predict market found. Testnet may not currently expose a mintable BTC market. |
+| `server_error` | Server error | Could not reach the Predict server. |
+| `quote_failed` | Quote failed | A BTC oracle was found, but quote validation failed. |
+| `preflight_failed` | Preflight failed | A BTC oracle was found, but mint preflight validation failed. |
+
+Discovery phase is a UI-only concept; it does not affect gate logic in `primitiveQuoteGate.ts`, `usePrimitiveQuote.ts`, `usePrimitivePreflight.ts`, or `usePrimitiveWalletExecution.ts`.
+
 ## Manual override fallback
 
-Manual active market override exists for controlled validation when automatic discovery is unavailable. It requires a valid Sui object ID and unsigned-integer expiry/strike fields. A valid manual override remains `Unknown` by design and cannot bypass quote, preflight, or wallet execution gates.
+Manual active market override is collapsed under an `Advanced: manual market override` section by default (DeepVol-16-fix-2). Most users should use the automatic Refresh active BTC market action. The override exists for controlled validation when automatic discovery is unavailable. It requires a valid Sui object ID and unsigned-integer expiry/strike fields. A valid manual override remains `Unknown` by design and cannot bypass quote, preflight, or wallet execution gates.
 
 Manual override copy:
 
 ```text
-Manual overrides remain Unknown and must still pass quote/preflight gates before wallet execution.
+Developer fallback only. Most users should use Refresh active BTC market. Manual overrides remain Unknown and cannot bypass quote, preflight, or wallet execution gates.
 ```
 
 Invalid override copy:

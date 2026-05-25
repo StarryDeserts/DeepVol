@@ -8,6 +8,7 @@ import { usePrimitivePositionReadback } from "../hooks/usePrimitivePositionReadb
 import { usePrimitivePreflight } from "../hooks/usePrimitivePreflight";
 import { usePrimitiveQuote } from "../hooks/usePrimitiveQuote";
 import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
+import type { DiscoveryPhase } from "../hooks/useActiveBtcPredictMarket";
 import { usePrimitiveWalletExecution } from "../hooks/usePrimitiveWalletExecution";
 import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
 import type { PrimitiveKind } from "../hooks/primitiveQuoteGate";
@@ -72,7 +73,7 @@ export function PrimitiveQuotePage() {
 
   const primitiveCopy = useMemo(() => getPrimitiveCopy(primitiveKind), [primitiveKind]);
   const displayedMarketStatus = quote.marketStatus;
-  const displayedMarketStatusLabel = primitiveMarketStatusLabel(displayedMarketStatus);
+  const displayedMarketStatusLabel = activeMarket.statusLabel;
   const displayedMarketStatusMessage = quote.marketStatusMessage ?? activeMarket.statusMessage;
   const activeMarketBlocked = displayedMarketStatus !== "live";
 
@@ -109,7 +110,7 @@ export function PrimitiveQuotePage() {
               <h2>Market status: {displayedMarketStatusLabel}</h2>
             </div>
             <div className="cardActions">
-              <StatusPill tone={activeMarketStatusTone(displayedMarketStatus)}>{displayedMarketStatusLabel}</StatusPill>
+              <StatusPill tone={activeMarketStatusTone(displayedMarketStatus, activeMarket.discoveryPhase)}>{displayedMarketStatusLabel}</StatusPill>
               <button
                 className="secondaryButton"
                 type="button"
@@ -121,9 +122,9 @@ export function PrimitiveQuotePage() {
             </div>
           </div>
 
-          <StateCallout tone={!activeMarketBlocked ? "success" : "warning"} title={displayedMarketStatusMessage}>
+          <StateCallout tone={!activeMarketBlocked ? "success" : activeMarketStatusCalloutTone(activeMarket.discoveryPhase)} title={displayedMarketStatusMessage}>
             {activeMarketBlocked
-              ? "This BTC market is no longer live for minting. Refresh or select a new active market. Refresh the active BTC market before trading primitives."
+              ? displayedMarketStatusMessage
               : "Quote and preflight gates can use this live BTC market."}
           </StateCallout>
 
@@ -158,66 +159,71 @@ export function PrimitiveQuotePage() {
             </StateCallout>
           )}
 
-          <StateCallout tone="warning" title="Manual active market override">
-            Manual overrides remain Unknown and must still pass quote/preflight gates before wallet execution.
-          </StateCallout>
+          <details className="advancedDetails">
+            <summary>Advanced: manual market override</summary>
+            <div className="advancedContent">
+              <StateCallout tone="warning" title="Developer fallback only">
+                Most users should use Refresh active BTC market. Manual overrides remain Unknown and cannot bypass quote, preflight, or wallet execution gates.
+              </StateCallout>
 
-          <div className="primitiveFormGrid">
-            <label>
-              <span className="fieldLabel">Oracle object</span>
-              <input
-                value={activeMarket.manualInput.oracleId}
-                placeholder="0x..."
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, oracleId: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span className="fieldLabel">Expiry</span>
-              <input
-                value={activeMarket.manualInput.expiry}
-                inputMode="numeric"
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, expiry: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span className="fieldLabel">UP strike</span>
-              <input
-                value={activeMarket.manualInput.upStrike}
-                inputMode="numeric"
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, upStrike: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span className="fieldLabel">DOWN strike</span>
-              <input
-                value={activeMarket.manualInput.downStrike}
-                inputMode="numeric"
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, downStrike: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span className="fieldLabel">Lower strike</span>
-              <input
-                value={activeMarket.manualInput.lowerStrike}
-                inputMode="numeric"
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, lowerStrike: event.target.value }))}
-              />
-            </label>
-            <label>
-              <span className="fieldLabel">Upper strike</span>
-              <input
-                value={activeMarket.manualInput.upperStrike}
-                inputMode="numeric"
-                onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, upperStrike: event.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="actionRow">
-            <button className="secondaryButton" type="button" onClick={activeMarket.applyManualOverride}>
-              Apply manual market
-            </button>
-            <small className="fieldHelp">Manual market status stays Unknown by design; it cannot bypass quote, preflight, or wallet execution gates.</small>
-          </div>
+              <div className="primitiveFormGrid">
+                <label>
+                  <span className="fieldLabel">Oracle object</span>
+                  <input
+                    value={activeMarket.manualInput.oracleId}
+                    placeholder="0x..."
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, oracleId: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span className="fieldLabel">Expiry</span>
+                  <input
+                    value={activeMarket.manualInput.expiry}
+                    inputMode="numeric"
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, expiry: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span className="fieldLabel">UP strike</span>
+                  <input
+                    value={activeMarket.manualInput.upStrike}
+                    inputMode="numeric"
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, upStrike: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span className="fieldLabel">DOWN strike</span>
+                  <input
+                    value={activeMarket.manualInput.downStrike}
+                    inputMode="numeric"
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, downStrike: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span className="fieldLabel">Lower strike</span>
+                  <input
+                    value={activeMarket.manualInput.lowerStrike}
+                    inputMode="numeric"
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, lowerStrike: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span className="fieldLabel">Upper strike</span>
+                  <input
+                    value={activeMarket.manualInput.upperStrike}
+                    inputMode="numeric"
+                    onChange={(event) => activeMarket.setManualInput((input) => ({ ...input, upperStrike: event.target.value }))}
+                  />
+                </label>
+              </div>
+              <div className="actionRow">
+                <button className="secondaryButton" type="button" onClick={activeMarket.applyManualOverride}>
+                  Apply manual market
+                </button>
+                <small className="fieldHelp">Manual market status stays Unknown by design; it cannot bypass quote, preflight, or wallet execution gates.</small>
+              </div>
+            </div>
+          </details>
         </section>
 
         <section className="card tradeSetupCard">
@@ -363,32 +369,32 @@ function parsePrimitiveKind(search: string): PrimitiveKind {
   return value === "DOWN" || value === "RANGE" ? value : "UP";
 }
 
-function activeMarketStatusTone(status: PrimitiveMarketStatus) {
+function activeMarketStatusTone(status: PrimitiveMarketStatus, discoveryPhase: DiscoveryPhase) {
   if (status === "live") {
-    return "success";
+    return "success" as const;
   }
 
   if (status === "stale" || status === "expired") {
-    return "warning";
+    return "warning" as const;
   }
 
-  return "neutral";
+  if (discoveryPhase === "refreshing") {
+    return "info" as const;
+  }
+
+  if (discoveryPhase === "server_error" || discoveryPhase === "quote_failed" || discoveryPhase === "preflight_failed") {
+    return "danger" as const;
+  }
+
+  return "neutral" as const;
 }
 
-function primitiveMarketStatusLabel(status: PrimitiveMarketStatus) {
-  if (status === "live") {
-    return "Live";
+function activeMarketStatusCalloutTone(discoveryPhase: DiscoveryPhase) {
+  if (discoveryPhase === "server_error" || discoveryPhase === "quote_failed" || discoveryPhase === "preflight_failed") {
+    return "danger" as const;
   }
 
-  if (status === "stale") {
-    return "Stale";
-  }
-
-  if (status === "expired") {
-    return "Expired";
-  }
-
-  return "Unknown";
+  return "warning" as const;
 }
 
 function getPrimitiveCopy(kind: PrimitiveKind) {
