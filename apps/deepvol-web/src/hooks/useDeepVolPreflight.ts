@@ -3,13 +3,18 @@ import { useSuiClient } from "@mysten/dapp-kit";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
 import { devInspectBuyMoveReceiptPreflight } from "@rangepilot/sdk/deepVol";
+import { formatBtcMoveMintabilityError } from "@rangepilot/sdk/deepbookPredict";
 import type { DeepVolBuyReceiptPreflightResult } from "@rangepilot/types/deepVol";
 import type { DeepVolPreflightState, DeepVolQuoteState } from "./useDeepVolQuote";
+import { recordMoveSeriesMintabilityFailure } from "../lib/moveSeriesMintability";
 import { useDeepVolConfig } from "./useDeepVolConfig";
 import { useSuiWallet } from "./useSuiWallet";
 
 type PreflightStatus = "idle" | "ready" | "running" | "blocked" | "passed";
 type KeyedDeepVolBuyReceiptPreflightResult = DeepVolBuyReceiptPreflightResult & { dependencyKey: string | null };
+
+const BTC_MOVE_BUY_PREFLIGHT_NOT_MINTABLE =
+  "Selected BTC MOVE range is not mintable for the current market. Create or select a wider BTC MOVE series before buying.";
 
 type UseDeepVolPreflightParams = {
   quote: DeepVolQuoteState;
@@ -168,11 +173,28 @@ export function useDeepVolPreflight({
 
       const resultWithKey = { ...result, dependencyKey: runDependencyKey };
       const resultBlockers = result.passed ? [] : [result.devInspectError, result.dryRunError].filter(isString);
+      const mintabilityBlocker = resultBlockers
+        .map((entry) => formatBtcMoveMintabilityError(entry, "buy-preflight"))
+        .find(isString);
+
+      if (mintabilityBlocker && quote.series) {
+        recordMoveSeriesMintabilityFailure({
+          seriesId: quote.series.seriesId,
+          oracleId: quote.series.oracleId,
+          expiry: quote.series.expiry,
+          lowerStrike: quote.series.lowerStrike,
+          upperStrike: quote.series.upperStrike,
+          quantity: quote.quantity,
+          predictManagerId,
+        }, mintabilityBlocker, resultBlockers.join("\n"));
+      }
 
       setRunState({
         status: result.passed ? "passed" : "blocked",
         lastRunAtMs: Date.now(),
-        blockers: resultBlockers.length > 0 ? resultBlockers : ["buy_move_receipt<DUSDC> browser preflight did not pass."],
+        blockers: mintabilityBlocker
+          ? [mintabilityBlocker || BTC_MOVE_BUY_PREFLIGHT_NOT_MINTABLE]
+          : resultBlockers.length > 0 ? resultBlockers : ["buy_move_receipt<DUSDC> browser preflight did not pass."],
         result: resultWithKey,
       });
     } catch (error) {
@@ -180,10 +202,24 @@ export function useDeepVolPreflight({
         return;
       }
 
+      const mintabilityBlocker = formatBtcMoveMintabilityError(error, "buy-preflight");
+
+      if (mintabilityBlocker && quote.series) {
+        recordMoveSeriesMintabilityFailure({
+          seriesId: quote.series.seriesId,
+          oracleId: quote.series.oracleId,
+          expiry: quote.series.expiry,
+          lowerStrike: quote.series.lowerStrike,
+          upperStrike: quote.series.upperStrike,
+          quantity: quote.quantity,
+          predictManagerId,
+        }, mintabilityBlocker, error instanceof Error ? error.message : String(error));
+      }
+
       setRunState({
         status: "blocked",
         lastRunAtMs: Date.now(),
-        blockers: [error instanceof Error ? error.message : String(error)],
+        blockers: [mintabilityBlocker ?? (error instanceof Error ? error.message : String(error))],
         result: null,
       });
     }

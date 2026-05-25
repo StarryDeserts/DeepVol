@@ -43,6 +43,38 @@ export type InferAskBoundSideParams = {
 
 const FLOAT_SCALING = 1_000_000_000n;
 
+export type BtcMoveMintabilityErrorContext = "range-search" | "buy-preflight";
+
+export const BTC_MOVE_RANGE_NOT_MINTABLE_MESSAGE =
+  "Selected BTC MOVE range is not mintable for the current market. Try a wider range or refresh suggested strikes.";
+
+export const BTC_MOVE_BUY_NOT_MINTABLE_MESSAGE =
+  "Selected BTC MOVE range is not mintable for the current market. Create or select a wider BTC MOVE series before buying.";
+
+export function formatBtcMoveMintabilityError(
+  errorOrAbort: unknown,
+  context: BtcMoveMintabilityErrorContext = "range-search",
+): string | null {
+  const abort = isMintAbortClassification(errorOrAbort)
+    ? errorOrAbort
+    : classifyDeepBookPredictAbort(errorOrAbort);
+
+  if (!isAssertMintableAskAbort(abort)) {
+    return null;
+  }
+
+  return context === "buy-preflight"
+    ? BTC_MOVE_BUY_NOT_MINTABLE_MESSAGE
+    : BTC_MOVE_RANGE_NOT_MINTABLE_MESSAGE;
+}
+
+export function isAssertMintableAskAbort(abort: Pick<MintAbortClassification, "module" | "function" | "code" | "knownReason">): boolean {
+  return abort.knownReason === "EAskPriceOutOfBounds" &&
+    abort.module === "predict" &&
+    abort.code === "7" &&
+    (abort.function === "assert_mintable_ask" || abort.function === null);
+}
+
 export const DEEPBOOK_PREDICT_ABORT_CONSTANTS: Record<string, Record<string, AbortMetadata>> = {
   i64: {
     "0": {
@@ -410,6 +442,12 @@ export function isNonLiveOracleAbort(error: unknown): boolean {
 }
 
 export function translateDeepBookPredictError(error: unknown): string {
+  const btcMoveMintabilityMessage = formatBtcMoveMintabilityError(error);
+
+  if (btcMoveMintabilityMessage) {
+    return btcMoveMintabilityMessage;
+  }
+
   if (isNonLiveOracleAbort(error)) {
     return "This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.";
   }
@@ -448,6 +486,14 @@ export function translateDeepBookPredictError(error: unknown): string {
   }
 
   return message || "DeepBook Predict operation failed.";
+}
+
+function isMintAbortClassification(value: unknown): value is MintAbortClassification {
+  return isRecord(value) &&
+    (typeof value.knownReason === "string") &&
+    (typeof value.module === "string" || value.module === null) &&
+    (typeof value.function === "string" || value.function === null) &&
+    (typeof value.code === "string" || value.code === null);
 }
 
 function inferKnownReason(
@@ -549,6 +595,10 @@ function parseNonNegativeBigInt(value: string | bigint | number | null | undefin
 function parsePositiveBigInt(value: string | bigint | number | null | undefined): bigint | null {
   const parsed = parseBigInt(value);
   return parsed !== null && parsed > 0n ? parsed : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseBigInt(value: string | bigint | number | null | undefined): bigint | null {

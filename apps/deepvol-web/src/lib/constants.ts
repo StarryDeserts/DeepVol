@@ -21,4 +21,5 @@ export const DEEPVOL_STORAGE_KEYS = {
   recentTransactions: "deepvol:recent-transactions",
   redeemAttempts: "deepvol:controlled-redeem-attempts",
   createdSeries: "deepvol:created-series",
+  moveSeriesMintability: "deepvol:move-series-mintability",
 } as const;

@@ -29,11 +29,14 @@ The SDK builder `buildCreateVolSeriesTransaction` in `packages/sdk/src/deepVol/t
 ## Lifecycle
 
 1. **Active BTC market discovered** — `useActiveBtcPredictMarket` finds a live oracle with future expiry.
-2. **VolSeries checked** — `useActiveBtcMoveSeries` compares the selected series's oracle/expiry against the active market.
-3. **If matching** — status is `Ready`, BTC MOVE quote/preflight/buy are enabled.
-4. **If stale** — oracle/expiry mismatch, deactivated, or invalid strike ordering. Buy is gated.
-5. **If missing** — no series selected. User creates one via the "Create BTC MOVE Series" CTA.
-6. **After creation** — new series ID is stored in localStorage (`deepvol:created-series`) and auto-selected.
+2. **Mintable range found** — `useBtcMoveMintableRange` searches wider tick-aligned lower/upper candidates, quotes UP at the upper strike and DOWN at the lower strike, then devInspects both binary mints.
+3. **VolSeries checked** — `useActiveBtcMoveSeries` compares the selected series's oracle/expiry against the active market and requires recent mintability validation.
+4. **If ready** — status is `Ready`, BTC MOVE quote/preflight/buy are enabled.
+5. **If validation required** — oracle/expiry/strikes match, but no recent mintability pass exists. Quote/preflight/buy stay gated.
+6. **If non-mintable** — the dependency key has a failed mintability record, including `assert_mintable_ask::7`. Quote/preflight/buy stay gated.
+7. **If stale** — oracle/expiry mismatch, deactivated, expired, or invalid strike ordering. Buy is gated.
+8. **If missing** — no series selected. User can regenerate a mintable range, then create one via the "Create BTC MOVE Series" CTA.
+9. **After creation** — new series ID is stored in localStorage (`deepvol:created-series`), attached to the validation record, and auto-selected.
 
 ## DeepVol-18 no-fallback buy gate
 
@@ -52,8 +55,10 @@ The historical configured VolSeries remains a validation/reference value and may
 
 | Status | Meaning |
 |--------|---------|
-| `ready` | Series matches active market, is active, has valid strikes |
-| `stale` | Oracle/expiry mismatch, deactivated, or lower >= upper |
+| `ready` | Series matches active market, is active, unexpired, has valid strikes, and has recent passed mintability validation |
+| `validationRequired` | Series structurally matches the active market but has no recent mintability validation |
+| `nonMintable` | The current validation key has a failed mintability record, including `assert_mintable_ask::7` |
+| `stale` | Oracle/expiry mismatch, deactivated, expired, or lower >= upper |
 | `missing` | No series selected or could not load from chain |
 | `loading` | Reading VolSeries from Sui Testnet |
 | `idle` | No active BTC market yet |
@@ -67,12 +72,13 @@ Old VolSeries remain valid for historical receipts. Active market refresh does *
 
 ## Suggested Range
 
-Active market discovery suggests lower/upper strikes from the quote scan. If `lower >= upper` (can happen when the same candidate is found for both directions), the SDK normalizes by offsetting one tick in each direction using the oracle's `tick_size`.
+Active market discovery can suggest initial lower/upper strikes, but those suggestions are not sufficient to authorize `create_series`. DeepVol-18-fix-2 adds a mintable candidate search that uses `forward || spot`, snaps to `tick_size`, tries wider multipliers `[10, 20, 50, 100, 200, 500]`, respects `minStrike`, quotes UP at `upper`, quotes DOWN at `lower`, and devInspects both binary mints before selecting a range.
 
 ## Frontend Hooks
 
-- `useActiveBtcMoveSeries` — series detection and status derivation
-- `useCreateVolSeries` — wallet execution for `create_series`
+- `useBtcMoveMintableRange` — browser-safe mintable range search and dependency-keyed validation recording
+- `useActiveBtcMoveSeries` — series detection and status derivation, including `validationRequired` and `nonMintable`
+- `useCreateVolSeries` — wallet execution for `create_series`, gated by matching mintability validation
 - `useDeepVolQuote` — accepts a selected active `seriesId` parameter and blocks when it is missing
 
 ## localStorage
@@ -81,3 +87,8 @@ Key: `deepvol:created-series`
 Value: `{ "seriesId": "0x..." }`
 
 Stored when a series is created via wallet or manually selected. Loaded on page mount.
+
+Key: `deepvol:move-series-mintability`
+Value: dependency-keyed validation record with `passedAtMs` or `failedAtMs`, optional `seriesId`, friendly message, and raw advanced detail.
+
+Mintability records are timestamped and scoped to oracle, expiry, lower, upper, quantity, PredictManager, quote asset, and package/config IDs. They are not unconditional readiness flags.

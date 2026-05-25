@@ -9,6 +9,13 @@ import { DEEPVOL_STORAGE_KEYS, TESTNET_CHAIN } from "../lib/constants";
 
 export type CreateVolSeriesStatus = "idle" | "building" | "signing" | "confirmed" | "error";
 
+export type CreateVolSeriesMintabilityValidation = {
+  status: "passed" | "idle" | "blocked" | "running" | "failed";
+  lowerStrike: string | null;
+  upperStrike: string | null;
+  recordCreatedSeries: (seriesId: string) => void;
+};
+
 export type CreateVolSeriesController = {
   status: CreateVolSeriesStatus;
   canCreate: boolean;
@@ -27,6 +34,7 @@ export type CreateVolSeriesController = {
 
 export function useCreateVolSeries(
   activeMarket: PrimitiveActiveMarketContext | null,
+  mintabilityValidation: CreateVolSeriesMintabilityValidation | null = null,
 ): CreateVolSeriesController {
   const wallet = useSuiWallet();
   const client = useSuiClient();
@@ -56,10 +64,11 @@ export function useCreateVolSeries(
     if (!activeMarket) result.push("Discover an active BTC market first.");
     if (activeMarket && activeMarket.status !== "live") result.push("Active BTC market must be live.");
     if (!DEEPVOL_TESTNET.packageId) result.push("DeepVol package ID is not configured.");
+    if (mintabilityValidation?.status !== "passed") result.push("Validate a mintable BTC MOVE range before creating a VolSeries.");
     if (status === "building" || status === "signing") result.push("Transaction in progress.");
 
     return result;
-  }, [wallet.isConnected, wallet.isTestnet, activeMarket, status]);
+  }, [wallet.isConnected, wallet.isTestnet, activeMarket, mintabilityValidation?.status, status]);
 
   const canCreate = blockers.length === 0;
 
@@ -77,6 +86,16 @@ export function useCreateVolSeries(
 
       if (lower >= upper) {
         setError("Lower strike must be less than upper strike.");
+        setStatus("error");
+        return;
+      }
+
+      if (
+        mintabilityValidation?.status !== "passed" ||
+        mintabilityValidation.lowerStrike !== params.lowerStrike ||
+        mintabilityValidation.upperStrike !== params.upperStrike
+      ) {
+        setError("Validate a mintable BTC MOVE range before creating a VolSeries.");
         setStatus("error");
         return;
       }
@@ -119,6 +138,8 @@ export function useCreateVolSeries(
               } catch {
                 // localStorage may be unavailable
               }
+
+              mintabilityValidation.recordCreatedSeries(newSeriesId);
             }
 
             setStatus("confirmed");
@@ -130,7 +151,7 @@ export function useCreateVolSeries(
         },
       );
     },
-    [canCreate, activeMarket, signAndExecuteTransaction],
+    [canCreate, activeMarket, mintabilityValidation, signAndExecuteTransaction],
   );
 
   const explorerUrl = digest ? buildSuiExplorerTransactionUrl(digest, "testnet") : null;

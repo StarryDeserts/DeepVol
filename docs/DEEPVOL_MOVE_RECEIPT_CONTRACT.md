@@ -68,7 +68,7 @@ Entrypoints:
 | `series::create_series` | Creates and shares a validated `VolSeries`, then emits `VolSeriesCreated`. **Permissionless** — no AdminCap required. Any wallet can create a series. |
 | `series::deactivate_series` | Creator-only state update that sets `active = false` and emits `VolSeriesDeactivated`. |
 
-Note: `create_series` is `public entry` and permissionless. A fresh VolSeries is required for new BTC MOVE buys when the active BTC market oracle/expiry changes. See `docs/DEEPVOL_ACTIVE_MOVE_SERIES.md` for the active series lifecycle.
+Note: `create_series` is `public entry` and permissionless. A fresh VolSeries is required for new BTC MOVE buys when the active BTC market oracle/expiry changes, but successful creation is not proof that the derived UP and DOWN Predict legs are mintable. See `docs/DEEPVOL_ACTIVE_MOVE_SERIES.md` for the active series lifecycle and `docs/DEEPVOL_MINTABLE_MOVE_RANGE.md` for the mintability gate.
 
 ## ProtocolVault
 
@@ -118,13 +118,14 @@ The entrypoint enforces this sequence:
 5. derive UP key with `market_key::up(series.oracle_id, series.expiry, series.upper_strike)`;
 6. derive DOWN key with `market_key::down(series.oracle_id, series.expiry, series.lower_strike)`;
 7. quote both legs through `predict::get_trade_amounts` immediately before mint and require the quote is within `max_premium_paid`;
-8. require the separate `fee_coin<Quote>` covers the Create Fee implied by the quote;
-9. read the manager's quote-asset balance before minting;
-10. call `predict::mint<Quote>` for the UP leg;
-11. call `predict::mint<Quote>` for the DOWN leg;
-12. derive `premium_paid` from the manager balance delta and require the actual delta is within `max_premium_paid`;
-13. calculate Create Fee from the actual `premium_paid`, deposit it into `ProtocolVault<Quote>`, and return any fee coin remainder;
-14. create `MoveReceipt`, emit `MoveReceiptCreated`, and transfer it to the sender.
+8. fail atomically if either derived Predict leg is not mintable, including `predict::assert_mintable_ask::7` / `EAskPriceOutOfBounds`;
+9. require the separate `fee_coin<Quote>` covers the Create Fee implied by the quote;
+10. read the manager's quote-asset balance before minting;
+11. call `predict::mint<Quote>` for the UP leg;
+12. call `predict::mint<Quote>` for the DOWN leg;
+13. derive `premium_paid` from the manager balance delta and require the actual delta is within `max_premium_paid`;
+14. calculate Create Fee from the actual `premium_paid`, deposit it into `ProtocolVault<Quote>`, and return any fee coin remainder;
+15. create `MoveReceipt`, emit `MoveReceiptCreated`, and transfer it to the sender.
 
 If either Predict mint or the fee deposit aborts, Sui transaction atomicity prevents the receipt and fee side effects from persisting.
 

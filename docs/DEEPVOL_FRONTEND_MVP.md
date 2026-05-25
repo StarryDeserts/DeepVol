@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-17: BuyMovePage detects stale/missing VolSeries against active BTC market, provides Create BTC MOVE Series CTA with wallet execution, and gates buy behind fresh series. create_series is permissionless. See DEEPVOL_ACTIVE_MOVE_SERIES.md.
+Status: Updated for DeepVol-18-fix-2: BuyMovePage detects stale/missing/validation-required/non-mintable VolSeries, provides Regenerate mintable range, and gates Create BTC MOVE Series plus buy behind mintability validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md and DEEPVOL_MINTABLE_MOVE_RANGE.md.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 
@@ -104,7 +104,8 @@ Connect wallet
 → check wallet DUSDC coins
 → deposit DUSDC to PredictManager if needed
 → discover active BTC market
-→ select or create a matching active BTC MOVE VolSeries
+→ regenerate and validate a mintable BTC MOVE range
+→ create or select a matching active BTC MOVE VolSeries with recent mintability validation
 → refresh UP quote
 → refresh DOWN quote
 → compute expected premium
@@ -116,11 +117,11 @@ Connect wallet
 → persist successful digest and receipt ID locally
 ```
 
-DeepVol-8 exposes `Create PredictManager`, `Deposit DUSDC to PredictManager`, `Refresh quote`, and `Run preflight` as visible browser actions. `Create PredictManager`, `Deposit DUSDC`, and permissionless `Create BTC MOVE Series` are real Sui Testnet wallet actions guarded by wallet/Testnet checks. Quote refresh uses browser-safe devInspect helpers only after the selected VolSeries is confirmed ready for the active BTC market.
+DeepVol-8 exposes `Create PredictManager`, `Deposit DUSDC to PredictManager`, `Refresh quote`, and `Run preflight` as visible browser actions. `Create PredictManager`, `Deposit DUSDC`, and permissionless `Create BTC MOVE Series` are real Sui Testnet wallet actions guarded by wallet/Testnet checks. DeepVol-18-fix-2 keeps `Create BTC MOVE Series` disabled until `Regenerate mintable range` finds a lower/upper pair whose UP and DOWN legs pass quote and mint devInspect validation. Quote refresh uses browser-safe devInspect helpers only after the selected VolSeries is confirmed ready for the active BTC market.
 
-The app no longer falls back to the historical configured VolSeries for new buys. Historical DeepVol-5 quote values and configured IDs are validation evidence only, not live offers. Fresh active market, selected VolSeries, quote, premium, fee, and fee coin values are runtime state.
+The app no longer falls back to the historical configured VolSeries for new buys. Historical DeepVol-5 quote values and configured IDs are validation evidence only, not live offers. Fresh active market, mintable range validation, selected VolSeries, quote, premium, fee, and fee coin values are runtime state.
 
-The current frontend keeps final `buy_move_receipt<DUSDC>` submission blocked until receipt preflight succeeds in the browser. DeepVol-9 replaces the old placeholder blocker with real `devInspect`-based receipt preflight and PredictManager DUSDC balance readback. The main gate checks that the manager balance can cover the expected premium and that the wallet has a sender-owned `Coin<DUSDC>` covering the Create Fee; these are separate balances. Direct two-leg binary mint preflight is not a main blocker because the DeepVol receipt entrypoint internally mints both legs.
+The current frontend keeps final `buy_move_receipt<DUSDC>` submission blocked until receipt preflight succeeds in the browser. DeepVol-9 replaces the old placeholder blocker with real `devInspect`-based receipt preflight and PredictManager DUSDC balance readback. The main gate checks that the manager balance can cover the expected premium and that the wallet has a sender-owned `Coin<DUSDC>` covering the Create Fee; these are separate balances. DeepVol-18-fix-2 also requires a recent mintability validation before a VolSeries can be `ready`; if receipt preflight still hits `predict::assert_mintable_ask::7`, the UI shows friendly non-mintable BTC MOVE copy instead of raw VM output as the primary message.
 
 DeepVol-10 confirms this flow manually in the browser: `Run preflight` passed, browser wallet `buy_move_receipt<DUSDC>` execution succeeded, receipt `0xbbc2d18447502830a96602b8f9611e834c509d6fa00abdf2061ecd1addaa35eb` was created, and the portfolio displayed it. See [DEEPVOL_BROWSER_BUY_VALIDATION.md](./DEEPVOL_BROWSER_BUY_VALIDATION.md).
 
@@ -208,9 +209,11 @@ npm --workspace apps/deepvol-web run test:primitive-gates
 npm --workspace apps/deepvol-web run test:primitive-quote-gates
 npm --workspace apps/deepvol-web run test:primitive-execution-gates
 npm --workspace apps/deepvol-web run test:primitive-active-market
+npm --workspace apps/deepvol-web run test:move-series-gates
+npm --workspace apps/deepvol-web run test:move-series-mintability
 ```
 
-Manual browser checks should cover `/markets`, `/primitives?type=UP`, `/primitives?type=DOWN`, `/primitives?type=RANGE`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, explicit quote refresh, real receipt preflight pass/fail diagnostics, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating before preflight, enabled wallet review only after receipt preflight passes, UP/DOWN primitive execution gates, RANGE disabled policy, primitive local record copy, visible focus states, responsive layout, no wallet prompt from `/primitives` without explicit click, and absence of historical validation quote values as live quotes.
+Manual browser checks should cover `/markets`, `/primitives?type=UP`, `/primitives?type=DOWN`, `/primitives?type=RANGE`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, Regenerate mintable range visibility, Create BTC MOVE Series disabled before mintability validation, validation-required/non-mintable series copy, explicit quote refresh, real receipt preflight pass/fail diagnostics, friendly `assert_mintable_ask::7` copy, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating before preflight, enabled wallet review only after receipt preflight passes, UP/DOWN primitive execution gates, RANGE disabled policy, primitive local record copy, visible focus states, responsive layout, no wallet prompt from `/primitives` without explicit click, no wallet prompt from BTC MOVE until every gate passes, and absence of historical validation quote values as live quotes.
 
 DeepVol-11 browser guided redeem preflight verification should cover: portfolio receipt display, UP/DOWN position readback, redeem payout preview, explicit preflight action, local status labeling, and continued no-mainnet/no-withdraw/no-automatic-execution safety checks.
 

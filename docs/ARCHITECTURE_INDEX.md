@@ -1,13 +1,13 @@
 ---
 Purpose: Navigation index for RangePilot and DeepVol architecture documentation.
 Audience: Developers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol BTC MOVE, DeepVol-16-fix active BTC primitive market discovery, stale-oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE-disabled policy.
+Status: Updated for DeepVol BTC MOVE, DeepVol-18-fix-2 mintable BTC MOVE range validation, active BTC primitive market discovery, wallet-gated UP/DOWN primitive execution, and RANGE-disabled policy.
 Source of truth relationship: Indexes local source-of-truth documents, official-derived protocol references, generated companion docs, and pivot ADRs; does not replace source docs.
 ---
 
 # Architecture Index
 
-DeepVol BTC MOVE is the flagship structured product direction. DeepVol is a Predict-native primitive trading terminal and structured product layer on Sui: UP and DOWN can be wallet-gated raw primitives, RANGE remains quote/preflight-only until dedicated validation, and BTC MOVE Receipt is the primary composed product so users can trade movement, not direction. DeepVol-16-fix adds active BTC primitive market discovery and stale/non-live oracle blockers after a wallet-enabled preflight exposed `oracle_config::assert_live_oracle` abort code `3` on the historical validation oracle.
+DeepVol BTC MOVE is the flagship structured product direction. DeepVol is a Predict-native primitive trading terminal and structured product layer on Sui: UP and DOWN can be wallet-gated raw primitives, RANGE remains quote/preflight-only until dedicated validation, and BTC MOVE Receipt is the primary composed product so users can trade movement, not direction. DeepVol-18-fix-2 adds mintable BTC MOVE range validation before `create_series`, because permissionless VolSeries creation does not prove the UP and DOWN Predict legs can mint. DeepVol-16-fix adds active BTC primitive market discovery and stale/non-live oracle blockers after a wallet-enabled preflight exposed `oracle_config::assert_live_oracle` abort code `3` on the historical validation oracle.
 
 RangePilot's guided range trading and Route B creator-follow wrapper work remains preserved as validated prior infrastructure. The creator-follow strategy model is no longer the primary product direction because public on-chain strategy parameters can be copied and used to bypass a high follow fee.
 
@@ -42,6 +42,7 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 | [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) | Records DeepVol-16 browser smoke, source/test verification, stale/non-live oracle blocker, missing-wallet-extension blocker, active-market fix pointer, and zero-count attestation for controlled UP/DOWN primitive execution validation | Frontend / protocol / validation |
 | [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) | Documents active BTC primitive market discovery, stale oracle diagnostics, friendly error copy, manual override fallback, and no-real-mint boundaries | Frontend / SDK / protocol |
 | [DEEPVOL_ACTIVE_MOVE_SERIES.md](./DEEPVOL_ACTIVE_MOVE_SERIES.md) | Documents active BTC MOVE VolSeries lifecycle, permissionless creation, active market binding, MoveSeriesStatus states, and old receipt preservation | Frontend / protocol / SDK |
+| [DEEPVOL_MINTABLE_MOVE_RANGE.md](./DEEPVOL_MINTABLE_MOVE_RANGE.md) | Documents BTC MOVE mintable range candidate search, UP/DOWN leg validation, `assert_mintable_ask::7`, Create Series gating, and non-mintable series handling | Frontend / SDK / protocol |
 | [DEEPVOL_PROTOCOL_ARCHITECTURE.md](./DEEPVOL_PROTOCOL_ARCHITECTURE.md) | Defines VolSeries, MoveReceipt, ProtocolVault, PredictManager, transaction/readback/settlement paths | Protocol / architecture |
 | [DEEPVOL_DATA_MODEL.md](./DEEPVOL_DATA_MODEL.md) | Proposes VolSeries, MoveReceipt, and receipt lifecycle event fields | Move / SDK / product |
 | [DEEPVOL_BINARY_LEG_INTEGRATION.md](./DEEPVOL_BINARY_LEG_INTEGRATION.md) | Records source-confirmed binary entrypoints, MarketKey construction, events, and validation blockers | Protocol / SDK / PTB |
@@ -189,8 +190,8 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 |---|---|
 | DeepVol BTC MOVE product work | DeepVol product direction, primitives and receipts, MVP scope, frontend MVP, business model, ADR-0003 |
 | DeepVol Move/data model work | DeepVol protocol architecture, data model, MoveReceipt contract, contract build validation, Testnet publish result, buy receipt validation, binary leg integration, official contract info, entrypoint bindings plan |
-| DeepVol binary quote/mint/redeem validation | Binary leg integration, buy receipt validation, redeem preflight validation, official contract info, protocol integration notes, entrypoint bindings plan, PredictManager flow, range quote units and decoding |
-| DeepVol SDK transaction builders | Binary leg integration, buy receipt validation, official contract info, entrypoint bindings plan, protocol integration notes, Sui transaction-building docs/skills |
+| DeepVol binary quote/mint/redeem validation | Binary leg integration, mintable MOVE range, buy receipt validation, redeem preflight validation, official contract info, protocol integration notes, entrypoint bindings plan, PredictManager flow, range quote units and decoding |
+| DeepVol SDK transaction builders | Binary leg integration, mintable MOVE range, buy receipt validation, official contract info, entrypoint bindings plan, protocol integration notes, Sui transaction-building docs/skills |
 | DeepVol portfolio/settlement UX | DeepVol frontend MVP, browser buy validation, browser redeem validation, redeem and settlement flow, redeem preflight validation, DeepVol protocol architecture, data model, binary leg integration, PredictManager validation, protocol integration notes |
 | DeepVol Predict primitives frontend | DeepVol product direction, primitives and receipts, primitive execution policy, Predict primitives frontend, primitive quote/preflight, primitive active market discovery, MVP scope, frontend MVP, protocol integration notes, entrypoint bindings plan |
 | Prior guided range UI maintenance | Guided range trading MVP, range mint validation, portfolio readback validation, range redeem validation, browser wallet fixes |

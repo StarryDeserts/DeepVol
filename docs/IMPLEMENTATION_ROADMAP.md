@@ -1,7 +1,7 @@
 ---
 Purpose: Define the phased implementation roadmap for DeepVol BTC MOVE while preserving RangePilot validation history.
 Audience: Product engineers, protocol integrators, frontend developers, and project planners.
-Status: Updated for DeepVol-18: BTC MOVE buy no longer falls back to the historical configured VolSeries when the active series is missing or stale; quote/preflight/wallet review are gated on a ready active VolSeries.
+Status: Updated for DeepVol-18-fix-2: BTC MOVE buy no longer falls back to historical configured VolSeries, and Create BTC MOVE Series plus quote/preflight/wallet review are gated on mintable range validation.
 Source of truth relationship: Derived from DeepVol foundation docs, local protocol docs, and official-derived Testnet integration references; implementation details remain subject to confirmation.
 ---
 
@@ -75,6 +75,7 @@ The prior creator-follow strategy model is not the primary product direction bec
 | Risks and fallback | Risk: users misunderstand receipts as tradable claims or assume the reference artifact is a live wallet position. Fallback: UI copy must state non-custodial receipt and local/indexer limitations clearly. |
 
 - DeepVol-18 fixes the active-series gate: `/buy/btc-move` passes quote/preflight only a `ready` active VolSeries and blocks historical configured-series fallback for new buys.
+- DeepVol-18-fix-2 adds mintable BTC MOVE range validation before `Create BTC MOVE Series`: the browser regenerates wider lower/upper candidates, quotes UP at `upper` and DOWN at `lower`, devInspects both binary mints, blocks unvalidated or non-mintable series, and maps `predict::assert_mintable_ask::7` to friendly BTC MOVE copy.
 
 ## Phase 5: Demo polish
 

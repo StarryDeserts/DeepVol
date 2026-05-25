@@ -11,7 +11,8 @@
     "test:primitive-active-market": "node scripts/test-primitive-active-market.mjs",
     "test:primitive-quote-gates": "node scripts/test-primitive-quote-gates.mjs",
     "test:primitive-execution-gates": "node scripts/test-primitive-execution-gates.mjs",
-    "test:move-series-gates": "node scripts/test-move-series-gates.mjs"
+    "test:move-series-gates": "node scripts/test-move-series-gates.mjs",
+    "test:move-series-mintability": "node scripts/test-move-series-mintability.mjs"
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.6",

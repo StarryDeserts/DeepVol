@@ -5,8 +5,9 @@ import type { VolSeries } from "@rangepilot/types/deepVol";
 import type { PrimitiveActiveMarketContext } from "@rangepilot/types/deepbookPredict";
 import { readVolSeries } from "../lib/deepVolSeries";
 import { DEEPVOL_STORAGE_KEYS } from "../lib/constants";
+import { classifyMoveSeriesMintability } from "../lib/moveSeriesMintability";
 
-export type MoveSeriesStatus = "ready" | "stale" | "missing" | "loading" | "idle";
+export type MoveSeriesStatus = "ready" | "stale" | "missing" | "loading" | "idle" | "validationRequired" | "nonMintable";
 
 export type ActiveBtcMoveSeriesController = {
   series: VolSeries | null;
@@ -21,6 +22,7 @@ export type ActiveBtcMoveSeriesController = {
 
 export function useActiveBtcMoveSeries(
   activeMarket: PrimitiveActiveMarketContext | null,
+  mintabilityInput: { quantity: string; predictManagerId: string | null } | null = null,
 ): ActiveBtcMoveSeriesController {
   const client = useSuiClient();
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(() => loadStoredSeriesId());
@@ -71,10 +73,24 @@ export function useActiveBtcMoveSeries(
       };
     }
 
+    if (activeMarket.status !== "live") {
+      return {
+        status: "stale" as MoveSeriesStatus,
+        blockers: ["Active BTC market must be live before this VolSeries can be used for a new buy."],
+      };
+    }
+
     if (!series.active) {
       return {
         status: "stale" as MoveSeriesStatus,
         blockers: ["Selected VolSeries has been deactivated."],
+      };
+    }
+
+    if (BigInt(series.expiry) <= BigInt(Date.now())) {
+      return {
+        status: "stale" as MoveSeriesStatus,
+        blockers: ["Selected VolSeries has expired."],
       };
     }
 
@@ -85,8 +101,32 @@ export function useActiveBtcMoveSeries(
       };
     }
 
-    return { status: "ready" as MoveSeriesStatus, blockers: [] };
-  }, [activeMarket, selectedSeriesId, seriesQuery.isLoading, seriesQuery.data]);
+    const mintabilityStatus = classifyMoveSeriesMintability({
+      seriesId: selectedSeriesId,
+      oracleId: series.oracleId,
+      expiry: series.expiry,
+      lowerStrike: series.lowerStrike,
+      upperStrike: series.upperStrike,
+      quantity: mintabilityInput?.quantity,
+      predictManagerId: mintabilityInput?.predictManagerId,
+    });
+
+    if (mintabilityStatus.status === "passedRecent") {
+      return { status: "ready" as MoveSeriesStatus, blockers: [] };
+    }
+
+    if (mintabilityStatus.status === "nonMintable") {
+      return {
+        status: "nonMintable" as MoveSeriesStatus,
+        blockers: [mintabilityStatus.record.message ?? "Selected BTC MOVE series is not mintable for the current market."],
+      };
+    }
+
+    return {
+      status: "validationRequired" as MoveSeriesStatus,
+      blockers: ["Series found, validation required. Validate a mintable BTC MOVE range before buying."],
+    };
+  }, [activeMarket, selectedSeriesId, seriesQuery.isLoading, seriesQuery.data, mintabilityInput?.quantity, mintabilityInput?.predictManagerId]);
 
   return {
     series: seriesQuery.data ?? null,
@@ -112,6 +152,10 @@ function moveSeriesStatusLabel(status: MoveSeriesStatus): string {
       return "Loading";
     case "idle":
       return "Idle";
+    case "validationRequired":
+      return "Validation required";
+    case "nonMintable":
+      return "Non-mintable";
   }
 }
 
@@ -129,6 +173,10 @@ function moveSeriesStatusMessage(status: MoveSeriesStatus, blockers: string[]): 
       return "Loading VolSeries from Sui Testnet...";
     case "idle":
       return "Discover an active BTC market first.";
+    case "validationRequired":
+      return "Series found, validation required.";
+    case "nonMintable":
+      return "Selected BTC MOVE series is not mintable for the current market.";
   }
 }
 

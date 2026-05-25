@@ -13,6 +13,7 @@ import { StatusPill } from "../components/ui/StatusPill";
 import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
 import { useActiveBtcMoveSeries } from "../hooks/useActiveBtcMoveSeries";
 import { useCreateVolSeries } from "../hooks/useCreateVolSeries";
+import { useBtcMoveMintableRange } from "../hooks/useBtcMoveMintableRange";
 import { useDeepVolConfig } from "../hooks/useDeepVolConfig";
 import { useDeepVolDusdcBalance } from "../hooks/useDeepVolDusdcBalance";
 import { useDeepVolPredictManager } from "../hooks/useDeepVolPredictManager";
@@ -26,8 +27,6 @@ export function BuyMovePage() {
   const wallet = useSuiWallet();
   const config = useDeepVolConfig();
   const activeMarket = useActiveBtcPredictMarket();
-  const moveSeries = useActiveBtcMoveSeries(activeMarket.market);
-  const createSeries = useCreateVolSeries(activeMarket.market);
   const manager = useDeepVolPredictManager();
   const dusdcBalance = useDeepVolDusdcBalance();
   const [quantityInput, setQuantityInput] = useState(DEFAULT_MOVE_QUANTITY);
@@ -37,6 +36,21 @@ export function BuyMovePage() {
   const [createUpperInput, setCreateUpperInput] = useState("");
   const normalizedQuantity = normalizePositiveIntegerInput(quantityInput) ?? quantityInput;
   const predictManagerId = manager.managerId;
+  const createSeriesMintabilityBlocker = "Validate a mintable BTC MOVE range before creating a VolSeries.";
+  const mintableRange = useBtcMoveMintableRange({
+    activeMarket: activeMarket.market,
+    predictManagerId,
+    quantity: normalizedQuantity,
+  });
+  const createLowerStrike = createLowerInput || mintableRange.candidate?.lowerStrike || activeMarket.market?.suggestedLowerStrike || "";
+  const createUpperStrike = createUpperInput || mintableRange.candidate?.upperStrike || activeMarket.market?.suggestedUpperStrike || "";
+  const createSeries = useCreateVolSeries(activeMarket.market, {
+    status: mintableRange.status,
+    lowerStrike: createLowerStrike,
+    upperStrike: createUpperStrike,
+    recordCreatedSeries: mintableRange.recordCreatedSeries,
+  });
+  const moveSeries = useActiveBtcMoveSeries(activeMarket.market, { quantity: normalizedQuantity, predictManagerId });
   const readySeriesId = moveSeries.status === "ready" ? moveSeries.seriesId : null;
   const selectedSeriesId = moveSeries.seriesId;
   const setMoveSeriesId = moveSeries.setSeriesId;
@@ -174,30 +188,67 @@ export function BuyMovePage() {
               {moveSeries.statusMessage}
             </StateCallout>
           )}
-          {(moveSeries.status === "missing" || moveSeries.status === "stale") && activeMarket.status === "live" && (
+          {(moveSeries.status === "missing" || moveSeries.status === "stale" || moveSeries.status === "validationRequired" || moveSeries.status === "nonMintable") && activeMarket.status === "live" && (
             <div className="createSeriesSection">
               <h3>Create BTC MOVE Series</h3>
+              <button
+                type="button"
+                disabled={mintableRange.status === "running"}
+                onClick={() => void mintableRange.regenerate()}
+              >
+                {mintableRange.status === "running" ? "Regenerating mintable range" : "Regenerate mintable range"}
+              </button>
               <label className="fieldLabel" htmlFor="create-lower-strike">Lower strike</label>
               <input
                 id="create-lower-strike"
-                value={createLowerInput || activeMarket.market?.suggestedLowerStrike || ""}
+                value={createLowerStrike}
                 inputMode="numeric"
-                onChange={(event) => setCreateLowerInput(event.target.value)}
+                onChange={(event) => {
+                  setCreateLowerInput(event.target.value);
+                  mintableRange.invalidate();
+                }}
               />
               <label className="fieldLabel" htmlFor="create-upper-strike">Upper strike</label>
               <input
                 id="create-upper-strike"
-                value={createUpperInput || activeMarket.market?.suggestedUpperStrike || ""}
+                value={createUpperStrike}
                 inputMode="numeric"
-                onChange={(event) => setCreateUpperInput(event.target.value)}
+                onChange={(event) => {
+                  setCreateUpperInput(event.target.value);
+                  mintableRange.invalidate();
+                }}
               />
+              {mintableRange.status === "passed" && mintableRange.candidate && (
+                <StateCallout tone="success" title="Mintable BTC MOVE range found.">
+                  UP and DOWN legs passed quote and mint preflight.
+                  <DataGrid
+                    variant="compact"
+                    items={[
+                      { label: "Selected lower", value: mintableRange.candidate.lowerStrike },
+                      { label: "Selected upper", value: mintableRange.candidate.upperStrike },
+                      { label: "Candidate width", value: `${mintableRange.candidate.widthTicks} ticks` },
+                      { label: "UP quote", value: mintableRange.upQuoteAtomic ?? "—" },
+                      { label: "DOWN quote", value: mintableRange.downQuoteAtomic ?? "—" },
+                      { label: "Validation status", value: mintableRange.status },
+                    ]}
+                  />
+                </StateCallout>
+              )}
+              {mintableRange.status === "failed" && (
+                <StateCallout tone="warning" title="No mintable BTC MOVE range was found for the current market.">
+                  Try refreshing the active BTC market or widening the search range.
+                </StateCallout>
+              )}
+              {mintableRange.status !== "passed" && (
+                <StateCallout tone="warning" title="Create BTC MOVE Series disabled">
+                  {createSeriesMintabilityBlocker}
+                </StateCallout>
+              )}
               <button
                 type="button"
-                disabled={!createSeries.canCreate || !isValidCreateRange(createLowerInput || activeMarket.market?.suggestedLowerStrike, createUpperInput || activeMarket.market?.suggestedUpperStrike)}
+                disabled={!createSeries.canCreate || mintableRange.status !== "passed" || !isValidCreateRange(createLowerStrike, createUpperStrike)}
                 onClick={() => {
-                  const lower = createLowerInput || activeMarket.market?.suggestedLowerStrike || "";
-                  const upper = createUpperInput || activeMarket.market?.suggestedUpperStrike || "";
-                  createSeries.create({ lowerStrike: lower, upperStrike: upper });
+                  createSeries.create({ lowerStrike: createLowerStrike, upperStrike: createUpperStrike });
                 }}
               >
                 Create BTC MOVE Series
@@ -293,7 +344,10 @@ export function BuyMovePage() {
             value={quantityInput}
             inputMode="numeric"
             aria-describedby="quantity-help"
-            onChange={(event) => setQuantityInput(event.target.value)}
+            onChange={(event) => {
+              setQuantityInput(event.target.value);
+              mintableRange.invalidate();
+            }}
           />
           <small id="quantity-help" className="fieldHelp">
             Quantity is the binary leg quantity, not a DUSDC amount.
@@ -374,8 +428,8 @@ function buildFlowSteps({ wallet, managerId, walletDusdcChecked, quote, moveSeri
     },
     {
       label: "View BTC MOVE Series",
-      state: quote.series && moveSeries.status === "ready" ? "complete" : moveSeries.status === "stale" || moveSeries.status === "missing" ? "current" : wallet.isTestnet ? "current" : "pending",
-      detail: moveSeries.status === "ready" ? "BTC MOVE VolSeries matches the active BTC market." : moveSeries.status === "stale" ? "Selected series is stale. Create or select a fresh series." : moveSeries.status === "missing" ? "No series selected. Create or select a BTC MOVE series." : "Discover an active BTC market and select a matching VolSeries.",
+      state: quote.series && moveSeries.status === "ready" ? "complete" : moveSeries.status === "stale" || moveSeries.status === "missing" || moveSeries.status === "validationRequired" || moveSeries.status === "nonMintable" ? "current" : wallet.isTestnet ? "current" : "pending",
+      detail: moveSeries.status === "ready" ? "BTC MOVE VolSeries matches the active BTC market and passed mintability validation." : moveSeries.status === "stale" ? "Selected series is stale. Create or select a fresh series." : moveSeries.status === "missing" ? "No series selected. Create or select a BTC MOVE series." : moveSeries.status === "validationRequired" ? "Series found, validation required before quotes and buy preflight." : moveSeries.status === "nonMintable" ? "Selected series is not mintable. Regenerate a wider mintable range." : "Discover an active BTC market and select a matching VolSeries.",
     },
     {
       label: "Quote UP and DOWN legs",
@@ -410,8 +464,10 @@ function moveSeriesStatusTone(status: string): "success" | "warning" | "neutral"
     case "ready":
       return "success";
     case "stale":
+    case "nonMintable":
       return "warning";
     case "missing":
+    case "validationRequired":
       return "neutral";
     case "loading":
       return "info";

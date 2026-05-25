@@ -392,6 +392,87 @@ export type MarketQuoteAttemptFailure = MarketQuoteCandidate & {
 
 export type MarketQuoteAttempt = MarketQuoteAttemptSuccess | MarketQuoteAttemptFailure;
 
+export type BtcMoveMintableRangeCandidate = {
+  oracleId: DeepBookPredictObjectId;
+  oracleObjectId: DeepBookPredictObjectId;
+  underlyingAsset: string | null;
+  expiry: string;
+  lowerStrike: string;
+  upperStrike: string;
+  widthAtomic: string;
+  widthTicks: string;
+  anchorSource: "forward" | "spot";
+  anchorPrice: string;
+};
+
+export type BtcMoveMintabilityBlocker =
+  | "quote_failed"
+  | "non_positive_quote"
+  | "up_mint_preflight_failed"
+  | "down_mint_preflight_failed"
+  | "assert_mintable_ask"
+  | "unknown";
+
+export type BtcMoveMintableLegDiagnostics = {
+  direction: MarketQuoteDirection;
+  strike: string;
+  quote: MarketQuotePreview | null;
+  mintPreflight: BinaryMintPreflightResult | null;
+  blocker: BtcMoveMintabilityBlocker | null;
+  message: string | null;
+  rawError: string | null;
+};
+
+export type BtcMoveMintableRangeAttempt = {
+  status: "passed" | "failed";
+  candidate: BtcMoveMintableRangeCandidate;
+  up: BtcMoveMintableLegDiagnostics;
+  down: BtcMoveMintableLegDiagnostics;
+  blockers: string[];
+};
+
+export type FindMintableBtcMoveRangeCandidateOptions = {
+  client: {
+    devInspectTransactionBlock(input: {
+      sender: string;
+      transactionBlock: unknown;
+    }): Promise<unknown>;
+  };
+  sender: string;
+  managerId: DeepBookPredictObjectId;
+  oracleId: DeepBookPredictObjectId;
+  oracleObjectId: DeepBookPredictObjectId;
+  expiry: string | bigint;
+  quantity: string | bigint;
+  underlyingAsset?: string | null;
+  spot?: string | bigint | null;
+  forward?: string | bigint | null;
+  tickSize?: string | bigint | null;
+  minStrike?: string | bigint | null;
+  widthMultipliers?: readonly (string | bigint)[];
+  maxCandidates?: number;
+  config?: DeepBookPredictNetworkConfig;
+};
+
+export type FindMintableBtcMoveRangeCandidateResult =
+  | {
+      status: "found";
+      candidate: BtcMoveMintableRangeCandidate;
+      upQuote: MarketQuotePreview;
+      downQuote: MarketQuotePreview;
+      upPreflight: BinaryMintPreflightPassed;
+      downPreflight: BinaryMintPreflightPassed;
+      attempts: BtcMoveMintableRangeAttempt[];
+      diagnostics: string[];
+    }
+  | {
+      status: "not_found";
+      candidate: null;
+      attempts: BtcMoveMintableRangeAttempt[];
+      blockers: string[];
+      diagnostics: string[];
+    };
+
 export type RangeMintParams = RangeKeyInput & {
   managerId: DeepBookPredictObjectId;
   oracleObjectId: DeepBookPredictObjectId;

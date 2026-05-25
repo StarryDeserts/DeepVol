@@ -1,18 +1,32 @@
 import type {
+  BtcMoveMintableLegDiagnostics,
+  BtcMoveMintableRangeAttempt,
+  BtcMoveMintableRangeCandidate,
   DeepBookPredictNetworkConfig,
   DeepBookPredictOracleRecord,
+  FindMintableBtcMoveRangeCandidateOptions,
+  FindMintableBtcMoveRangeCandidateResult,
   MarketQuoteAttempt,
   MarketQuoteCandidate,
+  MarketQuoteDirection,
+  MarketQuotePreview,
   PrimitiveActiveMarketContext,
   PrimitiveActiveMarketDiscoveryResult,
   PrimitiveMarketStatus,
 } from "@rangepilot/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
-import { translateDeepBookPredictError } from "./errors.ts";
 import {
+  formatBtcMoveMintabilityError,
+  isAssertMintableAskAbort,
+  translateDeepBookPredictError,
+} from "./errors.ts";
+import {
+  classifyQuoteAbort,
   deriveMarketQuoteCandidates,
+  devInspectBinaryQuote,
   scanBinaryQuoteSanity,
 } from "./quote.ts";
+import { devInspectMintBinaryPreflight } from "./trade.ts";
 import {
   createDeepBookPredictServerClient,
   type DeepBookPredictServerClient,
@@ -39,6 +53,8 @@ const DEFAULT_UNDERLYING_ASSET = "BTC";
 const DEFAULT_MAX_ORACLES = 4;
 const DEFAULT_MAX_CANDIDATES_PER_ORACLE = 18;
 const DEFAULT_QUANTITIES = ["1000", "10000"] as const;
+const DEFAULT_BTC_MOVE_TICK_SIZE = 1_000_000_000n;
+const BTC_MOVE_WIDTH_MULTIPLIERS = [10n, 20n, 50n, 100n, 200n, 500n] as const;
 
 export function classifyPrimitiveMarketStatus(input: {
   oracleStatus?: string | null;
@@ -234,6 +250,290 @@ export async function discoverActiveBtcPrimitiveMarket(
       error: translateDeepBookPredictError(error),
     };
   }
+}
+
+export async function findMintableBtcMoveRangeCandidate(
+  params: FindMintableBtcMoveRangeCandidateOptions,
+): Promise<FindMintableBtcMoveRangeCandidateResult> {
+  const config = resolveDeepBookPredictConfig(params.config);
+  const candidates = deriveBtcMoveMintableRangeCandidates(params).slice(0, params.maxCandidates ?? BTC_MOVE_WIDTH_MULTIPLIERS.length);
+  const diagnostics = [
+    "Ask-bounds filtering is diagnostic-only for BTC MOVE range search; quote and binary mint preflight remain authoritative.",
+  ];
+  const attempts: BtcMoveMintableRangeAttempt[] = [];
+
+  if (candidates.length === 0) {
+    return {
+      status: "not_found",
+      candidate: null,
+      attempts,
+      blockers: ["No tick-aligned BTC MOVE range candidates could be generated for the active market."],
+      diagnostics,
+    };
+  }
+
+  for (const candidate of candidates) {
+    const up = await inspectBtcMoveMintableLeg({
+      params,
+      candidate,
+      config,
+      direction: "up",
+      strike: candidate.upperStrike,
+      preflightBlocker: "up_mint_preflight_failed",
+    });
+    const down = await inspectBtcMoveMintableLeg({
+      params,
+      candidate,
+      config,
+      direction: "down",
+      strike: candidate.lowerStrike,
+      preflightBlocker: "down_mint_preflight_failed",
+    });
+    const blockers = [...new Set([up, down]
+      .flatMap((leg) => leg.blocker ? [leg.message ?? leg.blocker] : []))];
+    const attempt: BtcMoveMintableRangeAttempt = {
+      status: blockers.length === 0 ? "passed" : "failed",
+      candidate,
+      up,
+      down,
+      blockers,
+    };
+
+    attempts.push(attempt);
+
+    if (
+      up.quote &&
+      down.quote &&
+      up.mintPreflight?.status === "passed" &&
+      down.mintPreflight?.status === "passed"
+    ) {
+      return {
+        status: "found",
+        candidate,
+        upQuote: up.quote,
+        downQuote: down.quote,
+        upPreflight: up.mintPreflight,
+        downPreflight: down.mintPreflight,
+        attempts,
+        diagnostics,
+      };
+    }
+  }
+
+  return {
+    status: "not_found",
+    candidate: null,
+    attempts,
+    blockers: [...new Set(attempts.flatMap((attempt) => attempt.blockers))],
+    diagnostics,
+  };
+}
+
+function deriveBtcMoveMintableRangeCandidates(
+  params: Pick<FindMintableBtcMoveRangeCandidateOptions,
+    "oracleId" | "oracleObjectId" | "underlyingAsset" | "expiry" | "spot" | "forward" | "tickSize" | "minStrike" | "widthMultipliers"
+  >,
+): BtcMoveMintableRangeCandidate[] {
+  const minStrike = parseOptionalNonNegativeBigint(params.minStrike) ?? 0n;
+  const tickSize = parseOptionalPositiveBigint(params.tickSize) ?? DEFAULT_BTC_MOVE_TICK_SIZE;
+  const forward = parseOptionalNonNegativeBigint(params.forward);
+  const spot = parseOptionalNonNegativeBigint(params.spot);
+  const anchor = forward ?? spot;
+  const anchorSource = forward !== null ? "forward" : "spot";
+
+  if (anchor === null) {
+    return [];
+  }
+
+  const expiry = integerStringOrNull(params.expiry);
+
+  if (expiry === null) {
+    return [];
+  }
+
+  const candidates = new Map<string, BtcMoveMintableRangeCandidate>();
+
+  for (const multiplier of normalizeBtcMoveWidthMultipliers(params.widthMultipliers)) {
+    const width = tickSize * multiplier;
+    const rawLower = anchor > width ? anchor - width : minStrike;
+    const rawUpper = anchor + width;
+    const lower = roundDownToTick(rawLower, minStrike, tickSize);
+    const upper = roundUpToTick(rawUpper, minStrike, tickSize);
+
+    if (lower < minStrike || lower >= upper || upper - lower <= tickSize) {
+      continue;
+    }
+
+    const candidate: BtcMoveMintableRangeCandidate = {
+      oracleId: params.oracleId,
+      oracleObjectId: params.oracleObjectId,
+      underlyingAsset: params.underlyingAsset ?? null,
+      expiry,
+      lowerStrike: lower.toString(),
+      upperStrike: upper.toString(),
+      widthAtomic: (upper - lower).toString(),
+      widthTicks: ((upper - lower) / tickSize).toString(),
+      anchorSource,
+      anchorPrice: anchor.toString(),
+    };
+    candidates.set(`${candidate.oracleId}:${candidate.expiry}:${candidate.lowerStrike}:${candidate.upperStrike}`, candidate);
+  }
+
+  return [...candidates.values()];
+}
+
+async function inspectBtcMoveMintableLeg({
+  params,
+  candidate,
+  config,
+  direction,
+  strike,
+  preflightBlocker,
+}: {
+  params: FindMintableBtcMoveRangeCandidateOptions;
+  candidate: BtcMoveMintableRangeCandidate;
+  config: DeepBookPredictNetworkConfig;
+  direction: MarketQuoteDirection;
+  strike: string;
+  preflightBlocker: "up_mint_preflight_failed" | "down_mint_preflight_failed";
+}): Promise<BtcMoveMintableLegDiagnostics> {
+  let quote: MarketQuotePreview;
+
+  try {
+    quote = await devInspectBinaryQuote({
+      client: params.client,
+      sender: params.sender,
+      oracleId: params.oracleId,
+      oracleObjectId: params.oracleObjectId,
+      expiry: params.expiry,
+      direction,
+      strike,
+      quantity: params.quantity,
+      config,
+    });
+  } catch (error) {
+    const abort = classifyQuoteAbort(error);
+
+    return {
+      direction,
+      strike,
+      quote: null,
+      mintPreflight: null,
+      blocker: "quote_failed",
+      message: abort.likelyCause ?? translateDeepBookPredictError(error),
+      rawError: abort.message,
+    };
+  }
+
+  if (!isPositiveAtomic(quote.mintCostAtomic)) {
+    return {
+      direction,
+      strike,
+      quote,
+      mintPreflight: null,
+      blocker: "non_positive_quote",
+      message: "BTC MOVE leg quote returned a non-positive mint cost.",
+      rawError: null,
+    };
+  }
+
+  const mintPreflight = await devInspectMintBinaryPreflight({
+    client: params.client,
+    sender: params.sender,
+    managerId: params.managerId,
+    oracleId: params.oracleId,
+    oracleObjectId: params.oracleObjectId,
+    expiry: params.expiry,
+    direction,
+    strike,
+    quantity: params.quantity,
+    config,
+    candidateParams: {
+      family: "btc_move",
+      lowerStrike: candidate.lowerStrike,
+      higherStrike: candidate.upperStrike,
+      widthTicks: candidate.widthTicks,
+      direction,
+      strike,
+    },
+  });
+
+  if (mintPreflight.status === "failed") {
+    const friendly = formatBtcMoveMintabilityError(mintPreflight.abort);
+
+    return {
+      direction,
+      strike,
+      quote,
+      mintPreflight,
+      blocker: isAssertMintableAskAbort(mintPreflight.abort) ? "assert_mintable_ask" : preflightBlocker,
+      message: friendly ?? mintPreflight.abort.likelyCause ?? mintPreflight.abort.message,
+      rawError: mintPreflight.abort.message,
+    };
+  }
+
+  return {
+    direction,
+    strike,
+    quote,
+    mintPreflight,
+    blocker: null,
+    message: null,
+    rawError: null,
+  };
+}
+
+function normalizeBtcMoveWidthMultipliers(values: readonly (string | bigint)[] | undefined): bigint[] {
+  const unique = new Set<string>();
+
+  for (const value of values ?? BTC_MOVE_WIDTH_MULTIPLIERS) {
+    const parsed = parseOptionalPositiveBigint(value);
+
+    if (parsed !== null) {
+      unique.add(parsed.toString());
+    }
+  }
+
+  return [...unique].map((value) => BigInt(value)).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+}
+
+function roundDownToTick(value: bigint, minStrike: bigint, tickSize: bigint): bigint {
+  if (value <= minStrike) {
+    return minStrike;
+  }
+
+  return minStrike + ((value - minStrike) / tickSize) * tickSize;
+}
+
+function roundUpToTick(value: bigint, minStrike: bigint, tickSize: bigint): bigint {
+  const lower = roundDownToTick(value, minStrike, tickSize);
+  return lower === value ? lower : lower + tickSize;
+}
+
+function isPositiveAtomic(value: string): boolean {
+  try {
+    return BigInt(value) > 0n;
+  } catch {
+    return false;
+  }
+}
+
+function parseOptionalNonNegativeBigint(value: string | bigint | null | undefined): bigint | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  try {
+    const parsed = BigInt(value);
+    return parsed >= 0n ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseOptionalPositiveBigint(value: string | bigint | null | undefined): bigint | null {
+  const parsed = parseOptionalNonNegativeBigint(value);
+  return parsed !== null && parsed > 0n ? parsed : null;
 }
 
 function selectActiveBtcOracles(params: {
