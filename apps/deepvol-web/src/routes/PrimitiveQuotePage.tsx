@@ -10,6 +10,7 @@ import { usePrimitiveQuote } from "../hooks/usePrimitiveQuote";
 import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
 import type { DiscoveryPhase } from "../hooks/useActiveBtcPredictMarket";
 import { usePrimitiveMintableStrike } from "../hooks/usePrimitiveMintableStrike";
+import { usePrimitiveMintableRange } from "../hooks/usePrimitiveMintableRange";
 import { usePrimitiveWalletExecution } from "../hooks/usePrimitiveWalletExecution";
 import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
 import type { PrimitiveKind } from "../hooks/primitiveQuoteGate";
@@ -45,11 +46,17 @@ export function PrimitiveQuotePage() {
     quantity: quantityInput,
     primitiveKind,
   });
+  const mintableRange = usePrimitiveMintableRange({
+    activeMarket: activeMarket.market,
+    predictManagerId,
+    quantity: quantityInput,
+  });
   const execution = usePrimitiveWalletExecution({
     quote,
     preflight,
     predictManagerId,
     primitiveMintabilityStatus: mintableStrike.status,
+    rangeMintabilityStatus: mintableRange.status,
   });
   const readback = usePrimitivePositionReadback({
     predictManagerId,
@@ -84,6 +91,13 @@ export function PrimitiveQuotePage() {
       setStrikeInput(mintableStrike.candidate.strike);
     }
   }, [mintableStrike.status, mintableStrike.candidate, primitiveKind]);
+
+  useEffect(() => {
+    if (mintableRange.status === "passed" && mintableRange.candidate && primitiveKind === "RANGE") {
+      setLowerStrikeInput(mintableRange.candidate.lowerStrike);
+      setUpperStrikeInput(mintableRange.candidate.higherStrike);
+    }
+  }, [mintableRange.status, mintableRange.candidate, primitiveKind]);
 
   const primitiveCopy = useMemo(() => getPrimitiveCopy(primitiveKind), [primitiveKind]);
   const displayedMarketStatus = quote.marketStatus;
@@ -246,7 +260,15 @@ export function PrimitiveQuotePage() {
               <div className="eyebrow">Primitive selector</div>
               <h2>{primitiveKind} preview inputs</h2>
             </div>
-            <StatusPill tone={primitiveKind === "RANGE" ? "warning" : "success"}>{primitiveKind === "RANGE" ? "Execution disabled" : "Wallet gated"}</StatusPill>
+            <StatusPill tone={
+              primitiveKind === "RANGE"
+                ? mintableRange.status === "passed" ? "success" : "warning"
+                : "success"
+            }>
+              {primitiveKind === "RANGE"
+                ? mintableRange.status === "passed" ? "Wallet gated" : "Awaiting mintability"
+                : "Wallet gated"}
+            </StatusPill>
           </div>
 
           <div className="primitiveSelector" role="group" aria-label="Primitive type">
@@ -299,7 +321,10 @@ export function PrimitiveQuotePage() {
                   <input
                     value={lowerStrikeInput}
                     inputMode="numeric"
-                    onChange={(event) => setLowerStrikeInput(event.target.value)}
+                    onChange={(event) => {
+                      setLowerStrikeInput(event.target.value);
+                      mintableRange.invalidate();
+                    }}
                   />
                 </label>
                 <label>
@@ -307,7 +332,10 @@ export function PrimitiveQuotePage() {
                   <input
                     value={upperStrikeInput}
                     inputMode="numeric"
-                    onChange={(event) => setUpperStrikeInput(event.target.value)}
+                    onChange={(event) => {
+                      setUpperStrikeInput(event.target.value);
+                      mintableRange.invalidate();
+                    }}
                   />
                 </label>
               </>
@@ -337,7 +365,61 @@ export function PrimitiveQuotePage() {
           </div>
         </section>
 
-        {primitiveKind !== "RANGE" && (
+        {primitiveKind === "RANGE" ? (
+          <section className="card primitiveSection">
+            <div className="cardHeader">
+              <div>
+                <div className="eyebrow">Mintable interval validation</div>
+                <h2>Mintable RANGE interval</h2>
+              </div>
+              <StatusPill tone={mintableRange.status === "passed" ? "success" : mintableRange.status === "failed" ? "danger" : mintableRange.status === "running" ? "info" : "warning"}>
+                {mintableRange.status}
+              </StatusPill>
+            </div>
+
+            {mintableRange.status === "passed" && mintableRange.candidate && (
+              <StateCallout tone="success" title="Mintable RANGE interval found.">
+                Quote and mint preflight passed for this BTC market. Lower: {mintableRange.candidate.lowerStrike} / Upper: {mintableRange.candidate.higherStrike}
+              </StateCallout>
+            )}
+
+            {mintableRange.status === "failed" && (
+              <StateCallout tone="danger" title="No mintable RANGE interval was found for the current market.">
+                Try refreshing the active BTC market or adjusting the interval.
+              </StateCallout>
+            )}
+
+            <div className="actionRow">
+              <button
+                className="secondaryButton"
+                type="button"
+                disabled={mintableRange.status === "running"}
+                onClick={mintableRange.regenerate}
+              >
+                {mintableRange.status === "running" ? "Searching mintable RANGE interval..." : "Regenerate mintable RANGE interval"}
+              </button>
+            </div>
+
+            {mintableRange.blockers.length > 0 && (
+              <StateCallout tone="warning" title="Mintability blockers">
+                <ul>
+                  {mintableRange.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                </ul>
+              </StateCallout>
+            )}
+
+            {mintableRange.advancedDiagnostics.length > 0 && (
+              <details className="advancedDetails">
+                <summary>Advanced: RANGE mintability diagnostics</summary>
+                <div className="advancedContent">
+                  <ul>
+                    {mintableRange.advancedDiagnostics.map((d) => <li key={d}>{d}</li>)}
+                  </ul>
+                </div>
+              </details>
+            )}
+          </section>
+        ) : (
           <section className="card primitiveSection">
             <div className="cardHeader">
               <div>
@@ -487,6 +569,6 @@ function getPrimitiveCopy(kind: PrimitiveKind) {
 
   return {
     title: "RANGE wins inside the selected interval",
-    body: "RANGE is complementary to MOVE: it wins if BTC expires inside the lower / upper range. RANGE execution requires stricter mintability gates and remains disabled until dedicated validation.",
+    body: "RANGE is a raw Predict primitive. It wins if BTC expires inside the selected interval and does not create a DeepVol MoveReceipt. RANGE wallet execution is gated by mintable interval validation, fresh quote, manager balance, and mint preflight.",
   };
 }
