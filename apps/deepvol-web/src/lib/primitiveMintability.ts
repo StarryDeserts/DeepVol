@@ -135,3 +135,88 @@ function writePrimitiveMintabilityRecords(records: Record<string, PrimitiveMinta
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+export type RangePrimitiveMintabilityKeyInput = {
+  oracleId: string | null | undefined;
+  expiry: string | null | undefined;
+  lowerStrike: string | null | undefined;
+  upperStrike: string | null | undefined;
+  quantity: string | null | undefined;
+  predictManagerId: string | null | undefined;
+  predictPackageId?: string | null | undefined;
+};
+
+export function buildRangePrimitiveMintabilityKey(input: RangePrimitiveMintabilityKeyInput): string {
+  return [
+    "RANGE",
+    input.oracleId ?? "",
+    input.expiry ?? "",
+    input.lowerStrike ?? "",
+    input.upperStrike ?? "",
+    input.quantity ?? "",
+    input.predictManagerId ?? "",
+    input.predictPackageId ?? DEEPBOOK_PREDICT_TESTNET.packageId,
+  ].join(":");
+}
+
+export function classifyRangePrimitiveMintability(
+  input: RangePrimitiveMintabilityKeyInput,
+  nowMs = Date.now(),
+): PrimitiveMintabilityClassification {
+  const key = buildRangePrimitiveMintabilityKey(input);
+  const record = readPrimitiveMintabilityRecord(key);
+
+  if (!record) {
+    return { status: "validationRequired", key, record: null };
+  }
+
+  if (record.status === "failed") {
+    return { status: "nonMintable", key, record };
+  }
+
+  if (!record.passedAtMs || nowMs - record.passedAtMs > VALIDATION_TTL_MS) {
+    return { status: "expiredValidation", key, record };
+  }
+
+  return { status: "passedRecent", key, record };
+}
+
+export function recordRangePrimitiveMintabilityPass(
+  input: RangePrimitiveMintabilityKeyInput,
+  message = "Mintable RANGE interval found.",
+): PrimitiveMintabilityRecord {
+  const record: PrimitiveMintabilityRecord = {
+    key: buildRangePrimitiveMintabilityKey(input),
+    status: "passed",
+    message,
+    rawDetail: null,
+    passedAtMs: Date.now(),
+  };
+
+  writePrimitiveMintabilityRecord(record);
+  return record;
+}
+
+export function recordRangePrimitiveMintabilityFailure(
+  input: RangePrimitiveMintabilityKeyInput,
+  message: string,
+  rawDetail: string | null = null,
+): PrimitiveMintabilityRecord {
+  const record: PrimitiveMintabilityRecord = {
+    key: buildRangePrimitiveMintabilityKey(input),
+    status: "failed",
+    message,
+    rawDetail,
+    failedAtMs: Date.now(),
+  };
+
+  writePrimitiveMintabilityRecord(record);
+  return record;
+}
+
+export function clearRangePrimitiveMintabilityRecord(input: RangePrimitiveMintabilityKeyInput): void {
+  const key = buildRangePrimitiveMintabilityKey(input);
+  const records = readPrimitiveMintabilityRecords();
+  delete records[key];
+  writePrimitiveMintabilityRecords(records);
+}
