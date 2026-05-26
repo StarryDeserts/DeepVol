@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol web information architecture for Predict primitives UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback. RANGE remains quote/preflight-only.
+Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; RANGE execution path added (pending validation); see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md and DEEPVOL_RANGE_PRIMITIVE_TRADING.md. DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive execution policy, primitive quote/preflight contract, and frontend MVP docs; protocol docs and on-chain state remain authoritative for Predict semantics.
 ---
 
@@ -21,7 +21,7 @@ See [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY
 |---|---|---|---|
 | UP | Buy upside | BTC expires above the selected strike | Wallet-gated primitive terminal |
 | DOWN | Buy downside | BTC expires below the selected strike | Wallet-gated primitive terminal |
-| RANGE | Buy inside range | BTC expires inside the selected lower / upper range | Quote/preflight only; execution disabled |
+| RANGE | Buy inside range | BTC expires inside the selected lower / upper range | Execution-ready; real RANGE mint NOT yet validated on Testnet |
 | MOVE | Buy movement | BTC expires below the lower strike or above the upper strike | Primary enabled receipt product |
 
 BTC MOVE remains the productized DeepVol route:
@@ -72,12 +72,13 @@ Allowed:
 - Rerun market expiry/status checks, quote, manager balance, and binary mint preflight immediately before the UP/DOWN wallet prompt.
 - Store successful UP/DOWN primitive trade digests as local primitive records.
 - Read known primitive keys for a manually entered PredictManager ID.
-- Keep RANGE execution disabled.
+- Enable RANGE wallet review only after mintable interval search passes, fresh range quote, sufficient balance, fresh range mint preflight, Testnet wallet, PredictManager ID, and no active submission.
+- Record successful RANGE primitive trade digests as local primitive records with `primitiveType: "RANGE"`.
 
 Not allowed:
 
 - Execute a primitive wallet transaction automatically.
-- Enable RANGE wallet execution in DeepVol-15.
+- Claim RANGE has been validated on Testnet before a real RANGE mint succeeds.
 - Treat primitive trades as `MoveReceipt` creation.
 - Charge DeepVol Create Fee on primitive trades.
 - Claim general primitive portfolio indexing exists.
@@ -97,7 +98,7 @@ Current SDK and validation work covers the terminal surface:
 | Binary UP/DOWN redeem | Existing guarded builder/preflight support for controlled BTC MOVE receipt redeem; primitive redeem UX remains future work. |
 | Range quote | Browser-safe `devInspectRangeQuote` support. |
 | Range mint preflight | Existing `devInspectMintRangePreflight` support. |
-| Range mint execution | Existing SDK capability from prior RangePilot validation, but not enabled from DeepVol-15 primitives UI. |
+| Range mint execution | Execution-ready with mintable interval search via `usePrimitiveMintableRange`; real RANGE mint NOT yet validated on Testnet. |
 | Binary/range position readback | Existing known-key readback helpers; no general enumeration. |
 
 Primitive execution still requires runtime gates because quote success is not mintability proof. Fresh quote, manager balance, and mint preflight are rerun immediately before wallet review.
@@ -106,12 +107,37 @@ Primitive execution still requires runtime gates because quote success is not mi
 
 DeepVol-21 adds `findMintableBinaryPrimitiveCandidate()` to search tick-aligned strike candidates around the anchor price before UP/DOWN wallet execution can proceed. UP/DOWN primitives are raw Predict binary positions, not MoveReceipts. The execution gate now requires `primitiveMintabilityStatus === "passed"` before wallet review can unlock, and `assert_mintable_ask::7` maps to a primitive-friendly "Selected strike is not mintable" message. RANGE execution remains disabled. No real UP/DOWN mint has been executed yet -- the gates are implementation-ready only. See [DEEPVOL_PRIMITIVE_DIRECT_TRADING.md](./DEEPVOL_PRIMITIVE_DIRECT_TRADING.md).
 
+## Mintable RANGE interval validation (DeepVol-23)
+
+DeepVol-23 adds `usePrimitiveMintableRange` hook to search mintable interval candidates before RANGE wallet execution can proceed. The hook generates symmetric intervals at width multipliers `[10, 20, 50, 100, 200, 500]` ticks with three strategies (centered, below-anchor, above-anchor). For each candidate: quote via `devInspectRangeQuote`, reject if mint cost <= 0, preflight via `devInspectMintRangePreflight`, accept first passing. RANGE is a raw Predict range primitive, not a MoveReceipt.
+
+The execution gate requires the RANGE mintability search to pass before wallet review can unlock. `assert_mintable_ask::7` maps to "Selected RANGE interval is not mintable for the current market. Try regenerating a mintable interval." Pre-wallet 10% quote drift tolerance applies (same as UP/DOWN).
+
+RANGE trades are recorded in localStorage under `deepvol:primitive-trades` with `primitiveType: "RANGE"`, `lowerStrike`, `upperStrike`. Portfolio displays them separately from MOVE Receipts.
+
+**Real RANGE mint NOT yet validated on Testnet.** See [DEEPVOL_RANGE_PRIMITIVE_TRADING.md](./DEEPVOL_RANGE_PRIMITIVE_TRADING.md) and [DEEPVOL_PRIMITIVE_DIRECT_TRADING.md](./DEEPVOL_PRIMITIVE_DIRECT_TRADING.md).
+
+## RANGE UI section
+
+`/primitives?type=RANGE` shows lower/upper strikes, quantity, range quote, range mint preflight, mintable interval search status, diagnostics, and wallet review once gates pass.
+
+The RANGE primitive terminal follows the same gate hierarchy as UP/DOWN:
+
+1. Active BTC market discovery with live status
+2. Mintable interval candidate search via `usePrimitiveMintableRange`
+3. Fresh range quote with positive mint cost
+4. PredictManager DUSDC balance coverage
+5. Fresh range mint preflight
+6. Wallet prompt with 10% drift tolerance
+
+SDK naming convention: the Move contract uses `higherStrike`; the frontend displays `upperStrike`. Mapping occurs at call boundaries.
+
 ## Copy boundaries
 
 Use clear product copy:
 
 ```text
-BTC MOVE remains the flagship receipt product. UP and DOWN are wallet-gated raw Predict primitives. RANGE remains quote/preflight-only.
+BTC MOVE remains the flagship receipt product. UP, DOWN, and RANGE are wallet-gated raw Predict primitives. Real RANGE mint is NOT yet validated on Testnet.
 ```
 
 ```text
@@ -119,7 +145,7 @@ Primitive trades do not create DeepVol MoveReceipt. Only BTC MOVE creates a rece
 ```
 
 ```text
-RANGE wallet execution remains disabled until dedicated mintability validation passes.
+RANGE execution path is implementation-ready. Real RANGE mint NOT yet validated on Testnet.
 ```
 
 ```text

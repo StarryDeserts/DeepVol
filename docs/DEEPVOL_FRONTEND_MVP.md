@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives; execution gate now requires primitiveMintabilityStatus passed. Updated for DeepVol-20: fresh BTC MOVE buy validated on Testnet with active VolSeries. BuyMovePage detects stale/missing/validation-required/non-mintable VolSeries, provides Regenerate mintable range, and gates Create BTC MOVE Series plus buy behind mintability validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md and DEEPVOL_MINTABLE_MOVE_RANGE.md.
+Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; RANGE execution path added (pending validation); see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md and DEEPVOL_RANGE_PRIMITIVE_TRADING.md. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives; execution gate now requires primitiveMintabilityStatus passed. Updated for DeepVol-20: fresh BTC MOVE buy validated on Testnet with active VolSeries. BuyMovePage detects stale/missing/validation-required/non-mintable VolSeries, provides Regenerate mintable range, and gates Create BTC MOVE Series plus buy behind mintability validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md and DEEPVOL_MINTABLE_MOVE_RANGE.md.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 
@@ -75,7 +75,7 @@ DeepVol-7 used it only for interaction and layout patterns: app shell rhythm, fo
 | `/` | Alias to the markets page. |
 | `/markets` | Product entry page for BTC MOVE with `Trade movement, not direction.`, BTC MOVE payoff zones, CTA, wallet-gated UP/DOWN primitive cards, RANGE quote/preflight card, and first-time setup preview. |
 | `/buy/btc-move` | Transaction workspace with product context, first-time flow checklist, PredictManager create/store actions, DUSDC wallet/deposit visibility, quantity setup, quote metrics, UP/DOWN leg quotes, explicit preflight, disabled buy CTA, and advanced protocol details. |
-| `/primitives` | Primitive workspace for UP / DOWN / RANGE active BTC market refresh, `Live / Stale / Expired / Unknown` status, selected oracle/expiry details, manual override diagnostics, quote refresh, manager balance, mint preflight diagnostics, UP/DOWN wallet-gated execution, and RANGE disabled policy. |
+| `/primitives` | Primitive workspace for UP / DOWN / RANGE active BTC market refresh, `Live / Stale / Expired / Unknown` status, selected oracle/expiry details, manual override diagnostics, quote refresh, manager balance, mint preflight diagnostics, UP/DOWN wallet-gated execution, and RANGE wallet-gated execution (pending Testnet validation). |
 | `/portfolio` | Receipt overview showing local browser records or validation reference artifacts, explicit local/indexer limitations, DeepVol-10 browser receipt display validation, DeepVol-13 browser guided redeem validation, separate MOVE Receipts / Primitive local records, and known-key primitive readback. |
 
 The redesigned Buy page follows a transaction workspace model: product explanation and payoff zones stay near the guided setup flow, while PredictManager setup, DUSDC funding, quote metrics, explicit preflight, and wallet-gated execution sit in a focused action column. The buy button stays disabled until all hook-derived gates and explicit preflight gates pass.
@@ -188,7 +188,7 @@ The DeepVol frontend does not:
 - execute wallet transactions automatically;
 - withdraw protocol fees;
 - execute binary position redeem transactions from scripts or automatically from the browser;
-- execute RANGE primitive mints from the primitive route;
+- claim RANGE primitive mint has been validated on Testnet before a real RANGE mint succeeds;
 - treat stale historical BTC oracle/expiry snapshots as live primitive trading defaults;
 - mark receipt settlement as payout proof without Predict redeem event/readback reconciliation;
 - implement Profit Fee;
@@ -215,7 +215,7 @@ npm --workspace apps/deepvol-web run test:move-series-gates
 npm --workspace apps/deepvol-web run test:move-series-mintability
 ```
 
-Manual browser checks should cover `/markets`, `/primitives?type=UP`, `/primitives?type=DOWN`, `/primitives?type=RANGE`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, Regenerate mintable range visibility, Create BTC MOVE Series disabled before mintability validation, validation-required/non-mintable series copy, explicit quote refresh, real receipt preflight pass/fail diagnostics, friendly `assert_mintable_ask::7` copy, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating before preflight, enabled wallet review only after receipt preflight passes, UP/DOWN primitive execution gates, RANGE disabled policy, primitive local record copy, visible focus states, responsive layout, no wallet prompt from `/primitives` without explicit click, no wallet prompt from BTC MOVE until every gate passes, and absence of historical validation quote values as live quotes.
+Manual browser checks should cover `/markets`, `/primitives?type=UP`, `/primitives?type=DOWN`, `/primitives?type=RANGE`, `/buy/btc-move`, `/portfolio`, disconnected wallet gating, wrong-network gating, PredictManager create/store visibility, DUSDC balance/deposit visibility, Regenerate mintable range visibility, Create BTC MOVE Series disabled before mintability validation, validation-required/non-mintable series copy, explicit quote refresh, real receipt preflight pass/fail diagnostics, friendly `assert_mintable_ask::7` copy, explicit BTC MOVE copy, non-custodial receipt copy, disabled buy gating before preflight, enabled wallet review only after receipt preflight passes, UP/DOWN primitive execution gates, RANGE mintable interval search and execution gates (pending Testnet validation), primitive local record copy, visible focus states, responsive layout, no wallet prompt from `/primitives` without explicit click, no wallet prompt from BTC MOVE until every gate passes, and absence of historical validation quote values as live quotes.
 
 DeepVol-11 browser guided redeem preflight verification should cover: portfolio receipt display, UP/DOWN position readback, redeem payout preview, explicit preflight action, local status labeling, and continued no-mainnet/no-withdraw/no-automatic-execution safety checks.
 
