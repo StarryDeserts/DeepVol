@@ -1,7 +1,7 @@
 ---
 Purpose: Document RANGE primitive trading model, mintable interval search, execution gates, and validation status.
 Audience: Protocol integrators, frontend developers, SDK implementers.
-Status: DeepVol-24-fix adds structured mintability diagnostics on top of the DeepVol-23 RANGE primitive execution path. Real RANGE mint NOT yet validated on Testnet.
+Status: DeepVol-25 adds shared wallet-scoped PredictManager session UX and primitive Portfolio readback. DeepVol-24-fix adds structured mintability diagnostics on top of the DeepVol-23 RANGE primitive execution path. Real RANGE mint NOT yet validated on Testnet.
 Source of truth relationship: Derived from implementation; does not override protocol or product specs.
 ---
 
@@ -15,6 +15,7 @@ RANGE is a raw DeepBook Predict range primitive. A RANGE position wins if BTC ex
 - RANGE does NOT use a DeepVol VolSeries.
 - RANGE does NOT pay a DeepVol Create Fee.
 - Positions are tracked through localStorage records and known-key readback.
+- PredictManager setup uses the shared wallet-scoped session; manual manager object ID entry is Advanced / Developer fallback only.
 
 ## Distinction from BTC MOVE
 
@@ -75,11 +76,17 @@ This is the same 10% drift tolerance used for UP/DOWN primitives.
 
 `assert_mintable_ask::7` in RANGE primitive context shows: "Selected RANGE interval is not mintable for the current market. Try regenerating a mintable interval."
 
+## PredictManager session
+
+RANGE uses the same wallet-scoped PredictManager session as BTC MOVE, UP, and DOWN. The app restores a manager for the connected wallet when available, can recover from same-wallet local primitive records, and shows `Create PredictManager` when missing. Manual object ID entry remains collapsed under Advanced / Developer fallback only.
+
+See [DEEPVOL_PREDICT_MANAGER_UX.md](./DEEPVOL_PREDICT_MANAGER_UX.md).
+
 ## Portfolio and local records
 
-RANGE trades are recorded in localStorage under `deepvol:primitive-trades` with `primitiveType: "RANGE"`, `lowerStrike`, and `upperStrike`. Portfolio displays RANGE records separately from MOVE Receipts with a clear warning: "Primitive trades do not create DeepVol MoveReceipt."
+RANGE trades are recorded in localStorage under `deepvol:primitive-trades` with `primitiveType: "RANGE"`, `lowerStrike`, and `upperStrike`. Portfolio displays RANGE records separately from MOVE Receipts with a clear warning: "Primitive trades do not create DeepVol MoveReceipt." When lower/upper strikes are present, Portfolio can attempt known-key readback through `predict_manager::range_position`; incomplete records keep the local record visible and show `RANGE readback pending; local transaction record shown.`
 
-General primitive position indexing is not yet implemented.
+General primitive position indexing and cross-browser primitive discovery are not yet implemented. See [DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md](./DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md).
 
 ## Naming convention
 

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { PredictManagerSetupCard } from "../components/PredictManagerSetupCard";
 import { PrimitiveQuotePanel } from "../components/PrimitiveQuotePanel";
 import { DataGrid } from "../components/ui/DataGrid";
 import { PageHero } from "../components/ui/PageHero";
 import { StateCallout } from "../components/ui/StateCallout";
 import { StatusPill } from "../components/ui/StatusPill";
+import { usePredictManagerSession } from "../hooks/usePredictManagerSession";
 import { usePrimitivePositionReadback } from "../hooks/usePrimitivePositionReadback";
 import { usePrimitivePreflight } from "../hooks/usePrimitivePreflight";
 import { usePrimitiveQuote } from "../hooks/usePrimitiveQuote";
@@ -12,6 +14,7 @@ import type { DiscoveryPhase } from "../hooks/useActiveBtcPredictMarket";
 import { usePrimitiveMintableStrike } from "../hooks/usePrimitiveMintableStrike";
 import { usePrimitiveMintableRange } from "../hooks/usePrimitiveMintableRange";
 import { usePrimitiveWalletExecution } from "../hooks/usePrimitiveWalletExecution";
+import { useSuiWallet } from "../hooks/useSuiWallet";
 import type {
   PrimitiveMarketStatus,
   RangePrimitiveMintabilityFailureFamily,
@@ -29,7 +32,9 @@ export function PrimitiveQuotePage() {
   const [strikeInput, setStrikeInput] = useState("");
   const [lowerStrikeInput, setLowerStrikeInput] = useState("");
   const [upperStrikeInput, setUpperStrikeInput] = useState("");
-  const [predictManagerInput, setPredictManagerInput] = useState("");
+  const [manualManagerInput, setManualManagerInput] = useState("");
+  const wallet = useSuiWallet();
+  const predictManagerSession = usePredictManagerSession();
   const activeMarket = useActiveBtcPredictMarket();
   const quote = usePrimitiveQuote({
     activeMarket: activeMarket.market,
@@ -39,7 +44,7 @@ export function PrimitiveQuotePage() {
     lowerStrikeInput,
     upperStrikeInput,
   });
-  const predictManagerId = predictManagerInput.trim() || null;
+  const predictManagerId = predictManagerSession.status === "ready" ? predictManagerSession.predictManagerId : null;
   const preflight = usePrimitivePreflight({
     quote,
     predictManagerId,
@@ -123,6 +128,10 @@ export function PrimitiveQuotePage() {
         setUpperStrikeInput(quote.series.upperStrike);
       }
     }
+  }
+
+  function storeManualManagerId() {
+    predictManagerSession.setManualManager(manualManagerInput);
   }
 
   return (
@@ -356,16 +365,6 @@ export function PrimitiveQuotePage() {
                 />
               </label>
             )}
-
-            <label>
-              <span className="fieldLabel">PredictManager ID</span>
-              <input
-                value={predictManagerInput}
-                placeholder="0x..."
-                onChange={(event) => setPredictManagerInput(event.target.value)}
-              />
-              <small className="fieldHelp">Required for preflight and known-key position readback; no create/deposit action is triggered here.</small>
-            </label>
           </div>
         </section>
 
@@ -537,6 +536,20 @@ export function PrimitiveQuotePage() {
       </section>
 
       <section className="tradeActionColumn">
+        <PredictManagerSetupCard
+          managerId={predictManagerId}
+          knownManagerId={predictManagerSession.knownManagerId}
+          manualManagerId={manualManagerInput}
+          isConnected={wallet.isConnected}
+          isTestnet={wallet.isTestnet}
+          isLoading={predictManagerSession.managerQuery.isLoading || predictManagerSession.validatedHintQuery.isLoading}
+          validationMessage={predictManagerSession.validationMessage}
+          discoveryMessage={predictManagerSession.discoveryMessage}
+          transactionStatus={predictManagerSession.transactionStatus}
+          onManualManagerIdChange={setManualManagerInput}
+          onStoreManualManagerId={storeManualManagerId}
+          onCreateManager={predictManagerSession.createManager}
+        />
         <PrimitiveQuotePanel quote={quote} preflight={preflight} execution={execution} predictManagerId={predictManagerId} />
       </section>
     </div>

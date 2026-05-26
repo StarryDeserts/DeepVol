@@ -93,6 +93,15 @@ export function buildPrimitivePositionKey(record: Pick<StoredDeepVolPrimitiveTra
   return [record.oracleId, record.expiry, record.primitiveType, record.strike ?? "no-strike"].join(":");
 }
 
+export function recoverPredictManagerIdFromPrimitiveRecords(storageKeys: StorageKeys, walletAddress: string): string | null {
+  const normalizedWallet = walletAddress.toLowerCase();
+  const latest = readStoredPrimitiveTrades(storageKeys)
+    .filter((record) => record.wallet.toLowerCase() === normalizedWallet)
+    .sort((a, b) => b.executedAtMs - a.executedAtMs)[0];
+
+  return latest?.predictManagerId ?? null;
+}
+
 function notifyPrimitiveStorageChanged() {
   if (typeof window !== "undefined") {
     cachedTradesRaw = null;

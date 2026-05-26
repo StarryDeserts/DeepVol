@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol web information architecture for Predict primitives UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; RANGE execution path added (pending validation); see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md and DEEPVOL_RANGE_PRIMITIVE_TRADING.md. DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback.
+Status: DeepVol-25 adds shared wallet-scoped PredictManager session UX and primitive Portfolio readback. DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; RANGE execution path added (pending validation); see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md and DEEPVOL_RANGE_PRIMITIVE_TRADING.md. DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual market override collapsed under Advanced fallback.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive execution policy, primitive quote/preflight contract, and frontend MVP docs; protocol docs and on-chain state remain authoritative for Predict semantics.
 ---
 
@@ -11,9 +11,9 @@ Source of truth relationship: Extends the DeepVol primitives/receipts model, pri
 
 DeepVol is expanding into a Predict-native primitive trading terminal while keeping BTC MOVE as the featured structured receipt product. BTC MOVE packages official DeepBook Predict UP and DOWN binary legs into one protocol-enforced, non-custodial `MoveReceipt` so users can trade movement, not direction.
 
-DeepVol-15 upgrades UP and DOWN from quote/preflight previews into wallet-gated primitive terminals. They can open wallet review only after active BTC market discovery, fresh quote, PredictManager DUSDC balance, and binary mint preflight gates pass. DeepVol-16 confirmed browser smoke and source/test gate review; a follow-up wallet-enabled preflight exposed a stale/non-live oracle blocker (`oracle_config::assert_live_oracle` abort code `3`). DeepVol-16-fix adds active market refresh, effective `Live / Stale / Expired / Unknown` status, stale-oracle copy, and selected oracle object propagation; see [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) and [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md). RANGE remains quote/preflight-only until a dedicated mintability validation round hardens its execution gates.
+DeepVol-15 upgrades UP and DOWN from quote/preflight previews into wallet-gated primitive terminals. They can open wallet review only after active BTC market discovery, fresh quote, PredictManager DUSDC balance, and binary mint preflight gates pass. DeepVol-16 confirmed browser smoke and source/test gate review; a follow-up wallet-enabled preflight exposed a stale/non-live oracle blocker (`oracle_config::assert_live_oracle` abort code `3`). DeepVol-16-fix adds active market refresh, effective `Live / Stale / Expired / Unknown` status, stale-oracle copy, and selected oracle object propagation; see [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) and [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md). DeepVol-25 replaces the default manual PredictManager object input with a shared wallet-scoped session used by BTC MOVE, UP, DOWN, and RANGE; manual manager IDs remain available only under Advanced / Developer fallback. RANGE remains execution-ready but real RANGE mint is not yet validated on Testnet.
 
-See [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md) for the execution, fee, and portfolio policy. See [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) for the quote/preflight contract and blocker matrix.
+See [DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md](./DEEPVOL_PRIMITIVE_EXECUTION_POLICY.md) for the execution, fee, and portfolio policy. See [DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md](./DEEPVOL_PRIMITIVE_QUOTE_PREFLIGHT.md) for the quote/preflight contract and blocker matrix. See [DEEPVOL_PREDICT_MANAGER_UX.md](./DEEPVOL_PREDICT_MANAGER_UX.md) and [DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md](./DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md) for DeepVol-25 manager session and primitive Portfolio boundaries.
 
 ## Product model
 
@@ -49,11 +49,11 @@ DeepVol-15 uses the primitive route as a guarded terminal:
 |---|---|
 | `/markets` | BTC MOVE remains featured first; UP and DOWN cards link to wallet-gated primitive terminals; RANGE links to quote/preflight gates. |
 | `/buy/btc-move` | Existing wallet-gated BTC MOVE receipt transaction workspace remains the enabled receipt route. |
-| `/primitives` | Defaults to UP, auto-discovers active BTC primitive market on page load, renders granular discovery-phase feedback (Connect wallet / Refreshing / Live / Not found / Server error / Quote failed / Stale / Expired), collapses manual override under Advanced fallback, and blocks quote/preflight/wallet review unless the selected market is live. |
+| `/primitives` | Defaults to UP, auto-discovers active BTC primitive market on page load, renders granular discovery-phase feedback (Connect wallet / Refreshing / Live / Not found / Server error / Quote failed / Stale / Expired), uses the shared PredictManager session, collapses manual market and manager fallbacks under Advanced sections, and blocks quote/preflight/wallet review unless the selected market is live and the manager session is ready. |
 | `/primitives?type=UP` | Shows UP strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
 | `/primitives?type=DOWN` | Shows DOWN strike, quantity, quote, manager balance, mint preflight, diagnostics, and wallet review once gates pass. |
-| `/primitives?type=RANGE` | Shows lower/upper strikes, quantity, range quote, range mint preflight, diagnostics, and disabled execution policy. |
-| `/portfolio` | Separates MOVE Receipts from local Primitive Trade Records and keeps known-key primitive readback for a manually entered PredictManager ID. |
+| `/primitives?type=RANGE` | Shows lower/upper strikes, quantity, range quote, range mint preflight, diagnostics, and wallet review once gates pass; real RANGE mint remains unvalidated on Testnet. |
+| `/portfolio` | Separates MOVE Receipts from Primitive Positions and renders local primitive trade records with per-record known-key readback when possible. |
 
 The primitive cards and route explain payoff, risk boundary, quote/preflight status, and execution policy. Route and panel UI must not own signing logic directly; wallet signing belongs in the primitive execution hook.
 
@@ -68,11 +68,12 @@ Allowed:
 - Use browser-safe devInspect quote helpers for UP, DOWN, and RANGE.
 - Use mint preflight helpers for UP, DOWN, and RANGE.
 - Read PredictManager DUSDC balance during primitive preflight.
-- Enable UP/DOWN wallet review only after active/live BTC market context, fresh quote, sufficient balance, fresh preflight, Testnet wallet, PredictManager ID, and no active submission.
+- Restore a wallet-scoped PredictManager session and require `status === "ready"` before primitive quote/preflight/execution hooks use a manager ID.
+- Enable UP/DOWN wallet review only after active/live BTC market context, fresh quote, sufficient balance, fresh preflight, Testnet wallet, ready PredictManager session, and no active submission.
 - Rerun market expiry/status checks, quote, manager balance, and binary mint preflight immediately before the UP/DOWN wallet prompt.
 - Store successful UP/DOWN primitive trade digests as local primitive records.
-- Read known primitive keys for a manually entered PredictManager ID.
-- Enable RANGE wallet review only after mintable interval search passes, fresh range quote, sufficient balance, fresh range mint preflight, Testnet wallet, PredictManager ID, and no active submission.
+- Read known primitive keys from each local record's own PredictManager and market key fields.
+- Enable RANGE wallet review only after mintable interval search passes, fresh range quote, sufficient balance, fresh range mint preflight, Testnet wallet, ready PredictManager session, and no active submission.
 - Record successful RANGE primitive trade digests as local primitive records with `primitiveType: "RANGE"`.
 
 Not allowed:
@@ -100,8 +101,9 @@ Current SDK and validation work covers the terminal surface:
 | Range mint preflight | Existing `devInspectMintRangePreflight` support. |
 | Range mint execution | Execution-ready with mintable interval search via `usePrimitiveMintableRange`; real RANGE mint NOT yet validated on Testnet. |
 | Binary/range position readback | Existing known-key readback helpers; no general enumeration. |
+| PredictManager session | Wallet-scoped localStorage plus same-wallet local primitive record recovery; manual manager object ID entry is Advanced / Developer fallback only. |
 
-Primitive execution still requires runtime gates because quote success is not mintability proof. Fresh quote, manager balance, and mint preflight are rerun immediately before wallet review.
+Primitive execution still requires runtime gates because quote success is not mintability proof. Fresh quote, manager balance, and mint preflight are rerun immediately before wallet review. See [DEEPVOL_PREDICT_MANAGER_UX.md](./DEEPVOL_PREDICT_MANAGER_UX.md).
 
 ## Mintable strike validation (DeepVol-21)
 
@@ -149,7 +151,7 @@ RANGE execution path is implementation-ready. Real RANGE mint NOT yet validated 
 ```
 
 ```text
-Known selected key readback is supported first. General primitive position indexing is future work.
+Known selected key readback is supported first. Portfolio reads each local primitive record by its own known key when possible. General primitive position indexing is future work.
 ```
 
 The app should continue to emphasize:

@@ -14,7 +14,9 @@
     "test:move-series-gates": "node scripts/test-move-series-gates.mjs",
     "test:move-series-mintability": "node scripts/test-move-series-mintability.mjs",
     "test:primitive-mintability": "node scripts/test-primitive-mintability.mjs",
-    "test:range-mintability": "node scripts/test-range-mintability.mjs"
+    "test:range-mintability": "node scripts/test-range-mintability.mjs",
+    "test:predict-manager-session": "node scripts/test-predict-manager-session.mjs",
+    "test:portfolio-primitives": "node scripts/test-portfolio-primitives.mjs"
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.6",

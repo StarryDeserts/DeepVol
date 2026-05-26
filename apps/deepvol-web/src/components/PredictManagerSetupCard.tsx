@@ -47,8 +47,7 @@ export function PredictManagerSetupCard({
         </StatusPill>
       </div>
       <p>
-        A PredictManager is your DeepBook Predict account object. BTC MOVE mints the UP and DOWN legs into this object while the
-        receipt records the DeepVol-created position metadata.
+        PredictManager is your personal DeepBook Predict account for holding DUSDC balances and primitive positions.
       </p>
 
       {managerId ? (
@@ -60,7 +59,7 @@ export function PredictManagerSetupCard({
           {knownManagerId
             ? validationMessage ?? "Stored PredictManager hint is being validated before deposits, quotes, and preflight can unlock."
             : canCreate
-              ? "Create a PredictManager with your wallet, or paste an existing object ID if you already have one."
+              ? "Create a PredictManager with your wallet. Existing object IDs are available from the Advanced / Developer fallback."
               : "Connect a Sui Testnet wallet before DeepVol can create or validate a manager hint."}
         </StateCallout>
       )}
@@ -76,24 +75,32 @@ export function PredictManagerSetupCard({
         {!canCreate && <small>Requires connected Sui Testnet wallet.</small>}
       </div>
 
-      <label className="fieldLabel" htmlFor="predict-manager-id">
-        Existing PredictManager ID
-      </label>
-      <div className="inlineFieldGroup">
-        <input
-          id="predict-manager-id"
-          value={manualManagerId}
-          placeholder="0x..."
-          autoComplete="off"
-          onChange={(event) => onManualManagerIdChange(event.target.value)}
-        />
-        <button className="secondaryButton" type="button" disabled={!canStore} onClick={onStoreManualManagerId}>
-          Store locally
-        </button>
-      </div>
-      <small className="fieldHelp">
-        Local storage is a browser hint only; DeepVol validates object type and owner before funding, quote, preflight, or buy actions unlock.
-      </small>
+      <details className="advancedDetails">
+        <summary>Advanced / Developer: use an existing PredictManager</summary>
+        <div className="advancedContent">
+          <StateCallout tone="warning" title="Developer fallback only">
+            Use this only if you already know your PredictManager object ID. DeepVol validates object type and owner before quote, preflight, or trade actions unlock.
+          </StateCallout>
+          <label className="fieldLabel" htmlFor="predict-manager-id">
+            Existing PredictManager ID
+          </label>
+          <div className="inlineFieldGroup">
+            <input
+              id="predict-manager-id"
+              value={manualManagerId}
+              placeholder="0x..."
+              autoComplete="off"
+              onChange={(event) => onManualManagerIdChange(event.target.value)}
+            />
+            <button className="secondaryButton" type="button" disabled={!canStore} onClick={onStoreManualManagerId}>
+              Store locally
+            </button>
+          </div>
+          <small className="fieldHelp">
+            Local storage is a browser hint only; DeepVol validates object type and owner before funding, quote, preflight, or buy actions unlock.
+          </small>
+        </div>
+      </details>
 
       <TransactionStatus label="PredictManager action" status={transactionStatus} />
     </section>

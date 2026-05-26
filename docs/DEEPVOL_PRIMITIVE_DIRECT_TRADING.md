@@ -1,7 +1,7 @@
 ---
 Purpose: Document UP/DOWN direct primitive trading model and mintable strike validation.
 Audience: Protocol integrators, frontend developers.
-Status: DeepVol-24-fix adds RANGE mintability diagnostics; DeepVol-23 records UP/DOWN primitive Testnet validation success and adds RANGE execution path (pending validation). DeepVol-21 implementation record.
+Status: DeepVol-25 adds shared wallet-scoped PredictManager session UX and primitive Portfolio readback. DeepVol-24-fix adds RANGE mintability diagnostics; DeepVol-23 records UP/DOWN primitive Testnet validation success and adds RANGE execution path (pending validation). DeepVol-21 implementation record.
 Source of truth relationship: Derived from implementation; does not override protocol or product specs.
 ---
 
@@ -15,6 +15,7 @@ UP and DOWN are raw DeepBook Predict binary positions that live in the user's Pr
 - Primitives do NOT use a DeepVol VolSeries.
 - Primitives do NOT pay a DeepVol create fee.
 - Positions are tracked through localStorage records and known-key readback.
+- PredictManager setup uses the shared wallet-scoped session; manual manager object ID entry is Advanced / Developer fallback only.
 
 ## Active BTC market requirement
 
@@ -57,11 +58,17 @@ Before showing the wallet prompt, `submit()` re-runs `devInspectBinaryQuote()` a
 
 In BTC MOVE context, the same error shows: "Selected BTC MOVE range is not mintable for the current market."
 
+## PredictManager session
+
+UP, DOWN, and RANGE use the same wallet-scoped PredictManager session as BTC MOVE. The app first restores a validated manager for the connected wallet, can recover a manager from same-wallet local primitive records, and shows `Create PredictManager` when missing. Manual object ID entry remains collapsed under Advanced / Developer fallback only.
+
+See [DEEPVOL_PREDICT_MANAGER_UX.md](./DEEPVOL_PREDICT_MANAGER_UX.md).
+
 ## Portfolio and local records
 
-Primitive trades are recorded in localStorage under `deepvol:primitive-trades`. Portfolio displays them separately from MOVE Receipts with a clear warning: "Primitive trades do not create DeepVol MoveReceipt."
+Primitive trades are recorded in localStorage under `deepvol:primitive-trades`. Portfolio displays them separately from MOVE Receipts with a clear warning: "Primitive trades do not create DeepVol MoveReceipt." Each local record carries its own PredictManager and market key fields, so Portfolio can attempt per-record known-key readback without a default manual manager input.
 
-General primitive position indexing is not yet implemented.
+General primitive position indexing and cross-browser primitive discovery are not yet implemented. See [DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md](./DEEPVOL_PORTFOLIO_PRIMITIVE_POSITIONS.md).
 
 ## RANGE
 

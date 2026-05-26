@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 const marketsSource = readFileSync("src/routes/MarketsPage.tsx", "utf8");
 const primitiveCardsSource = readFileSync("src/components/PredictPrimitiveCards.tsx", "utf8");
 const portfolioSource = readFileSync("src/routes/PortfolioPage.tsx", "utf8");
+const primitiveTradeRecordCardSource = readFileSync("src/components/PrimitiveTradeRecordCard.tsx", "utf8");
 
 assert.match(marketsSource, /Trade movement, not direction\./, "Markets must keep BTC MOVE hero copy");
 assert.match(marketsSource, /<BtcMoveCard \/>/, "Markets must keep BTC MOVE featured before primitives");
@@ -43,17 +44,17 @@ assert.match(portfolioSource, /MOVE Receipts/, "Portfolio must separate MOVE Rec
 assert.match(portfolioSource, /Local primitive trade records/, "Portfolio must render primitive local records separately");
 assert.match(portfolioSource, /PrimitiveTradeRecordCard/, "Portfolio must render primitive records with the primitive record card");
 assert.match(portfolioSource, /useDeepVolPrimitiveRecords/, "Portfolio must read local primitive trade records");
-assert.match(portfolioSource, /usePrimitivePositionReadback/, "Portfolio must keep known-key primitive readback");
-assert.match(portfolioSource, /Known selected key readback is supported first/, "Portfolio must explain known-key readback scope");
+assert.match(primitiveTradeRecordCardSource, /usePrimitiveRecordPositionReadback/, "Primitive record cards must keep known-key primitive readback");
+assert.match(portfolioSource, /known-key readback where possible/, "Portfolio must explain known-key readback scope");
 assert.match(
   portfolioSource,
-  /Primitive trade records are local browser hints, not MoveReceipt objects and not indexer truth\./,
+  /Primitive positions are raw Predict positions and do not create MoveReceipt/,
   "Portfolio must state primitive records are local hints, not MoveReceipts",
 );
 assert.match(
   portfolioSource,
-  /Only BTC MOVE creates a receipt in this app\./,
-  "Portfolio must state only BTC MOVE creates receipts",
+  /MOVE Receipts remain separate\./,
+  "Portfolio must state MOVE Receipts remain separate",
 );
 
 console.log("PASS primitive terminal gating");
