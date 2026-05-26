@@ -1,7 +1,7 @@
 ---
 Purpose: Document UP/DOWN direct primitive trading model and mintable strike validation.
 Audience: Protocol integrators, frontend developers.
-Status: DeepVol-21 implementation record.
+Status: DeepVol-23 records UP/DOWN primitive Testnet validation success. DeepVol-21 implementation record. RANGE not yet validated.
 Source of truth relationship: Derived from implementation; does not override protocol or product specs.
 ---
 
@@ -67,9 +67,18 @@ General primitive position indexing is not yet implemented.
 
 RANGE wallet execution remains disabled until dedicated mintability validation passes. RANGE can still preview quotes and run preflight.
 
+## What this validates
+
+DeepVol-23 validated UP and DOWN primitive direct mint on Testnet. See [DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md](./DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md) for transaction digests and evidence. Validated items:
+
+- Raw `predict::mint<DUSDC>` binary primitive execution for both UP and DOWN.
+- PredictManager position creation via direct primitive mint.
+- Wallet-gated execution gates: oracle, expiry, strike, quantity, balance, preflight.
+- Pre-wallet 10% quote drift tolerance.
+- RANGE is NOT yet validated.
+
 ## What this does NOT validate
 
-- Real UP/DOWN mint on Testnet (requires explicit user approval)
 - RANGE execution
 - Mainnet readiness
 - General position indexing

@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol wallet-gated frontend MVP scaffold, UI/UX foundation, and safety boundaries.
 Audience: Frontend developers, SDK implementers, product contributors, reviewers, and AI agents.
-Status: DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives; execution gate now requires primitiveMintabilityStatus passed. Updated for DeepVol-20: fresh BTC MOVE buy validated on Testnet with active VolSeries. BuyMovePage detects stale/missing/validation-required/non-mintable VolSeries, provides Regenerate mintable range, and gates Create BTC MOVE Series plus buy behind mintability validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md and DEEPVOL_MINTABLE_MOVE_RANGE.md.
+Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives; execution gate now requires primitiveMintabilityStatus passed. Updated for DeepVol-20: fresh BTC MOVE buy validated on Testnet with active VolSeries. BuyMovePage detects stale/missing/validation-required/non-mintable VolSeries, provides Regenerate mintable range, and gates Create BTC MOVE Series plus buy behind mintability validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md and DEEPVOL_MINTABLE_MOVE_RANGE.md.
 Source of truth relationship: Derived from DeepVol foundation docs, deployed receipt validation, and local frontend implementation; protocol docs and on-chain state remain authoritative for transaction semantics.
 ---
 

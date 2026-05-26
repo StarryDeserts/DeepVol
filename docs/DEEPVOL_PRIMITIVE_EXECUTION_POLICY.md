@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive execution policy for UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-22-fix adds pre-wallet quote drift tolerance (10%) and removes volatile mint cost from preflight dependency key. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives. DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
+Status: DeepVol-23 records UP/DOWN primitive Testnet validation success; RANGE pending. DeepVol-22-fix adds pre-wallet quote drift tolerance (10%) and removes volatile mint cost from preflight dependency key. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives. DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive quote/preflight contract, frontend MVP docs, and binary-leg integration notes; on-chain protocol behavior remains authoritative.
 ---
 

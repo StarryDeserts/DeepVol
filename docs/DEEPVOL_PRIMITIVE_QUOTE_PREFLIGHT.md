@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive quote, preflight, and execution gate contract for UP, DOWN, and RANGE.
 Audience: Frontend developers, SDK implementers, product maintainers, reviewers, and AI agents.
-Status: DeepVol-21 adds mintable strike candidate search interacting with quote/preflight gates for UP/DOWN. DeepVol-16-fix updates the UP/DOWN/RANGE primitive gate contract to require an active/live BTC market context, stale-oracle blockers, and friendly assert_live_oracle error copy before quote, preflight, or wallet execution. RANGE execution remains disabled.
+Status: DeepVol-23 records UP/DOWN primitive Testnet validation success; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. DeepVol-21 adds mintable strike candidate search interacting with quote/preflight gates for UP/DOWN. DeepVol-16-fix updates the UP/DOWN/RANGE primitive gate contract to require an active/live BTC market context, stale-oracle blockers, and friendly assert_live_oracle error copy before quote, preflight, or wallet execution. RANGE execution remains disabled.
 Source of truth relationship: Extends the DeepVol primitive execution policy, primitives/receipts model, frontend MVP, protocol integration, and binary leg integration docs; on-chain protocol behavior remains authoritative.
 ---
 

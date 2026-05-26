@@ -1,7 +1,7 @@
 ---
 Purpose: Track confirmed DeepBook Predict integration values and remaining runtime details for RangePilot.
 Audience: Protocol integrators, transaction-builder authors, frontend developers, and AI agents.
-Status: DeepVol-21 adds mintable strike candidate search and primitive mintability gate for UP/DOWN execution. Updated for DeepVol-20: fresh BTC MOVE buy validated with active VolSeries. create_series is permissionless but not mintability proof. Fresh BTC MOVE VolSeries creation and buy readiness require mintable range validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md, DEEPVOL_MINTABLE_MOVE_RANGE.md, and DEEPVOL_FRESH_MOVE_BUY_VALIDATION.md.
+Status: DeepVol-23 records UP/DOWN primitive Testnet validation success; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. RANGE pending. DeepVol-21 adds mintable strike candidate search and primitive mintability gate for UP/DOWN execution. Updated for DeepVol-20: fresh BTC MOVE buy validated with active VolSeries. create_series is permissionless but not mintability proof. Fresh BTC MOVE VolSeries creation and buy readiness require mintable range validation. See DEEPVOL_ACTIVE_MOVE_SERIES.md, DEEPVOL_MINTABLE_MOVE_RANGE.md, and DEEPVOL_FRESH_MOVE_BUY_VALIDATION.md.
 Source of truth relationship: Deployment values in this file are confirmed for the official Testnet setup and source branch listed below; runtime market state, response schemas, and exact generated-binding call shapes still require confirmation.
 ---
 

@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol web information architecture for Predict primitives UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback. RANGE remains quote/preflight-only.
+Status: DeepVol-23: UP/DOWN primitive direct mint validated on Testnet; see DEEPVOL_PRIMITIVE_UP_DOWN_VALIDATION.md. DeepVol-21: mintable strike validation added for UP/DOWN. DeepVol-16-fix-2 primitive terminal status: UP/DOWN remain wallet-gated, `/primitives` auto-discovers active BTC market on page load with granular discovery-phase feedback (Refreshing, Not found, Server error, Quote failed), manual override collapsed under Advanced fallback. RANGE remains quote/preflight-only.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive execution policy, primitive quote/preflight contract, and frontend MVP docs; protocol docs and on-chain state remain authoritative for Predict semantics.
 ---
 
