@@ -194,7 +194,5 @@ export function buildPrimitivePreflightDependencyKey(input: PrimitiveInputState)
   return [
     buildPrimitiveQuoteDependencyKey(input),
     input.predictManagerId ?? "no-manager",
-    input.mintCostAtomic ?? "no-mint-cost",
-    input.redeemPayoutAtomic ?? "no-redeem-payout",
   ].join(":");
 }

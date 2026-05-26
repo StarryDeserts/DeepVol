@@ -43,6 +43,14 @@ Quote blockers → Preflight blockers → Mintability gate → Execution blocker
 
 The mintability gate requires `primitiveMintabilityStatus === "passed"` for UP/DOWN. Manual strike edits invalidate the validation.
 
+## Pre-wallet quote drift tolerance
+
+Before showing the wallet prompt, `submit()` re-runs `devInspectBinaryQuote()` and compares the fresh mint cost to the original. Because DeepBook Predict's on-chain SVI pricing model updates continuously, small cost differences are expected and tolerated.
+
+- If the fresh mint cost is positive and at most 10% above the original quote, the wallet prompt proceeds.
+- If the fresh mint cost exceeds the original by more than 10%, the user is asked to refresh their quote.
+- The preflight dependency key does NOT include `mintCostAtomic` or `redeemPayoutAtomic` to avoid invalidating preflight state on normal price drift.
+
 ## Error mapping
 
 `assert_mintable_ask::7` in primitive context shows: "Selected strike is not mintable for the current market. Try regenerating a mintable strike."

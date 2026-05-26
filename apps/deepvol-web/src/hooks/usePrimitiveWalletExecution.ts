@@ -86,11 +86,7 @@ export function usePrimitiveWalletExecution({
     lowerStrike: quote.lowerStrike,
     upperStrike: quote.upperStrike,
     predictManagerId,
-    mintCostAtomic: quote.mintCostAtomic,
-    redeemPayoutAtomic: quote.redeemPayoutAtomic,
-    quoteDependencyKey: quote.dependencyKey,
-    preflightQuoteDependencyKey: quote.dependencyKey,
-  }), [predictManagerId, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.redeemPayoutAtomic, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+  }), [predictManagerId, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.series, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const executionInput = useMemo<PrimitiveExecutionInput>(() => ({
     primitiveKind: quote.primitiveKind,
     walletAddress: wallet.address,
@@ -193,9 +189,16 @@ export function usePrimitiveWalletExecution({
         return;
       }
 
-      if (quote.mintCostAtomic && freshQuote.mintCostAtomic !== quote.mintCostAtomic) {
-        blockBeforeWallet("Fresh primitive quote changed. Refresh quote and rerun preflight before wallet review.");
-        return;
+      if (quote.mintCostAtomic) {
+        const originalCost = BigInt(quote.mintCostAtomic);
+        const freshCost = BigInt(freshQuote.mintCostAtomic);
+        const maxAcceptableCost = originalCost + (originalCost * 10n) / 100n;
+        if (freshCost > maxAcceptableCost) {
+          blockBeforeWallet(
+            `Fresh primitive mint cost ${freshQuote.mintCostAtomic} exceeds original ${quote.mintCostAtomic} by more than 10%. Refresh quote and rerun preflight.`,
+          );
+          return;
+        }
       }
 
       const managerBalance = await devInspectManagerBalance({

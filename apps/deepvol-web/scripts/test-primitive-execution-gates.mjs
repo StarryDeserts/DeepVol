@@ -172,4 +172,25 @@ assert.match(panelSource, /Review \$\{quote\.primitiveKind\} in wallet/, "UP/DOW
 assert.match(panelSource, /RANGE execution disabled/, "RANGE panel must show disabled policy");
 assert.match(panelSource, /TransactionStatus status=\{execution\.transactionStatus\}/, "primitive panel must show execution digest/status");
 
+assert.ok(
+  !executionSource.includes('freshQuote.mintCostAtomic !== quote.mintCostAtomic'),
+  "submit() must NOT use strict equality for fresh vs original mintCostAtomic (causes false blockers from SVI drift)",
+);
+assert.ok(
+  executionSource.includes("maxAcceptableCost"),
+  "submit() must use tolerance-based comparison for fresh quote mint cost drift",
+);
+assert.ok(
+  executionSource.includes("exceeds original"),
+  "submit() must report original vs fresh cost when tolerance exceeded",
+);
+assert.ok(
+  !gateSource.includes('"no-mint-cost"'),
+  "preflight dependency key must NOT include volatile mintCostAtomic",
+);
+assert.ok(
+  !gateSource.includes('"no-redeem-payout"'),
+  "preflight dependency key must NOT include volatile redeemPayoutAtomic",
+);
+
 console.log("PASS primitive execution gate source checks");

@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive execution policy for UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives. DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
+Status: DeepVol-22-fix adds pre-wallet quote drift tolerance (10%) and removes volatile mint cost from preflight dependency key. DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives. DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive quote/preflight contract, frontend MVP docs, and binary-leg integration notes; on-chain protocol behavior remains authoritative.
 ---
 
@@ -47,7 +47,7 @@ UP/DOWN wallet execution must remain disabled until every gate passes:
 - `primitiveMintabilityStatus === "passed"` from `findMintableBinaryPrimitiveCandidate()` confirming the selected strike is mintable (DeepVol-21);
 - no in-flight primitive wallet submission.
 
-Clicking wallet review must rerun quote, manager balance readback, and binary mint preflight immediately before the wallet prompt. It must also fail closed if the selected market expiry has passed since the last render. The app must not automatically execute primitive trades.
+Clicking wallet review must rerun quote, manager balance readback, and binary mint preflight immediately before the wallet prompt. It must also fail closed if the selected market expiry has passed since the last render. The pre-wallet fresh quote uses a 10% cost tolerance — normal SVI pricing drift is accepted, but a cost increase beyond 10% blocks until the user refreshes. The preflight dependency key excludes volatile `mintCostAtomic`/`redeemPayoutAtomic` to prevent preflight invalidation from on-chain price drift (DeepVol-22-fix). The app must not automatically execute primitive trades.
 
 DeepVol-16 confirmed browser smoke and source/test gate review, and the follow-up real-browser preflight exposed a stale/non-live oracle blocker (`oracle_config::assert_live_oracle` abort code `3`). See [DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md](./DEEPVOL_PRIMITIVE_EXECUTION_VALIDATION.md) and [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) for the blocker, fix, and zero-count attestation.
 
