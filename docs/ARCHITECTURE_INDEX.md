@@ -1,7 +1,7 @@
 ---
 Purpose: Navigation index for RangePilot and DeepVol architecture documentation.
 Audience: Developers, product contributors, reviewers, and AI agents.
-Status: Updated for DeepVol-20 fresh BTC MOVE buy validation, DeepVol-18-fix-2 mintable BTC MOVE range validation, active BTC primitive market discovery, wallet-gated UP/DOWN primitive execution, and RANGE-disabled policy.
+Status: DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives and DEEPVOL_PRIMITIVE_DIRECT_TRADING.md. Updated for DeepVol-20 fresh BTC MOVE buy validation, DeepVol-18-fix-2 mintable BTC MOVE range validation, active BTC primitive market discovery, wallet-gated UP/DOWN primitive execution, and RANGE-disabled policy.
 Source of truth relationship: Indexes local source-of-truth documents, official-derived protocol references, generated companion docs, and pivot ADRs; does not replace source docs.
 ---
 
@@ -43,6 +43,7 @@ Do not edit the original product or protocol-analysis source docs for normal imp
 | [DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md](./DEEPVOL_PRIMITIVE_ACTIVE_MARKET_DISCOVERY.md) | Documents active BTC primitive market discovery, stale oracle diagnostics, friendly error copy, manual override fallback, and no-real-mint boundaries | Frontend / SDK / protocol |
 | [DEEPVOL_ACTIVE_MOVE_SERIES.md](./DEEPVOL_ACTIVE_MOVE_SERIES.md) | Documents active BTC MOVE VolSeries lifecycle, permissionless creation, active market binding, MoveSeriesStatus states, and old receipt preservation | Frontend / protocol / SDK |
 | [DEEPVOL_MINTABLE_MOVE_RANGE.md](./DEEPVOL_MINTABLE_MOVE_RANGE.md) | Documents BTC MOVE mintable range candidate search, UP/DOWN leg validation, `assert_mintable_ask::7`, Create Series gating, and non-mintable series handling | Frontend / SDK / protocol |
+| [DEEPVOL_PRIMITIVE_DIRECT_TRADING.md](./DEEPVOL_PRIMITIVE_DIRECT_TRADING.md) | Documents DeepVol-21 mintable strike candidate search for UP/DOWN primitives, `findMintableBinaryPrimitiveCandidate()`, primitive mintability execution gate, and `assert_mintable_ask::7` primitive-friendly error mapping | Frontend / SDK / protocol |
 | [DEEPVOL_PROTOCOL_ARCHITECTURE.md](./DEEPVOL_PROTOCOL_ARCHITECTURE.md) | Defines VolSeries, MoveReceipt, ProtocolVault, PredictManager, transaction/readback/settlement paths | Protocol / architecture |
 | [DEEPVOL_DATA_MODEL.md](./DEEPVOL_DATA_MODEL.md) | Proposes VolSeries, MoveReceipt, and receipt lifecycle event fields | Move / SDK / product |
 | [DEEPVOL_BINARY_LEG_INTEGRATION.md](./DEEPVOL_BINARY_LEG_INTEGRATION.md) | Records source-confirmed binary entrypoints, MarketKey construction, events, and validation blockers | Protocol / SDK / PTB |

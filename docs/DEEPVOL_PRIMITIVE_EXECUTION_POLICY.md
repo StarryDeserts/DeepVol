@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive execution policy for UP, DOWN, RANGE, and BTC MOVE.
 Audience: Product engineers, frontend developers, SDK implementers, reviewers, and AI agents.
-Status: DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
+Status: DeepVol-21 adds mintable strike candidate search for UP/DOWN primitives. DeepVol-16-fix records active BTC primitive market discovery, stale/non-live oracle blockers, wallet-gated UP/DOWN primitive execution, and RANGE quote/preflight-only policy.
 Source of truth relationship: Extends the DeepVol primitives/receipts model, primitive quote/preflight contract, frontend MVP docs, and binary-leg integration notes; on-chain protocol behavior remains authoritative.
 ---
 
@@ -44,6 +44,7 @@ UP/DOWN wallet execution must remain disabled until every gate passes:
 - PredictManager DUSDC balance readback;
 - PredictManager DUSDC balance greater than or equal to the current mint cost;
 - fresh binary mint preflight for the current quote and wallet state;
+- `primitiveMintabilityStatus === "passed"` from `findMintableBinaryPrimitiveCandidate()` confirming the selected strike is mintable (DeepVol-21);
 - no in-flight primitive wallet submission.
 
 Clicking wallet review must rerun quote, manager balance readback, and binary mint preflight immediately before the wallet prompt. It must also fail closed if the selected market expiry has passed since the last render. The app must not automatically execute primitive trades.

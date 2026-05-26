@@ -36,6 +36,7 @@ export type PrimitiveExecutionInput = PrimitiveInputState & {
   preflightLastRunAtMs: number | null;
   managerBalanceAtomic: string | null;
   isSubmitting: boolean;
+  primitiveMintabilityStatus?: "idle" | "blocked" | "running" | "passed" | "failed" | null;
   nowMs?: number;
 };
 
@@ -123,6 +124,10 @@ export function buildPrimitiveExecutionBlockers(input: PrimitiveExecutionInput):
 
   if (input.primitiveKind === "RANGE") {
     blockers.push(PRIMITIVE_RANGE_EXECUTION_DISABLED_BLOCKER);
+  }
+
+  if (input.primitiveKind !== "RANGE" && input.primitiveMintabilityStatus !== "passed") {
+    blockers.push(`Validate a mintable ${input.primitiveKind} strike before buying.`);
   }
 
   if (input.isSubmitting) {

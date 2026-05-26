@@ -1,7 +1,7 @@
 ---
 Purpose: Define the DeepVol primitive quote, preflight, and execution gate contract for UP, DOWN, and RANGE.
 Audience: Frontend developers, SDK implementers, product maintainers, reviewers, and AI agents.
-Status: DeepVol-16-fix updates the UP/DOWN/RANGE primitive gate contract to require an active/live BTC market context, stale-oracle blockers, and friendly assert_live_oracle error copy before quote, preflight, or wallet execution. RANGE execution remains disabled.
+Status: DeepVol-21 adds mintable strike candidate search interacting with quote/preflight gates for UP/DOWN. DeepVol-16-fix updates the UP/DOWN/RANGE primitive gate contract to require an active/live BTC market context, stale-oracle blockers, and friendly assert_live_oracle error copy before quote, preflight, or wallet execution. RANGE execution remains disabled.
 Source of truth relationship: Extends the DeepVol primitive execution policy, primitives/receipts model, frontend MVP, protocol integration, and binary leg integration docs; on-chain protocol behavior remains authoritative.
 ---
 
@@ -71,6 +71,8 @@ predict::get_range_trade_amounts(
 The browser calls the SDK `devInspectRangeQuote` helper with the selected lower/upper strikes, selected quantity, selected active market oracle object, selected active market oracle ID, selected active market expiry, and DUSDC Testnet config.
 
 Quote success is not mintability proof. Runtime market state, ask bounds, vault exposure, manager balance, oracle freshness, and preflight can still block. `oracle_config::assert_live_oracle` abort code `3` means the selected oracle is stale/non-live for the mint path and should render: `This oracle is no longer live for new minting. Refresh the active BTC market before trading this primitive.`
+
+DeepVol-21 adds `findMintableBinaryPrimitiveCandidate()` which searches tick-aligned candidates around the anchor price and runs devInspect binary mint for each candidate to find a mintable strike before quote/preflight can proceed to wallet execution. The mintable strike search runs after active market discovery and before the final preflight gate, so `primitiveMintabilityStatus === "passed"` is now a required execution prerequisite alongside fresh quote and preflight. `assert_mintable_ask::7` maps to "Selected strike is not mintable" for UP/DOWN primitives. See [DEEPVOL_PRIMITIVE_DIRECT_TRADING.md](./DEEPVOL_PRIMITIVE_DIRECT_TRADING.md).
 
 ## Preflight sources
 

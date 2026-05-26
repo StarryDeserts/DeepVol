@@ -9,6 +9,7 @@ import { usePrimitivePreflight } from "../hooks/usePrimitivePreflight";
 import { usePrimitiveQuote } from "../hooks/usePrimitiveQuote";
 import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
 import type { DiscoveryPhase } from "../hooks/useActiveBtcPredictMarket";
+import { usePrimitiveMintableStrike } from "../hooks/usePrimitiveMintableStrike";
 import { usePrimitiveWalletExecution } from "../hooks/usePrimitiveWalletExecution";
 import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
 import type { PrimitiveKind } from "../hooks/primitiveQuoteGate";
@@ -38,10 +39,17 @@ export function PrimitiveQuotePage() {
     quote,
     predictManagerId,
   });
+  const mintableStrike = usePrimitiveMintableStrike({
+    activeMarket: activeMarket.market,
+    predictManagerId,
+    quantity: quantityInput,
+    primitiveKind,
+  });
   const execution = usePrimitiveWalletExecution({
     quote,
     preflight,
     predictManagerId,
+    primitiveMintabilityStatus: mintableStrike.status,
   });
   const readback = usePrimitivePositionReadback({
     predictManagerId,
@@ -70,6 +78,12 @@ export function PrimitiveQuotePage() {
       setUpperStrikeInput(quote.series.upperStrike);
     }
   }, [lowerStrikeInput, primitiveKind, quote.series, strikeInput, upperStrikeInput]);
+
+  useEffect(() => {
+    if (mintableStrike.status === "passed" && mintableStrike.candidate && (primitiveKind === "UP" || primitiveKind === "DOWN")) {
+      setStrikeInput(mintableStrike.candidate.strike);
+    }
+  }, [mintableStrike.status, mintableStrike.candidate, primitiveKind]);
 
   const primitiveCopy = useMemo(() => getPrimitiveCopy(primitiveKind), [primitiveKind]);
   const displayedMarketStatus = quote.marketStatus;
@@ -303,7 +317,10 @@ export function PrimitiveQuotePage() {
                 <input
                   value={strikeInput}
                   inputMode="numeric"
-                  onChange={(event) => setStrikeInput(event.target.value)}
+                  onChange={(event) => {
+                    setStrikeInput(event.target.value);
+                    mintableStrike.invalidate();
+                  }}
                 />
               </label>
             )}
@@ -319,6 +336,62 @@ export function PrimitiveQuotePage() {
             </label>
           </div>
         </section>
+
+        {primitiveKind !== "RANGE" && (
+          <section className="card primitiveSection">
+            <div className="cardHeader">
+              <div>
+                <div className="eyebrow">Mintable strike validation</div>
+                <h2>Mintable {primitiveKind} strike</h2>
+              </div>
+              <StatusPill tone={mintableStrike.status === "passed" ? "success" : mintableStrike.status === "failed" ? "danger" : mintableStrike.status === "running" ? "info" : "warning"}>
+                {mintableStrike.status}
+              </StatusPill>
+            </div>
+
+            {mintableStrike.status === "passed" && mintableStrike.candidate && (
+              <StateCallout tone="success" title={`Mintable ${primitiveKind} strike found.`}>
+                Quote and mint preflight passed for this BTC market. Strike: {mintableStrike.candidate.strike}
+              </StateCallout>
+            )}
+
+            {mintableStrike.status === "failed" && (
+              <StateCallout tone="danger" title={`No mintable ${primitiveKind} strike was found for the current market.`}>
+                Try refreshing the active BTC market.
+              </StateCallout>
+            )}
+
+            <div className="actionRow">
+              <button
+                className="secondaryButton"
+                type="button"
+                disabled={mintableStrike.status === "running"}
+                onClick={mintableStrike.regenerate}
+              >
+                {mintableStrike.status === "running" ? `Searching mintable ${primitiveKind} strike...` : `Regenerate mintable ${primitiveKind} strike`}
+              </button>
+            </div>
+
+            {mintableStrike.blockers.length > 0 && (
+              <StateCallout tone="warning" title="Mintability blockers">
+                <ul>
+                  {mintableStrike.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                </ul>
+              </StateCallout>
+            )}
+
+            {mintableStrike.advancedDiagnostics.length > 0 && (
+              <details className="advancedDetails">
+                <summary>Advanced: mintability diagnostics</summary>
+                <div className="advancedContent">
+                  <ul>
+                    {mintableStrike.advancedDiagnostics.map((d) => <li key={d}>{d}</li>)}
+                  </ul>
+                </div>
+              </details>
+            )}
+          </section>
+        )}
 
         <section className="card primitiveSection">
           <div className="cardHeader">

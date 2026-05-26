@@ -22,4 +22,5 @@ export const DEEPVOL_STORAGE_KEYS = {
   redeemAttempts: "deepvol:controlled-redeem-attempts",
   createdSeries: "deepvol:created-series",
   moveSeriesMintability: "deepvol:move-series-mintability",
+  primitiveMintability: "deepvol:primitive-mintability",
 } as const;

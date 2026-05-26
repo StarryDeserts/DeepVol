@@ -31,6 +31,7 @@ type UsePrimitiveWalletExecutionParams = {
   quote: PrimitiveQuoteState;
   preflight: PrimitivePreflightController;
   predictManagerId: string | null;
+  primitiveMintabilityStatus?: "idle" | "blocked" | "running" | "passed" | "failed" | null;
 };
 
 type SuiTransactionEffectsClient = Parameters<typeof readBinaryPositionQuantity>[0]["client"] & {
@@ -47,6 +48,7 @@ export function usePrimitiveWalletExecution({
   quote,
   preflight,
   predictManagerId,
+  primitiveMintabilityStatus,
 }: UsePrimitiveWalletExecutionParams) {
   const client = useSuiClient();
   const queryClient = useQueryClient();
@@ -115,7 +117,8 @@ export function usePrimitiveWalletExecution({
     preflightLastRunAtMs: preflight.lastRunAtMs,
     managerBalanceAtomic: preflight.managerBalanceAtomic,
     isSubmitting,
-  }), [expectedPreflightDependencyKey, expectedQuoteDependencyKey, isSubmitting, predictManagerId, preflight.dependencyKey, preflight.lastRunAtMs, preflight.managerBalanceAtomic, preflight.status, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.quotedAtMs, quote.redeemPayoutAtomic, quote.series, quote.status, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
+    primitiveMintabilityStatus: primitiveMintabilityStatus ?? null,
+  }), [expectedPreflightDependencyKey, expectedQuoteDependencyKey, isSubmitting, predictManagerId, preflight.dependencyKey, preflight.lastRunAtMs, preflight.managerBalanceAtomic, preflight.status, primitiveMintabilityStatus, quote.dependencyKey, quote.lowerStrike, quote.marketStatus, quote.marketStatusMessage, quote.mintCostAtomic, quote.oracleObjectId, quote.primitiveKind, quote.quantity, quote.quotedAtMs, quote.redeemPayoutAtomic, quote.series, quote.status, quote.strike, quote.upperStrike, wallet.address, wallet.isConnected, wallet.isTestnet]);
   const blockers = useMemo(() => buildPrimitiveExecutionBlockers(executionInput), [executionInput]);
   const canSubmit = blockers.length === 0;
   const signAndExecuteTransaction = useSignAndExecuteTransaction();
