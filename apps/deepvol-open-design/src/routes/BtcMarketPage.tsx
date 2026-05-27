@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
 import { usePredictManagerSession } from "../hooks/usePredictManagerSession";
 import { formatTimestampMs } from "../lib/format";
+import { MoveExecutionPanel } from "../components/trade/MoveExecutionPanel";
+import { BinaryPrimitiveExecutionPanel } from "../components/trade/BinaryPrimitiveExecutionPanel";
+import { RangeExecutionPanel } from "../components/trade/RangeExecutionPanel";
 
 type Product = "MOVE" | "UP" | "DOWN" | "RANGE";
 
@@ -464,307 +467,37 @@ export function BtcMarketPage({ navigate, defaultProduct = "MOVE" }: Props) {
 
               {/* MOVE PANEL */}
               {activeTab === "MOVE" && (
-                <div className="p-6" style={{ animation: "fade .3s ease" }}>
-                  <div
-                    className="glass-inner p-4"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, rgba(108,242,194,.06), rgba(94,232,255,.04))",
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="chip"
-                        style={{
-                          color: "#6CF2C2",
-                          borderColor: "rgba(108,242,194,.3)",
-                          background: "rgba(108,242,194,.07)",
-                        }}
-                      >
-                        Flagship &middot; MOVE
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm text-white leading-relaxed">
-                      Win if BTC expires{" "}
-                      <span className="text-aqua-400">outside the range</span>.
-                    </p>
-                    <p className="mt-1.5 text-[12px] text-ink-mid">
-                      BTC MOVE creates a DeepVol MoveReceipt and combines UP +
-                      DOWN exposure.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="label">Range band</span>
-                        <span className="text-[11px] text-ink-mid font-mono">
-                          &plusmn;3.75%
-                        </span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <div className="glass-inner p-3">
-                          <div className="label">Lower</div>
-                          <div className="font-mono text-sm text-white mt-0.5">
-                            {market.isLoading ? (
-                              <Skel className="h-4 w-16" />
-                            ) : (
-                              (market.market?.suggestedDownStrike ?? "TBD")
-                            )}
-                          </div>
-                        </div>
-                        <div className="glass-inner p-3">
-                          <div className="label">Upper</div>
-                          <div className="font-mono text-sm text-white mt-0.5">
-                            {market.isLoading ? (
-                              <Skel className="h-4 w-16" />
-                            ) : (
-                              (market.market?.suggestedUpStrike ?? "TBD")
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="label">Size &middot; DUSDC</span>
-                      </div>
-                      <div className="relative mt-2">
-                        <input
-                          className="input pr-20"
-                          defaultValue="250.00"
-                          placeholder="Enter amount"
-                        />
-                        <button className="absolute right-3 top-1/2 -translate-y-1/2 chip hover:border-aqua-400/40">
-                          MAX
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Preflight status */}
-                    <div className="glass-inner p-4">
-                      <div className="label">Preflight gate</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {market.isLoading ? (
-                          <Skel className="h-6 w-40" />
-                        ) : (
-                          <>
-                            <span className="pill pill-idle">
-                              &bull; Awaiting quote
-                            </span>
-                            <span className="pill pill-idle">
-                              &bull; Preflight pending
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <button className="bg-cta w-full rounded-2xl py-4 font-medium text-white shadow-cta ring-aqua">
-                      Mint BTC MOVE receipt
-                    </button>
-                    <p className="text-[11px] text-ink-low text-center">
-                      Non-custodial &middot; settled at expiry by Pyth oracle
-                    </p>
-                  </div>
-                </div>
+                <MoveExecutionPanel
+                  predictManagerId={manager.predictManagerId}
+                  activeMarket={market.market}
+                  navigate={navigate}
+                />
               )}
 
-              {/* UP PANEL */}
               {activeTab === "UP" && (
-                <div className="p-6" style={{ animation: "fade .3s ease" }}>
-                  <div className="glass-inner p-4">
-                    <span className="chip">Primitive &middot; UP</span>
-                    <p className="mt-3 text-sm text-white leading-relaxed">
-                      Win if BTC expires{" "}
-                      <span className="text-seafoam-400">above</span> the
-                      strike.
-                    </p>
-                    <p className="mt-1.5 text-[12px] text-ink-mid">
-                      Primitive trades are raw Predict positions and do not
-                      create a DeepVol MoveReceipt.
-                    </p>
-                  </div>
-                  <div className="mt-5 space-y-4">
-                    <div>
-                      <div className="label">Strike</div>
-                      <input
-                        className="input mt-2 font-mono"
-                        defaultValue={
-                          market.market?.suggestedUpStrike ?? "66400"
-                        }
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="label">Size &middot; DUSDC</span>
-                      </div>
-                      <input
-                        className="input mt-2"
-                        defaultValue="100.00"
-                        placeholder="Enter amount"
-                      />
-                    </div>
-                    <div className="glass-inner p-4">
-                      <div className="label">Preflight</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="pill pill-idle">
-                          &bull; Awaiting quote
-                        </span>
-                      </div>
-                    </div>
-                    <button className="bg-cta w-full rounded-2xl py-4 font-medium text-white shadow-cta ring-aqua">
-                      Buy UP primitive
-                    </button>
-                  </div>
-                </div>
+                <BinaryPrimitiveExecutionPanel
+                  kind="UP"
+                  predictManagerId={manager.predictManagerId}
+                  activeMarket={market.market}
+                  navigate={navigate}
+                />
               )}
 
-              {/* DOWN PANEL */}
               {activeTab === "DOWN" && (
-                <div className="p-6" style={{ animation: "fade .3s ease" }}>
-                  <div className="glass-inner p-4">
-                    <span className="chip">Primitive &middot; DOWN</span>
-                    <p className="mt-3 text-sm text-white leading-relaxed">
-                      Win if BTC expires{" "}
-                      <span className="text-aqua-400">below</span> the strike.
-                    </p>
-                    <p className="mt-1.5 text-[12px] text-ink-mid">
-                      Primitive trades are raw Predict positions and do not
-                      create a DeepVol MoveReceipt.
-                    </p>
-                  </div>
-                  <div className="mt-5 space-y-4">
-                    <div>
-                      <div className="label">Strike</div>
-                      <input
-                        className="input mt-2 font-mono"
-                        defaultValue={
-                          market.market?.suggestedDownStrike ?? "61600"
-                        }
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="label">Size &middot; DUSDC</span>
-                      </div>
-                      <input
-                        className="input mt-2"
-                        defaultValue="100.00"
-                        placeholder="Enter amount"
-                      />
-                    </div>
-                    <div className="glass-inner p-4">
-                      <div className="label">Preflight</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="pill pill-idle">
-                          &bull; Awaiting quote
-                        </span>
-                      </div>
-                    </div>
-                    <button className="bg-cta w-full rounded-2xl py-4 font-medium text-white shadow-cta ring-aqua">
-                      Buy DOWN primitive
-                    </button>
-                  </div>
-                </div>
+                <BinaryPrimitiveExecutionPanel
+                  kind="DOWN"
+                  predictManagerId={manager.predictManagerId}
+                  activeMarket={market.market}
+                  navigate={navigate}
+                />
               )}
 
-              {/* RANGE PANEL */}
               {activeTab === "RANGE" && (
-                <div className="p-6" style={{ animation: "fade .3s ease" }}>
-                  <div className="glass-inner p-4">
-                    <span className="chip">Primitive &middot; RANGE</span>
-                    <p className="mt-3 text-sm text-white leading-relaxed">
-                      Win if BTC expires{" "}
-                      <span style={{ color: "#9F95FF" }}>inside</span> the
-                      interval.
-                    </p>
-                    <p className="mt-1.5 text-[12px] text-ink-mid">
-                      Primitive trades are raw Predict positions and do not
-                      create a DeepVol MoveReceipt.
-                    </p>
-                  </div>
-                  <div className="mt-5 space-y-4 opacity-80">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="label">Lower</div>
-                        <input
-                          className="input mt-2 font-mono"
-                          defaultValue={
-                            market.market?.suggestedLowerStrike ?? "61600"
-                          }
-                        />
-                      </div>
-                      <div>
-                        <div className="label">Upper</div>
-                        <input
-                          className="input mt-2 font-mono"
-                          defaultValue={
-                            market.market?.suggestedUpperStrike ?? "66400"
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="label">Size &middot; DUSDC</div>
-                      <input
-                        className="input mt-2"
-                        defaultValue="100.00"
-                        placeholder="Enter amount"
-                      />
-                    </div>
-                    <div
-                      className="glass-inner p-4"
-                      style={{
-                        background: "rgba(247,185,85,.06)",
-                        borderColor: "rgba(247,185,85,.25)",
-                      }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="grid place-items-center w-7 h-7 rounded-full"
-                          style={{
-                            background: "rgba(247,185,85,.12)",
-                            color: "#F7B955",
-                          }}
-                        >
-                          !
-                        </span>
-                        <div>
-                          <div className="text-sm text-white">
-                            Execution disabled
-                          </div>
-                          <p className="text-[12px] text-ink-mid mt-1">
-                            RANGE requires dedicated interval validation. Quotes
-                            are available but minting is gated until preflight v2
-                            ships.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="glass-inner p-4">
-                      <div className="label">Preflight</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="pill pill-idle">
-                          &bull; Quote ready
-                        </span>
-                        <span className="pill pill-fail">
-                          &#10005; Preflight blocked
-                        </span>
-                        <span className="pill pill-idle">
-                          &ndash; Wallet disabled
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      disabled
-                      className="w-full rounded-2xl py-4 font-medium text-ink-low bg-white/[0.03] border border-white/10 cursor-not-allowed"
-                    >
-                      Mint disabled
-                    </button>
-                  </div>
-                </div>
+                <RangeExecutionPanel
+                  predictManagerId={manager.predictManagerId}
+                  activeMarket={market.market}
+                  navigate={navigate}
+                />
               )}
             </div>
           </div>
@@ -910,8 +643,8 @@ export function BtcMarketPage({ navigate, defaultProduct = "MOVE" }: Props) {
                   </td>
                   <td className="px-4 py-3.5 text-[13px]">
                     <span className="inline-flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full dot-stale" />
-                      <span style={{ color: "#F7B955" }}>Quote only</span>
+                      <span className="w-1.5 h-1.5 rounded-full dot-live" />
+                      <span style={{ color: "#6CF2C2" }}>Live</span>
                     </span>
                   </td>
                 </tr>

@@ -101,8 +101,12 @@ assert(
   btcMarket.includes("RANGE"),
 );
 assert(
-  "RANGE panel has interval validation diagnostic",
-  btcMarket.includes("interval validation") || btcMarket.includes("Execution disabled"),
+  "BtcMarketPage imports RangeExecutionPanel",
+  btcMarket.includes("RangeExecutionPanel"),
+);
+assert(
+  "RANGE panel is NOT hardcoded disabled in BtcMarketPage",
+  !btcMarket.includes("Mint disabled") && !btcMarket.includes("Execution disabled"),
 );
 
 // ── State system components ──
@@ -110,6 +114,41 @@ console.log("\nState system:");
 assert("QuotePanel exists", fileExists("components/organisms/QuotePanel.tsx"));
 assert("PreflightPanel exists", fileExists("components/organisms/PreflightPanel.tsx"));
 assert("WalletActionBar exists", fileExists("components/organisms/WalletActionBar.tsx"));
+
+// ── Execution wiring ──
+console.log("\nExecution wiring:");
+const movePanel = fileContent("components/trade/MoveExecutionPanel.tsx");
+assert("MoveExecutionPanel imports useBuyMoveReceipt", movePanel.includes("useBuyMoveReceipt"));
+assert("MoveExecutionPanel imports useDeepVolQuote", movePanel.includes("useDeepVolQuote"));
+assert("MoveExecutionPanel imports useActiveBtcMoveSeries", movePanel.includes("useActiveBtcMoveSeries"));
+assert("MoveExecutionPanel has submit handler", movePanel.includes(".submit") || movePanel.includes("onSubmit"));
+
+assert("BinaryPrimitiveExecutionPanel exists", fileExists("components/trade/BinaryPrimitiveExecutionPanel.tsx"));
+const binaryPanel = fileContent("components/trade/BinaryPrimitiveExecutionPanel.tsx");
+assert("BinaryPrimitiveExecutionPanel imports usePrimitiveWalletExecution", binaryPanel.includes("usePrimitiveWalletExecution"));
+assert("BinaryPrimitiveExecutionPanel imports usePrimitiveQuote", binaryPanel.includes("usePrimitiveQuote"));
+assert("BinaryPrimitiveExecutionPanel imports usePrimitivePreflight", binaryPanel.includes("usePrimitivePreflight"));
+assert("BinaryPrimitiveExecutionPanel has submit handler", binaryPanel.includes(".submit") || binaryPanel.includes("onSubmit"));
+
+assert("RangeExecutionPanel exists", fileExists("components/trade/RangeExecutionPanel.tsx"));
+const rangePanel = fileContent("components/trade/RangeExecutionPanel.tsx");
+assert("RangeExecutionPanel imports usePrimitiveWalletExecution", rangePanel.includes("usePrimitiveWalletExecution"));
+assert("RangeExecutionPanel imports usePrimitiveMintableRange", rangePanel.includes("usePrimitiveMintableRange"));
+assert("RangeExecutionPanel has submit handler", rangePanel.includes(".submit") || rangePanel.includes("onSubmit"));
+assert("RANGE is NOT hardcoded permanently disabled", !rangePanel.includes("Execution disabled") && !rangePanel.includes("Mint disabled"));
+
+// ── Button UX ──
+console.log("\nButton UX:");
+assert("WalletActionButton exists", fileExists("components/trade/WalletActionButton.tsx"));
+const actionButton = fileContent("components/trade/WalletActionButton.tsx");
+assert("WalletActionButton shows blockers", actionButton.includes("blockers"));
+assert("WalletActionButton handles transactionStatus", actionButton.includes("transactionStatus"));
+
+// ── BtcMarketPage wiring ──
+console.log("\nBtcMarketPage wiring:");
+assert("BtcMarketPage imports MoveExecutionPanel", btcMarket.includes("MoveExecutionPanel"));
+assert("BtcMarketPage imports BinaryPrimitiveExecutionPanel", btcMarket.includes("BinaryPrimitiveExecutionPanel"));
+assert("BtcMarketPage imports RangeExecutionPanel", btcMarket.includes("RangeExecutionPanel"));
 
 // ── Import isolation ──
 console.log("\nImport isolation:");

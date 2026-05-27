@@ -17,6 +17,15 @@ function parseRoute(pathname: string, search: string): Route {
   if (pathname === "/markets/btc" || pathname === "/markets/btc/") {
     return { page: "btc-market", product: productFromSearch(search) };
   }
+  if (pathname === "/buy/btc-move" || pathname === "/buy/btc-move/") {
+    return { page: "btc-market", product: "MOVE" };
+  }
+  if (pathname === "/primitives" || pathname === "/primitives/") {
+    const params = new URLSearchParams(search);
+    const type = (params.get("type") ?? "").toUpperCase();
+    const product: MarketProduct = type === "UP" || type === "DOWN" || type === "RANGE" ? type : "UP";
+    return { page: "btc-market", product };
+  }
   if (pathname === "/markets" || pathname === "/markets/") {
     return { page: "markets" };
   }

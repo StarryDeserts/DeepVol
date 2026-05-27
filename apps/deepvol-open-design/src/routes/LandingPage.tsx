@@ -5,14 +5,24 @@ type Props = { navigate: (to: string) => void };
 export function LandingPage({ navigate }: Props) {
   /* ─── Scroll reveal ─── */
   useEffect(() => {
+    const reveals = document.querySelectorAll(".reveal");
+    if (!("IntersectionObserver" in window)) return;
+
+    reveals.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top > window.innerHeight) {
+        el.classList.add("out");
+      }
+    });
+
     const obs = new IntersectionObserver(
       (entries) =>
         entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("in");
+          if (e.isIntersecting) e.target.classList.remove("out");
         }),
       { threshold: 0.15 },
     );
-    document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+    reveals.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
   }, []);
 

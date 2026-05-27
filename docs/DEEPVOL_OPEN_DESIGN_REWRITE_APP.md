@@ -96,14 +96,36 @@ Tailwind v4 `@theme` tokens extracted from the HTML mockups:
 
 It is not the production UI direction.
 
+## DeepVol-29: Execution parity
+
+DeepVol-28 shipped the visual shell with static trade buttons. DeepVol-29 wires real chain execution:
+
+- **MOVE:** `useActiveBtcMoveSeries` → `useBtcMoveMintableRange` → `useDeepVolQuote` → `useBuyMoveReceipt` → `useSignAndExecuteTransaction` → wallet prompt
+- **UP/DOWN:** `usePrimitiveMintableStrike` → `usePrimitiveQuote` → `usePrimitivePreflight` → `usePrimitiveWalletExecution` → wallet prompt
+- **RANGE:** `usePrimitiveMintableRange` → `usePrimitiveQuote` → `usePrimitivePreflight` → `usePrimitiveWalletExecution` (submitRange path) → wallet prompt
+
+RANGE is NOT permanently disabled. It uses real gate-based status via `usePrimitiveMintableRange`.
+
+Wallet prompt only appears when all gates pass. No static fake buttons.
+
+Execution panels: `MoveExecutionPanel`, `BinaryPrimitiveExecutionPanel`, `RangeExecutionPanel`, `WalletActionButton` (shared).
+
+Landing page blank section fixed (`.reveal` CSS default visibility changed from hidden to visible).
+
 ## Verification
 
 | Check | Result |
 |-------|--------|
 | `npm run typecheck:open-design` | Pass |
 | `npm run build:open-design` | Pass |
-| `test:open-design-ui` (26 assertions) | Pass |
+| `test:open-design-ui` (47 assertions) | Pass |
 | All 12 old app gate tests | Pass |
 | Browser smoke (all routes) | Pass, 0 console errors |
 | Responsive 375px | Columns stack, no overflow |
 | Import isolation | No forbidden imports |
+| MOVE button wired to `useBuyMoveReceipt.submit` | Yes |
+| UP/DOWN buttons wired to `usePrimitiveWalletExecution.submit` | Yes |
+| RANGE button wired to `usePrimitiveWalletExecution.submit` | Yes |
+| RANGE NOT hardcoded disabled | Yes |
+| Disabled buttons show human-readable blocker | Yes |
+| Landing page content visible by default | Yes |
