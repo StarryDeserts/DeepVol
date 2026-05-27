@@ -1,0 +1,45 @@
+/* ─── Keyframes ─── */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(94, 232, 255, 0.55); }
+  70% { box-shadow: 0 0 0 12px rgba(94, 232, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(94, 232, 255, 0); }
+}
+
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-10px) rotate(-4deg); }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes skel {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .price-path,
+  .float,
+  .shimmer,
+  .pulse-dot,
+  .skel,
+  .spinner {
+    animation: none !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

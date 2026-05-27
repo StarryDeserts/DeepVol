@@ -1,0 +1,27 @@
+{
+  "name": "@rangepilot/deepvol-open-design",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:open-design-ui": "node scripts/test-open-design-ui.mjs"
+  },
+  "dependencies": {
+    "@mysten/dapp-kit": "^1.0.6",
+    "@mysten/sui": "^2.16.2",
+    "@tanstack/react-query": "^5.90.12",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.8",
+    "@types/node": "^25.0.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "tailwindcss": "^4.1.8",
+    "vite": "^7.2.6"
+  }
+}

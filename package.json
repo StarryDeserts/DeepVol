@@ -5,6 +5,7 @@
   "workspaces": [
     "apps/web",
     "apps/deepvol-web",
+    "apps/deepvol-open-design",
     "packages/config",
     "packages/sdk",
     "packages/types"
@@ -45,7 +46,10 @@
     "build:web": "npm --workspace apps/web run build",
     "dev:deepvol-web": "npm --workspace apps/deepvol-web run dev",
     "build:deepvol-web": "npm --workspace apps/deepvol-web run build",
-    "typecheck:deepvol-web": "npm --workspace apps/deepvol-web run typecheck"
+    "typecheck:deepvol-web": "npm --workspace apps/deepvol-web run typecheck",
+    "dev:open-design": "npm --workspace apps/deepvol-open-design run dev",
+    "build:open-design": "npm --workspace apps/deepvol-open-design run build",
+    "typecheck:open-design": "npm --workspace apps/deepvol-open-design run typecheck"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
