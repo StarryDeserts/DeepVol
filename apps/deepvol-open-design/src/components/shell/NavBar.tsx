@@ -27,7 +27,7 @@ export function NavBar({ currentPath, onNavigate }: NavBarProps) {
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-abyss-900/60 border-b hairline">
-      <nav className="mx-auto max-w-7xl px-6 lg:px-8 h-[72px] flex items-center justify-between">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
         {/* Logo */}
         <a
           href="/"
@@ -50,7 +50,7 @@ export function NavBar({ currentPath, onNavigate }: NavBarProps) {
             </svg>
             <span className="absolute inset-0 rounded-xl shadow-glow opacity-60 pointer-events-none" />
           </span>
-          <span className="font-display text-[19px] font-semibold tracking-tight">DeepVol</span>
+          <span className="hidden min-[400px]:inline font-display text-[19px] font-semibold tracking-tight">DeepVol</span>
           <Chip className="hidden sm:inline-flex ml-1">Testnet</Chip>
         </a>
 
@@ -72,7 +72,7 @@ export function NavBar({ currentPath, onNavigate }: NavBarProps) {
         </ul>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {isConnected && (
             <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-ink-hi/90">
               <StatusDot variant={isTestnet ? "live" : "warn"} />

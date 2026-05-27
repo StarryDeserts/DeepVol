@@ -520,8 +520,8 @@ export function BtcMarketPage({ navigate, defaultProduct = "MOVE" }: Props) {
               </h2>
             </div>
           </div>
-          <div className="glass overflow-hidden">
-            <table className="w-full">
+          <div className="glass max-w-full overflow-x-auto">
+            <table className="w-full min-w-[560px]">
               <thead>
                 <tr>
                   <th className="text-left px-4 py-3.5 label border-b-0">

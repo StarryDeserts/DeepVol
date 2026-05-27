@@ -5,6 +5,7 @@ import { usePrimitiveQuote } from "../../hooks/usePrimitiveQuote";
 import { usePrimitivePreflight } from "../../hooks/usePrimitivePreflight";
 import { usePrimitiveWalletExecution } from "../../hooks/usePrimitiveWalletExecution";
 import { formatAtomicAmount } from "../../lib/format";
+import { TradeRuntimeDiagnostics } from "./TradeRuntimeDiagnostics";
 import { WalletActionButton } from "./WalletActionButton";
 
 type Props = {
@@ -36,14 +37,16 @@ export function RangeExecutionPanel({ predictManagerId, activeMarket, navigate }
 
   const effectiveLower = mintableRange.candidate?.lowerStrike ?? lowerStrikeInput;
   const effectiveUpper = mintableRange.candidate?.higherStrike ?? upperStrikeInput;
+  const quoteLowerStrikeInput = mintableRange.status === "passed" ? mintableRange.candidate?.lowerStrike ?? "" : "";
+  const quoteUpperStrikeInput = mintableRange.status === "passed" ? mintableRange.candidate?.higherStrike ?? "" : "";
 
   const quote = usePrimitiveQuote({
     activeMarket,
     primitiveKind: "RANGE",
     quantityInput,
     strikeInput: "",
-    lowerStrikeInput: effectiveLower,
-    upperStrikeInput: effectiveUpper,
+    lowerStrikeInput: quoteLowerStrikeInput,
+    upperStrikeInput: quoteUpperStrikeInput,
   });
 
   const preflight = usePrimitivePreflight({
@@ -243,6 +246,20 @@ export function RangeExecutionPanel({ predictManagerId, activeMarket, navigate }
           submittingLabel="Confirm in wallet..."
         />
 
+        <TradeRuntimeDiagnostics
+          product="RANGE"
+          runtimeContext={mintableRange.runtimeContext}
+          mintabilityStatus={mintableRange.status}
+          mintabilityBlockers={mintableRange.blockers}
+          diagnosticSummary={mintableRange.runtimeDiagnosticSummary}
+          candidateDiagnostics={mintableRange.runtimeCandidateDiagnostics}
+          quoteMintCostAtomic={quote.mintCostAtomic}
+          quoteRedeemPayoutAtomic={quote.redeemPayoutAtomic}
+          managerDusdcAtomic={preflight.managerBalanceAtomic}
+          preflightStatus={preflight.status}
+          preflightMessage={preflight.abortMessage ?? preflight.warnings[0] ?? null}
+        />
+
         {/* Advanced details */}
         <details className="group">
           <summary className="label cursor-pointer select-none flex items-center gap-2 hover:text-ink-mid">
@@ -250,7 +267,10 @@ export function RangeExecutionPanel({ predictManagerId, activeMarket, navigate }
             Advanced
           </summary>
           <div className="mt-3 space-y-1 text-[11px] font-mono text-ink-low">
+            <div>stateMachine: active market -&gt; mintable interval -&gt; quote -&gt; preflight -&gt; wallet</div>
             <div>predictManagerId: {predictManagerId ?? "none"}</div>
+            <div>quoteLowerStrikeInput: {quoteLowerStrikeInput || "none"}</div>
+            <div>quoteUpperStrikeInput: {quoteUpperStrikeInput || "none"}</div>
             <div>mintableRange.status: {mintableRange.status}</div>
             <div>quote.status: {quote.status}</div>
             <div>preflight.status: {preflight.status}</div>

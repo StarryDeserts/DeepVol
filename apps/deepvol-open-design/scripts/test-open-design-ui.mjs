@@ -5,6 +5,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
+const REPO_ROOT = resolve(ROOT, "../..");
 const SRC = join(ROOT, "src");
 
 let pass = 0;
@@ -25,6 +26,14 @@ function fileExists(rel) {
 
 function fileContent(rel) {
   return readFileSync(join(SRC, rel), "utf-8");
+}
+
+function repoFileExists(rel) {
+  return existsSync(join(REPO_ROOT, rel));
+}
+
+function repoFileContent(rel) {
+  return readFileSync(join(REPO_ROOT, rel), "utf-8");
 }
 
 function allTsFiles(dir, results = []) {
@@ -287,6 +296,80 @@ assert(
   "RangeExecutionPanel has no BTC MOVE range text",
   !rangePanel.includes("BTC MOVE range"),
 );
+
+// ── DeepVol-33: Runtime mintability input parity ──
+console.log("\nRuntime mintability input parity (DeepVol-33):");
+assert("tradeRuntimeContext exists", fileExists("hooks/tradeRuntimeContext.ts"));
+const runtimeContext = fileExists("hooks/tradeRuntimeContext.ts") ? fileContent("hooks/tradeRuntimeContext.ts") : "";
+assert("tradeRuntimeContext exports buildTradeRuntimeContext", runtimeContext.includes("buildTradeRuntimeContext"));
+assert("tradeRuntimeContext normalizes quantity", runtimeContext.includes("normalizePositiveIntegerInput"));
+assert("tradeRuntimeContext validates oracleObjectId", runtimeContext.includes("oracleObjectId") && runtimeContext.includes("Missing runtime input: oracleObjectId"));
+assert("tradeRuntimeContext validates anchor", runtimeContext.includes("forward or spot"));
+assert("tradeRuntimeContext validates tickSize", runtimeContext.includes("Missing runtime input: tickSize"));
+assert("tradeRuntimeContext validates minStrike", runtimeContext.includes("Missing runtime input: minStrike"));
+assert("tradeRuntimeContext emits dependencyKey", runtimeContext.includes("dependencyKey"));
+
+assert("mintabilityDiagnostics exists", fileExists("hooks/mintabilityDiagnostics.ts"));
+const diagnostics = fileExists("hooks/mintabilityDiagnostics.ts") ? fileContent("hooks/mintabilityDiagnostics.ts") : "";
+assert("mintabilityDiagnostics tracks failure family", diagnostics.includes("failureFamily"));
+assert("mintabilityDiagnostics tracks raw failure summary", diagnostics.includes("rawErrorSummary"));
+assert("mintabilityDiagnostics distinguishes quote and preflight", diagnostics.includes("quoteStatus") && diagnostics.includes("preflightStatus"));
+
+const moveMintabilityHook = fileContent("hooks/useBtcMoveMintableRange.ts");
+const primitiveStrikeHook = fileContent("hooks/usePrimitiveMintableStrike.ts");
+const primitiveRangeHook = fileContent("hooks/usePrimitiveMintableRange.ts");
+assert("MOVE mintability uses runtime context", moveMintabilityHook.includes("buildTradeRuntimeContext"));
+assert("UP/DOWN mintability uses runtime context", primitiveStrikeHook.includes("buildTradeRuntimeContext"));
+assert("RANGE mintability uses runtime context", primitiveRangeHook.includes("buildTradeRuntimeContext"));
+assert("MOVE mintability uses normalized SDK quantity", moveMintabilityHook.includes("runtimeContext.sdkInput.quantity"));
+assert("UP/DOWN mintability uses normalized SDK quantity", primitiveStrikeHook.includes("runtimeContext.sdkInput.quantity"));
+assert("RANGE mintability uses normalized SDK quantity", primitiveRangeHook.includes("runtimeContext.sdkInput.quantity"));
+assert("MOVE mintability resets on runtime dependency key", moveMintabilityHook.includes("runtimeContext.dependencyKey"));
+assert("UP/DOWN mintability resets on runtime dependency key", primitiveStrikeHook.includes("runtimeContext.dependencyKey"));
+assert("RANGE mintability resets on runtime dependency key", primitiveRangeHook.includes("runtimeContext.dependencyKey"));
+assert("UP/DOWN mintability hook is binary only", !primitiveStrikeHook.includes('primitiveKind: "UP" | "DOWN" | "RANGE"'));
+
+assert("TradeRuntimeDiagnostics exists", fileExists("components/trade/TradeRuntimeDiagnostics.tsx"));
+const runtimeDiagnostics = fileExists("components/trade/TradeRuntimeDiagnostics.tsx") ? fileContent("components/trade/TradeRuntimeDiagnostics.tsx") : "";
+assert("TradeRuntimeDiagnostics labels wallet DUSDC separately", runtimeDiagnostics.includes("Wallet DUSDC"));
+assert("TradeRuntimeDiagnostics labels PredictManager DUSDC separately", runtimeDiagnostics.includes("PredictManager DUSDC"));
+assert("TradeRuntimeDiagnostics labels quote mint cost", runtimeDiagnostics.includes("Quote mint cost"));
+assert("TradeRuntimeDiagnostics labels anchor source", runtimeDiagnostics.includes("Anchor source"));
+assert("TradeRuntimeDiagnostics labels oracle object", runtimeDiagnostics.includes("Oracle object"));
+assert("MoveExecutionPanel renders runtime diagnostics", movePanel.includes("TradeRuntimeDiagnostics"));
+assert("BinaryPrimitiveExecutionPanel renders runtime diagnostics", binaryPanel.includes("TradeRuntimeDiagnostics"));
+assert("RangeExecutionPanel renders runtime diagnostics", rangePanel.includes("TradeRuntimeDiagnostics"));
+
+const deepVolQuote = fileContent("hooks/useDeepVolQuote.ts");
+assert("DeepVol quote accepts active market context", deepVolQuote.includes("activeMarket"));
+assert("DeepVol quote no longer uses series.oracleId as oracleObjectId", !deepVolQuote.includes("oracleObjectId: series.oracleId"));
+assert("DeepVol quote keys include oracleObjectId", deepVolQuote.includes("oracleObjectId"));
+
+// ── DeepVol-34: Verified state-machine parity ──
+console.log("\nVerified state-machine parity (DeepVol-34):");
+assert("Old UI state machine parity doc exists", repoFileExists("docs/DEEPVOL_OLD_UI_TRADING_STATE_MACHINE.md"));
+const oldUiStateMachineDoc = repoFileExists("docs/DEEPVOL_OLD_UI_TRADING_STATE_MACHINE.md") ? repoFileContent("docs/DEEPVOL_OLD_UI_TRADING_STATE_MACHINE.md") : "";
+assert("Old UI state machine doc covers MOVE order", oldUiStateMachineDoc.includes("active market -> mintable range -> VolSeries -> quote -> preflight -> wallet"));
+assert("Old UI state machine doc covers UP/DOWN order", oldUiStateMachineDoc.includes("active market -> mintable strike -> quote -> preflight -> wallet"));
+assert("Old UI state machine doc covers RANGE order", oldUiStateMachineDoc.includes("active market -> mintable interval -> quote -> preflight -> wallet"));
+assert("Old UI state machine doc records no Claude transactions", oldUiStateMachineDoc.includes("Claude Code did not execute") && oldUiStateMachineDoc.includes("RANGE mint"));
+
+assert("MOVE step order matches old app", movePanel.includes("useCreateVolSeries") && movePanel.includes("moveQuoteSeriesId") && movePanel.includes("moveSeriesReadyForQuote") && movePanel.includes("mintable range -&gt; VolSeries -&gt; quote -&gt; preflight -&gt; wallet"));
+assert("MOVE quote waits for state-machine series", movePanel.includes("seriesId: moveQuoteSeriesId") && movePanel.includes('moveSeries.status === "ready"'));
+assert("MOVE VolSeries creation is gated by mintability", movePanel.includes("Create or select a VolSeries") && movePanel.includes("mintableRange.status === \"passed\"") && movePanel.includes("recordCreatedSeries"));
+
+assert("UP step order matches old app", binaryPanel.includes("quoteStrikeInput") && binaryPanel.includes('mintableStrike.status === "passed"') && binaryPanel.includes("mintable strike -&gt; quote -&gt; preflight -&gt; wallet"));
+assert("DOWN step order matches old app", binaryPanel.includes('kind: "UP" | "DOWN"') && binaryPanel.includes("quoteStrikeInput") && binaryPanel.includes("primitiveMintabilityStatus: mintableStrike.status"));
+assert("UP/DOWN quote uses only passed mintable strike", binaryPanel.includes("strikeInput: quoteStrikeInput") && !binaryPanel.includes("strikeInput: mintableStrike.candidate?.strike ?? strikeInput"));
+
+assert("RANGE step order matches old app", rangePanel.includes("quoteLowerStrikeInput") && rangePanel.includes("quoteUpperStrikeInput") && rangePanel.includes('mintableRange.status === "passed"') && rangePanel.includes("mintable interval -&gt; quote -&gt; preflight -&gt; wallet"));
+assert("RANGE quote uses only passed mintable interval", rangePanel.includes("lowerStrikeInput: quoteLowerStrikeInput") && rangePanel.includes("upperStrikeInput: quoteUpperStrikeInput") && !rangePanel.includes("lowerStrikeInput: effectiveLower"));
+assert("RANGE does not run preflight after 0 passed candidates", gateFile.includes("rangeMintabilityStatus") && gateFile.includes("Validate a mintable RANGE interval before running preflight."));
+assert("mintability failed blocks preflight", gateFile.includes("primitiveMintabilityStatus !== \"passed\"") && gateFile.includes("rangeMintabilityStatus !== \"passed\""));
+
+const walletExecution = fileContent("hooks/usePrimitiveWalletExecution.ts");
+assert("non-positive quote != insufficient balance", walletExecution.includes("Fresh primitive mint cost must be positive") && walletExecution.includes("PredictManager DUSDC balance must cover") && diagnostics.includes("classifyBalanceFailure"));
+assert("product contexts are isolated", !binaryPanel.includes("BTC MOVE range") && !rangePanel.includes("BTC MOVE range") && !primitiveStrikeHook.includes('primitiveKind: "UP" | "DOWN" | "RANGE"'));
 
 // ── Summary ──
 console.log(`\n${pass} passed, ${fail} failed`);

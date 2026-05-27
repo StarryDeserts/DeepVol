@@ -1,7 +1,7 @@
 ---
 Purpose: Document the DeepVol-28 Open Design frontend rewrite as a standalone app.
 Audience: Developers, product contributors, reviewers, and AI agents.
-Status: DeepVol-28 creates `apps/deepvol-open-design/` as the visual-fidelity Open Design frontend. The old `apps/deepvol-web/` remains for functional validation and logic reference only.
+Status: DeepVol-33 adds normalized runtime mintability context and diagnostics to `apps/deepvol-open-design/`. DeepVol-28 created the visual-fidelity Open Design frontend. The old `apps/deepvol-web/` remains for functional validation and logic reference only.
 Source of truth relationship: Companion to DEEPVOL_FRONTEND_MVP.md; records the Open Design rewrite rationale, architecture, and boundaries.
 ---
 
@@ -156,13 +156,51 @@ Five root causes fixed after connected-wallet testing:
 
 5. **Mintability threading:** `usePrimitivePreflight` hook now accepts `primitiveMintabilityStatus` and `rangeMintabilityStatus` params. `BinaryPrimitiveExecutionPanel` and `RangeExecutionPanel` pass their respective mintability statuses through to preflight.
 
+## DeepVol-33: Runtime mintability input parity
+
+DeepVol-33 fixes the next connected-wallet diagnostic gap: all Open Design products could fail mintability search with non-positive mint cost while the UI lacked enough runtime evidence to distinguish input mismatch, quote economics, and funding/preflight failures.
+
+Key changes:
+
+1. **Shared runtime input builder:** `buildTradeRuntimeContext()` validates wallet address, Testnet network, PredictManager, live active market, oracle ID, oracle object ID, expiry, normalized quantity, forward/spot anchor, tick size, min strike, and underlying asset before SDK candidate search.
+
+2. **Normalized SDK inputs:** MOVE, UP, DOWN, and RANGE mintability hooks pass `runtimeContext.sdkInput.quantity` and other validated `sdkInput` fields into SDK candidate helpers. Candidate state resets when the runtime dependency key changes, including oracle object, spot/forward, tick grid, quantity, manager, and wallet state.
+
+3. **MOVE quote oracle object fixed:** `useDeepVolQuote()` now accepts active market context and uses `activeMarket.oracleObjectId` for UP/DOWN leg quotes instead of reusing `series.oracleId` as the OracleSVI object ID. It also blocks stale VolSeries when oracle or expiry differs from the active BTC market.
+
+4. **Shared diagnostics panel:** `TradeRuntimeDiagnostics` renders in MOVE, UP/DOWN, and RANGE panels. It shows runtime input fields, anchor source, quote/preflight status, candidate counts, dominant failure, raw failure summary, Wallet DUSDC, and PredictManager DUSDC.
+
+5. **Balance vs quote separation:** Wallet DUSDC remains a deposit/create-fee source; PredictManager DUSDC remains mint collateral/premium balance. Non-positive quotes are not labeled as balance failures unless raw diagnostics contain balance/deposit evidence.
+
+Suggested strikes seed UI fields only; mintability candidate search uses `forward` or `spot` plus the tick grid. See [DEEPVOL_MINTABILITY_RUNTIME_DIAGNOSTICS.md](./DEEPVOL_MINTABILITY_RUNTIME_DIAGNOSTICS.md).
+
+## DeepVol-34: Verified state-machine parity
+
+DeepVol-34 stops treating the Open Design app as an independent trading implementation. The old `apps/deepvol-web` app remains the verified functional state-machine reference, and Open Design is the view layer over the same sequence.
+
+Canonical orders:
+
+- **MOVE:** `active market -> mintable range -> VolSeries -> quote -> preflight -> wallet`
+- **UP/DOWN:** `active market -> mintable strike -> quote -> preflight -> wallet`
+- **RANGE:** `active market -> mintable interval -> quote -> preflight -> wallet`
+
+Open Design parity fixes:
+
+1. `MoveExecutionPanel` now wires `useCreateVolSeries` after a passed mintable MOVE range and only passes `moveQuoteSeriesId` to `useDeepVolQuote` when the selected series is ready for the validated range.
+2. Binary primitive quote inputs now come from `quoteStrikeInput`, which is populated only after `mintableStrike.status === "passed"`.
+3. RANGE quote inputs now come from `quoteLowerStrikeInput` / `quoteUpperStrikeInput`, populated only after `mintableRange.status === "passed"`.
+4. Suggested strikes remain visual seed fields only; they no longer become canonical quote/preflight inputs before mintability passes.
+5. Product contexts remain isolated, and non-positive quote diagnostics remain distinct from Wallet DUSDC and PredictManager DUSDC funding diagnostics.
+
+See [DEEPVOL_OLD_UI_TRADING_STATE_MACHINE.md](./DEEPVOL_OLD_UI_TRADING_STATE_MACHINE.md). Connected-wallet acceptance is still required; Claude Code did not approve wallet prompts or execute real transactions.
+
 ## Verification
 
 | Check | Result |
 |-------|--------|
 | `npm run typecheck:open-design` | Pass |
 | `npm run build:open-design` | Pass |
-| `test:open-design-ui` (61 assertions) | Pass |
+| `test:open-design-ui` (124 assertions, including DeepVol-33 runtime input parity checks) | Pass |
 | All 12 old app gate tests | Pass |
 | Browser smoke (all routes) | Pass, 0 console errors |
 | Responsive 375px | Columns stack, no overflow |

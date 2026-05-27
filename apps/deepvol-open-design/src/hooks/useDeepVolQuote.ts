@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
+import type { PrimitiveActiveMarketContext } from "@rangepilot/types/deepbookPredict";
 import type { VolSeries } from "@rangepilot/types/deepVol";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import {
@@ -55,12 +56,14 @@ type UseDeepVolQuoteParams = {
   quantityInput: string;
   predictManagerId: string | null;
   seriesId: string | null;
+  activeMarket: PrimitiveActiveMarketContext | null;
 };
 
 export function useDeepVolQuote({
   quantityInput,
   predictManagerId,
   seriesId,
+  activeMarket,
 }: UseDeepVolQuoteParams): DeepVolQuoteState {
   const client = useSuiClient();
   const wallet = useSuiWallet();
@@ -86,6 +89,17 @@ export function useDeepVolQuote({
       blockers.push("Select an active BTC MOVE VolSeries before preparing quotes.");
     }
 
+    if (!activeMarket) {
+      blockers.push("Discover a live active BTC market before preparing MOVE quotes.");
+    } else {
+      if (activeMarket.status !== "live") {
+        blockers.push(`Active BTC market must be live before preparing MOVE quotes. Current status: ${activeMarket.status}.`);
+      }
+      if (!activeMarket.oracleObjectId) {
+        blockers.push("Active BTC market is missing oracleObjectId.");
+      }
+    }
+
     if (!predictManagerId) {
       blockers.push("Enter or store a PredictManager ID before preparing buy_move_receipt.");
     }
@@ -95,7 +109,7 @@ export function useDeepVolQuote({
     }
 
     return blockers;
-  }, [config.isDusdcConfigured, config.isPackageConfigured, config.isProtocolVaultConfigured, effectiveSeriesId, predictManagerId, quantity, wallet.isConnected, wallet.isTestnet]);
+  }, [activeMarket, config.isDusdcConfigured, config.isPackageConfigured, config.isProtocolVaultConfigured, effectiveSeriesId, predictManagerId, quantity, wallet.isConnected, wallet.isTestnet]);
 
   const query = useQuery({
     queryKey: [
@@ -105,6 +119,10 @@ export function useDeepVolQuote({
       effectiveSeriesId,
       quantity,
       predictManagerId,
+      activeMarket?.oracleId ?? null,
+      activeMarket?.oracleObjectId ?? null,
+      activeMarket?.expiry ?? null,
+      activeMarket?.status ?? null,
     ],
     enabled: Boolean(effectiveSeriesId && quantity),
     queryFn: async () => {
@@ -129,7 +147,15 @@ export function useDeepVolQuote({
         blockers.push("Selected BTC MOVE VolSeries has invalid strike ordering.");
       }
 
-      if (!wallet.address || !wallet.isTestnet || !quantity) {
+      if (activeMarket && series.oracleId !== activeMarket.oracleId) {
+        blockers.push("Selected BTC MOVE VolSeries oracle does not match the active BTC market.");
+      }
+
+      if (activeMarket && series.expiry !== activeMarket.expiry) {
+        blockers.push("Selected BTC MOVE VolSeries expiry does not match the active BTC market.");
+      }
+
+      if (!wallet.address || !wallet.isTestnet || !quantity || !activeMarket?.oracleObjectId || activeMarket.status !== "live" || series.oracleId !== activeMarket.oracleId || series.expiry !== activeMarket.expiry) {
         return buildState({
           status: blockers.length > 0 ? "blocked" : "idle",
           series,
@@ -152,7 +178,7 @@ export function useDeepVolQuote({
             client,
             sender: wallet.address,
             oracleId: series.oracleId,
-            oracleObjectId: series.oracleId,
+            oracleObjectId: activeMarket.oracleObjectId,
             expiry: series.expiry,
             strike: series.upperStrike,
             direction: "up",
@@ -163,7 +189,7 @@ export function useDeepVolQuote({
             client,
             sender: wallet.address,
             oracleId: series.oracleId,
-            oracleObjectId: series.oracleId,
+            oracleObjectId: activeMarket.oracleObjectId,
             expiry: series.expiry,
             strike: series.lowerStrike,
             direction: "down",

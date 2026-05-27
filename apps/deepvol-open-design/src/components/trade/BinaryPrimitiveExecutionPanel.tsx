@@ -5,6 +5,7 @@ import { usePrimitiveQuote } from "../../hooks/usePrimitiveQuote";
 import { usePrimitivePreflight } from "../../hooks/usePrimitivePreflight";
 import { usePrimitiveWalletExecution } from "../../hooks/usePrimitiveWalletExecution";
 import { formatAtomicAmount } from "../../lib/format";
+import { TradeRuntimeDiagnostics } from "./TradeRuntimeDiagnostics";
 import { WalletActionButton } from "./WalletActionButton";
 
 type Props = {
@@ -34,12 +35,13 @@ export function BinaryPrimitiveExecutionPanel({ kind, predictManagerId, activeMa
     quantity: quantityInput,
     primitiveKind: kind,
   });
+  const quoteStrikeInput = mintableStrike.status === "passed" ? mintableStrike.candidate?.strike ?? "" : "";
 
   const quote = usePrimitiveQuote({
     activeMarket,
     primitiveKind: kind,
     quantityInput,
-    strikeInput: mintableStrike.candidate?.strike ?? strikeInput,
+    strikeInput: quoteStrikeInput,
     lowerStrikeInput: "",
     upperStrikeInput: "",
   });
@@ -223,6 +225,20 @@ export function BinaryPrimitiveExecutionPanel({ kind, predictManagerId, activeMa
           submittingLabel="Confirm in wallet..."
         />
 
+        <TradeRuntimeDiagnostics
+          product={kind}
+          runtimeContext={mintableStrike.runtimeContext}
+          mintabilityStatus={mintableStrike.status}
+          mintabilityBlockers={mintableStrike.blockers}
+          diagnosticSummary={mintableStrike.diagnosticSummary}
+          candidateDiagnostics={mintableStrike.candidateDiagnostics}
+          quoteMintCostAtomic={quote.mintCostAtomic}
+          quoteRedeemPayoutAtomic={quote.redeemPayoutAtomic}
+          managerDusdcAtomic={preflight.managerBalanceAtomic}
+          preflightStatus={preflight.status}
+          preflightMessage={preflight.abortMessage ?? preflight.warnings[0] ?? null}
+        />
+
         {/* Advanced details */}
         <details className="group">
           <summary className="label cursor-pointer select-none flex items-center gap-2 hover:text-ink-mid">
@@ -230,8 +246,10 @@ export function BinaryPrimitiveExecutionPanel({ kind, predictManagerId, activeMa
             Advanced
           </summary>
           <div className="mt-3 space-y-1 text-[11px] font-mono text-ink-low">
+            <div>stateMachine: active market -&gt; mintable strike -&gt; quote -&gt; preflight -&gt; wallet</div>
             <div>kind: {kind}</div>
             <div>predictManagerId: {predictManagerId ?? "none"}</div>
+            <div>quoteStrikeInput: {quoteStrikeInput || "none"}</div>
             <div>mintableStrike.status: {mintableStrike.status}</div>
             <div>quote.status: {quote.status}</div>
             <div>preflight.status: {preflight.status}</div>
