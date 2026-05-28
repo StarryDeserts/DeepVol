@@ -110,6 +110,38 @@ export function usePrimitiveMintableRange({
     quantityInput: quantity,
   }), [activeMarket, predictManagerId, quantity, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
+  const prerequisiteBlockers = useMemo(() => {
+    const blockers: string[] = [];
+
+    if (!wallet.address || !wallet.isConnected) blockers.push("Connect a Sui wallet before validating a mintable RANGE interval.");
+    if (wallet.isConnected && !wallet.isTestnet) blockers.push("Switch to Sui Testnet before validating a mintable RANGE interval.");
+    if (!predictManagerId) blockers.push("Create or store a PredictManager before validating a mintable RANGE interval.");
+    if (!activeMarket) blockers.push("Discover an active BTC market first.");
+    if (activeMarket && activeMarket.status !== "live") blockers.push("Active BTC market must be live before validating a mintable RANGE interval.");
+
+    return blockers;
+  }, [activeMarket, predictManagerId, wallet.address, wallet.isConnected, wallet.isTestnet]);
+
+  const resetValidationScopeKey = useMemo(() => [
+    wallet.address ?? "",
+    wallet.isConnected ? "connected" : "disconnected",
+    wallet.isTestnet ? "testnet" : "non-testnet",
+    predictManagerId ?? "",
+    quantity,
+    activeMarket?.oracleId ?? "",
+    activeMarket?.expiry ?? "",
+    activeMarket?.status ?? "",
+  ].join(":"), [
+    activeMarket?.expiry,
+    activeMarket?.oracleId,
+    activeMarket?.status,
+    predictManagerId,
+    quantity,
+    wallet.address,
+    wallet.isConnected,
+    wallet.isTestnet,
+  ]);
+
   useEffect(() => {
     setState((current) => {
       if (
@@ -123,7 +155,7 @@ export function usePrimitiveMintableRange({
 
       return EMPTY_RANGE_MINTABILITY_STATE;
     });
-  }, [runtimeContext.dependencyKey]);
+  }, [resetValidationScopeKey]);
 
   const invalidate = useCallback(() => {
     if (state.candidate) {
@@ -132,20 +164,20 @@ export function usePrimitiveMintableRange({
         expiry: state.candidate.expiry,
         lowerStrike: state.candidate.lowerStrike,
         upperStrike: state.candidate.higherStrike,
-        quantity: runtimeContext.quantity ?? quantity,
+        quantity,
         predictManagerId,
       });
     }
 
     setState(EMPTY_RANGE_MINTABILITY_STATE);
-  }, [predictManagerId, quantity, runtimeContext.quantity, state.candidate]);
+  }, [predictManagerId, quantity, state.candidate]);
 
   const regenerate = useCallback(async () => {
-    if (!runtimeContext.sdkInput) {
+    if (prerequisiteBlockers.length > 0 || !activeMarket || !wallet.address || !predictManagerId) {
       setState({
         ...EMPTY_RANGE_MINTABILITY_STATE,
         status: "blocked",
-        blockers: runtimeContext.blockers,
+        blockers: prerequisiteBlockers,
         advancedDiagnostics: runtimeContext.diagnostics,
       });
       return;
@@ -159,17 +191,17 @@ export function usePrimitiveMintableRange({
 
     const result = await findMintableRangePrimitiveCandidate({
       client,
-      sender: runtimeContext.sdkInput.sender,
-      managerId: runtimeContext.sdkInput.managerId,
-      oracleId: runtimeContext.sdkInput.oracleId,
-      oracleObjectId: runtimeContext.sdkInput.oracleObjectId,
-      expiry: runtimeContext.sdkInput.expiry,
-      quantity: runtimeContext.sdkInput.quantity,
-      underlyingAsset: runtimeContext.sdkInput.underlyingAsset,
-      spot: runtimeContext.sdkInput.spot,
-      forward: runtimeContext.sdkInput.forward,
-      tickSize: runtimeContext.sdkInput.tickSize,
-      minStrike: runtimeContext.sdkInput.minStrike,
+      sender: wallet.address,
+      managerId: predictManagerId,
+      oracleId: activeMarket.oracleId,
+      oracleObjectId: activeMarket.oracleObjectId,
+      expiry: activeMarket.expiry,
+      quantity,
+      underlyingAsset: activeMarket.underlyingAsset,
+      spot: activeMarket.spot,
+      forward: activeMarket.forward,
+      tickSize: activeMarket.tickSize,
+      minStrike: activeMarket.minStrike,
       config: DEEPBOOK_PREDICT_TESTNET,
     });
 
@@ -182,7 +214,7 @@ export function usePrimitiveMintableRange({
         expiry: result.candidate.expiry,
         lowerStrike: result.candidate.lowerStrike,
         upperStrike: result.candidate.higherStrike,
-        quantity: runtimeContext.sdkInput.quantity,
+        quantity,
         predictManagerId,
       };
 
@@ -231,12 +263,12 @@ export function usePrimitiveMintableRange({
       ],
       quoteAtomic: null,
     });
-  }, [client, runtimeContext, predictManagerId]);
+  }, [activeMarket, client, predictManagerId, prerequisiteBlockers, quantity, wallet.address, runtimeContext]);
 
   return {
     ...state,
     runtimeContext,
-    blockers: [...new Set([...runtimeContext.blockers, ...state.blockers])],
+    blockers: [...new Set([...prerequisiteBlockers, ...state.blockers])],
     regenerate,
     invalidate,
   };

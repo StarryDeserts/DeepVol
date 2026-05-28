@@ -321,13 +321,29 @@ const primitiveRangeHook = fileContent("hooks/usePrimitiveMintableRange.ts");
 assert("MOVE mintability uses runtime context", moveMintabilityHook.includes("buildTradeRuntimeContext"));
 assert("UP/DOWN mintability uses runtime context", primitiveStrikeHook.includes("buildTradeRuntimeContext"));
 assert("RANGE mintability uses runtime context", primitiveRangeHook.includes("buildTradeRuntimeContext"));
-assert("MOVE mintability uses normalized SDK quantity", moveMintabilityHook.includes("runtimeContext.sdkInput.quantity"));
-assert("UP/DOWN mintability uses normalized SDK quantity", primitiveStrikeHook.includes("runtimeContext.sdkInput.quantity"));
-assert("RANGE mintability uses normalized SDK quantity", primitiveRangeHook.includes("runtimeContext.sdkInput.quantity"));
-assert("MOVE mintability resets on runtime dependency key", moveMintabilityHook.includes("runtimeContext.dependencyKey"));
-assert("UP/DOWN mintability resets on runtime dependency key", primitiveStrikeHook.includes("runtimeContext.dependencyKey"));
-assert("RANGE mintability resets on runtime dependency key", primitiveRangeHook.includes("runtimeContext.dependencyKey"));
+assert("MOVE mintability passes raw activeMarket fields to SDK", moveMintabilityHook.includes("oracleId: activeMarket.oracleId") && !moveMintabilityHook.includes("runtimeContext.sdkInput"));
+assert("UP/DOWN mintability passes raw activeMarket fields to SDK", primitiveStrikeHook.includes("oracleId: activeMarket.oracleId") && !primitiveStrikeHook.includes("runtimeContext.sdkInput"));
+assert("RANGE mintability passes raw activeMarket fields to SDK", primitiveRangeHook.includes("oracleId: activeMarket.oracleId") && !primitiveRangeHook.includes("runtimeContext.sdkInput"));
+assert("MOVE mintability does not reset on price-bearing dependency key", !moveMintabilityHook.includes("runtimeContext.dependencyKey") && moveMintabilityHook.includes("prerequisiteBlockers") && !moveMintabilityHook.includes("if (!runtimeContext.sdkInput)"));
+assert("UP/DOWN mintability does not reset on price-bearing dependency key", !primitiveStrikeHook.includes("runtimeContext.dependencyKey") && primitiveStrikeHook.includes("prerequisiteBlockers") && !primitiveStrikeHook.includes("if (!runtimeContext.sdkInput)"));
+assert("RANGE mintability resets on market-identity key not price", primitiveRangeHook.includes("resetValidationScopeKey") && primitiveRangeHook.includes("[resetValidationScopeKey]") && !primitiveRangeHook.includes("runtimeContext.dependencyKey") && primitiveRangeHook.includes("prerequisiteBlockers") && !primitiveRangeHook.includes("if (!runtimeContext.sdkInput)"));
 assert("UP/DOWN mintability hook is binary only", !primitiveStrikeHook.includes('primitiveKind: "UP" | "DOWN" | "RANGE"'));
+
+// ── DeepVol-36: dependencyKey / reset key no longer carry oracle price ──
+assert("tradeRuntimeContext dependencyKey excludes oracle price", (() => {
+  const start = runtimeContext.indexOf("buildRuntimeDependencyKey({");
+  const end = runtimeContext.indexOf("});", start);
+  if (start < 0 || end < 0) return false;
+  const call = runtimeContext.slice(start, end);
+  return !call.includes("spot") && !call.includes("forward");
+})());
+assert("RANGE reset scope key excludes oracle price", (() => {
+  const start = primitiveRangeHook.indexOf("const resetValidationScopeKey");
+  const end = primitiveRangeHook.indexOf("]);", start);
+  if (start < 0 || end < 0) return false;
+  const block = primitiveRangeHook.slice(start, end);
+  return !block.includes("spot") && !block.includes("forward");
+})());
 
 assert("TradeRuntimeDiagnostics exists", fileExists("components/trade/TradeRuntimeDiagnostics.tsx"));
 const runtimeDiagnostics = fileExists("components/trade/TradeRuntimeDiagnostics.tsx") ? fileContent("components/trade/TradeRuntimeDiagnostics.tsx") : "";

@@ -168,8 +168,6 @@ export function buildTradeRuntimeContext(input: {
     expiry,
     rawQuantityInput: input.quantityInput,
     quantity,
-    spot,
-    forward,
     tickSize,
     minStrike,
     underlyingAsset: activeMarket?.underlyingAsset ?? null,

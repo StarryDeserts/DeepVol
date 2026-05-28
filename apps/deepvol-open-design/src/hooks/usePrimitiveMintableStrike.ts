@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import { findMintableBinaryPrimitiveCandidate } from "@rangepilot/sdk/deepbookPredict";
@@ -82,20 +82,17 @@ export function usePrimitiveMintableStrike({
     quantityInput: quantity,
   }), [activeMarket, predictManagerId, primitiveKind, quantity, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
-  useEffect(() => {
-    setState((current) => {
-      if (
-        current.status === "idle" &&
-        !current.candidate &&
-        current.attempts.length === 0 &&
-        current.blockers.length === 0
-      ) {
-        return current;
-      }
+  const prerequisiteBlockers = useMemo(() => {
+    const blockers: string[] = [];
 
-      return EMPTY_PRIMITIVE_STRIKE_MINTABILITY_STATE;
-    });
-  }, [runtimeContext.dependencyKey]);
+    if (!wallet.address || !wallet.isConnected) blockers.push("Connect a Sui wallet before validating a mintable primitive strike.");
+    if (wallet.isConnected && !wallet.isTestnet) blockers.push("Switch to Sui Testnet before validating a mintable primitive strike.");
+    if (!predictManagerId) blockers.push("Create or store a PredictManager before validating a mintable primitive strike.");
+    if (!activeMarket) blockers.push("Discover an active BTC market first.");
+    if (activeMarket && activeMarket.status !== "live") blockers.push("Active BTC market must be live before validating a mintable primitive strike.");
+
+    return blockers;
+  }, [activeMarket, predictManagerId, wallet.address, wallet.isConnected, wallet.isTestnet, primitiveKind]);
 
   const invalidate = useCallback(() => {
     if (state.candidate) {
@@ -104,20 +101,20 @@ export function usePrimitiveMintableStrike({
         expiry: state.candidate.expiry,
         direction: state.candidate.direction,
         strike: state.candidate.strike,
-        quantity: runtimeContext.quantity ?? quantity,
+        quantity,
         predictManagerId,
       });
     }
 
     setState(EMPTY_PRIMITIVE_STRIKE_MINTABILITY_STATE);
-  }, [predictManagerId, quantity, runtimeContext.quantity, state.candidate]);
+  }, [predictManagerId, quantity, state.candidate]);
 
   const regenerate = useCallback(async () => {
-    if (!runtimeContext.sdkInput) {
+    if (prerequisiteBlockers.length > 0 || !activeMarket || !wallet.address || !predictManagerId) {
       setState({
         ...EMPTY_PRIMITIVE_STRIKE_MINTABILITY_STATE,
         status: "blocked",
-        blockers: runtimeContext.blockers,
+        blockers: prerequisiteBlockers,
         advancedDiagnostics: runtimeContext.diagnostics,
       });
       return;
@@ -133,18 +130,18 @@ export function usePrimitiveMintableStrike({
 
     const result = await findMintableBinaryPrimitiveCandidate({
       client,
-      sender: runtimeContext.sdkInput.sender,
-      managerId: runtimeContext.sdkInput.managerId,
-      oracleId: runtimeContext.sdkInput.oracleId,
-      oracleObjectId: runtimeContext.sdkInput.oracleObjectId,
-      expiry: runtimeContext.sdkInput.expiry,
-      quantity: runtimeContext.sdkInput.quantity,
+      sender: wallet.address,
+      managerId: predictManagerId,
+      oracleId: activeMarket.oracleId,
+      oracleObjectId: activeMarket.oracleObjectId,
+      expiry: activeMarket.expiry,
+      quantity,
       direction,
-      underlyingAsset: runtimeContext.sdkInput.underlyingAsset,
-      spot: runtimeContext.sdkInput.spot,
-      forward: runtimeContext.sdkInput.forward,
-      tickSize: runtimeContext.sdkInput.tickSize,
-      minStrike: runtimeContext.sdkInput.minStrike,
+      underlyingAsset: activeMarket.underlyingAsset,
+      spot: activeMarket.spot,
+      forward: activeMarket.forward,
+      tickSize: activeMarket.tickSize,
+      minStrike: activeMarket.minStrike,
       config: DEEPBOOK_PREDICT_TESTNET,
     });
 
@@ -157,7 +154,7 @@ export function usePrimitiveMintableStrike({
         expiry: result.candidate.expiry,
         direction: result.candidate.direction,
         strike: result.candidate.strike,
-        quantity: runtimeContext.sdkInput.quantity,
+        quantity,
         predictManagerId,
       };
       const validationRecord = recordPrimitiveMintabilityPass(
@@ -199,12 +196,12 @@ export function usePrimitiveMintableStrike({
       ],
       quoteAtomic: null,
     });
-  }, [client, primitiveKind, runtimeContext, predictManagerId]);
+  }, [activeMarket, client, predictManagerId, prerequisiteBlockers, primitiveKind, quantity, wallet.address, runtimeContext]);
 
   return {
     ...state,
     runtimeContext,
-    blockers: [...new Set([...runtimeContext.blockers, ...state.blockers])],
+    blockers: [...new Set([...prerequisiteBlockers, ...state.blockers])],
     regenerate,
     invalidate,
   };

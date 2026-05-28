@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
 import { findMintableBtcMoveRangeCandidate } from "@rangepilot/sdk/deepbookPredict";
@@ -84,20 +84,17 @@ export function useBtcMoveMintableRange({
     quantityInput: quantity,
   }), [activeMarket, predictManagerId, quantity, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
-  useEffect(() => {
-    setState((current) => {
-      if (
-        current.status === "idle" &&
-        !current.candidate &&
-        current.attempts.length === 0 &&
-        current.blockers.length === 0
-      ) {
-        return current;
-      }
+  const prerequisiteBlockers = useMemo(() => {
+    const blockers: string[] = [];
 
-      return EMPTY_BTC_MOVE_MINTABILITY_STATE;
-    });
-  }, [runtimeContext.dependencyKey]);
+    if (!wallet.address || !wallet.isConnected) blockers.push("Connect a Sui wallet before validating a mintable BTC MOVE range.");
+    if (wallet.isConnected && !wallet.isTestnet) blockers.push("Switch to Sui Testnet before validating a mintable BTC MOVE range.");
+    if (!predictManagerId) blockers.push("Create or store a PredictManager before validating a mintable BTC MOVE range.");
+    if (!activeMarket) blockers.push("Discover an active BTC market first.");
+    if (activeMarket && activeMarket.status !== "live") blockers.push("Active BTC market must be live before validating a mintable BTC MOVE range.");
+
+    return blockers;
+  }, [activeMarket, predictManagerId, wallet.address, wallet.isConnected, wallet.isTestnet]);
 
   const invalidate = useCallback(() => {
     if (state.candidate) {
@@ -106,20 +103,20 @@ export function useBtcMoveMintableRange({
         expiry: state.candidate.expiry,
         lowerStrike: state.candidate.lowerStrike,
         upperStrike: state.candidate.upperStrike,
-        quantity: runtimeContext.quantity ?? quantity,
+        quantity,
         predictManagerId,
       });
     }
 
     setState(EMPTY_BTC_MOVE_MINTABILITY_STATE);
-  }, [predictManagerId, quantity, runtimeContext.quantity, state.candidate]);
+  }, [predictManagerId, quantity, state.candidate]);
 
   const regenerate = useCallback(async () => {
-    if (!runtimeContext.sdkInput) {
+    if (prerequisiteBlockers.length > 0 || !activeMarket || !wallet.address || !predictManagerId) {
       setState({
         ...EMPTY_BTC_MOVE_MINTABILITY_STATE,
         status: "blocked",
-        blockers: runtimeContext.blockers,
+        blockers: prerequisiteBlockers,
         advancedDiagnostics: runtimeContext.diagnostics,
       });
       return;
@@ -133,17 +130,17 @@ export function useBtcMoveMintableRange({
 
     const result = await findMintableBtcMoveRangeCandidate({
       client,
-      sender: runtimeContext.sdkInput.sender,
-      managerId: runtimeContext.sdkInput.managerId,
-      oracleId: runtimeContext.sdkInput.oracleId,
-      oracleObjectId: runtimeContext.sdkInput.oracleObjectId,
-      expiry: runtimeContext.sdkInput.expiry,
-      quantity: runtimeContext.sdkInput.quantity,
-      underlyingAsset: runtimeContext.sdkInput.underlyingAsset,
-      spot: runtimeContext.sdkInput.spot,
-      forward: runtimeContext.sdkInput.forward,
-      tickSize: runtimeContext.sdkInput.tickSize,
-      minStrike: runtimeContext.sdkInput.minStrike,
+      sender: wallet.address,
+      managerId: predictManagerId,
+      oracleId: activeMarket.oracleId,
+      oracleObjectId: activeMarket.oracleObjectId,
+      expiry: activeMarket.expiry,
+      quantity,
+      underlyingAsset: activeMarket.underlyingAsset,
+      spot: activeMarket.spot,
+      forward: activeMarket.forward,
+      tickSize: activeMarket.tickSize,
+      minStrike: activeMarket.minStrike,
       config: DEEPBOOK_PREDICT_TESTNET,
     });
 
@@ -156,7 +153,7 @@ export function useBtcMoveMintableRange({
         expiry: result.candidate.expiry,
         lowerStrike: result.candidate.lowerStrike,
         upperStrike: result.candidate.upperStrike,
-        quantity: runtimeContext.sdkInput.quantity,
+        quantity,
         predictManagerId,
       };
       const validationRecord = recordMoveSeriesMintabilityPass(
@@ -200,7 +197,7 @@ export function useBtcMoveMintableRange({
       upQuoteAtomic: null,
       downQuoteAtomic: null,
     });
-  }, [client, runtimeContext, predictManagerId]);
+  }, [activeMarket, client, predictManagerId, prerequisiteBlockers, quantity, wallet.address, runtimeContext]);
 
   const recordCreatedSeries = useCallback((seriesId: string) => {
     if (!state.candidate) {
@@ -212,15 +209,15 @@ export function useBtcMoveMintableRange({
       expiry: state.candidate.expiry,
       lowerStrike: state.candidate.lowerStrike,
       upperStrike: state.candidate.upperStrike,
-      quantity: runtimeContext.quantity ?? quantity,
+      quantity,
       predictManagerId,
     }, seriesId);
-  }, [predictManagerId, quantity, runtimeContext.quantity, state.candidate]);
+  }, [predictManagerId, quantity, state.candidate]);
 
   return {
     ...state,
     runtimeContext,
-    blockers: [...new Set([...runtimeContext.blockers, ...state.blockers])],
+    blockers: [...new Set([...prerequisiteBlockers, ...state.blockers])],
     regenerate,
     invalidate,
     recordCreatedSeries,
