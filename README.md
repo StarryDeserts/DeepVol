@@ -1,4 +1,4 @@
-# RangePilot / DeepVol
+# DeepVol
 
 > Trade movement, not just direction.
 
