@@ -1,0 +1,33 @@
+<svg width="520" height="160" viewBox="0 0 520 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DeepVol">
+<defs>
+<linearGradient id="wmBg" x1="8" y1="8" x2="152" y2="152" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#0A1B3D"/>
+<stop offset="1" stop-color="#0E2A66"/>
+</linearGradient>
+<linearGradient id="wmWave" x1="20" y1="80" x2="140" y2="80" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#22D3EE"/>
+<stop offset="0.5" stop-color="#3B82F6"/>
+<stop offset="1" stop-color="#60A5FA"/>
+</linearGradient>
+<linearGradient id="wmWaveSoft" x1="20" y1="80" x2="140" y2="80" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#1E40AF" stop-opacity="0.55"/>
+<stop offset="1" stop-color="#38BDF8" stop-opacity="0.55"/>
+</linearGradient>
+<linearGradient id="wmText" x1="180" y1="60" x2="180" y2="110" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#E8F1FF"/>
+<stop offset="1" stop-color="#9CC2FF"/>
+</linearGradient>
+</defs>
+<rect x="8" y="8" width="144" height="144" rx="36" fill="url(#wmBg)"/>
+<rect x="8.5" y="8.5" width="143" height="143" rx="35.5" fill="none" stroke="#3B82F6" stroke-opacity="0.25"/>
+<g transform="translate(8 8) scale(0.45)">
+<path d="M44 178 C 84 178, 92 132, 122 132 S 150 200, 180 200 S 208 116, 238 116 S 268 168, 276 168"
+fill="none" stroke="url(#wmWaveSoft)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M44 164 C 80 164, 90 96, 120 96 S 148 224, 178 224 S 206 80, 236 80 S 266 150, 276 150"
+fill="none" stroke="url(#wmWave)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="236" cy="80" r="11" fill="#0A1B3D" stroke="#22D3EE" stroke-width="6"/>
+<circle cx="178" cy="224" r="11" fill="#0A1B3D" stroke="#60A5FA" stroke-width="6"/>
+</g>
+<text x="180" y="98" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="56" font-weight="700" letter-spacing="-1" fill="url(#wmText)">Deep<tspan fill="#38BDF8">Vol</tspan></text>
+<text x="182" y="126" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="15" font-weight="500" letter-spacing="3" fill="#5B7FB8">VOLATILITY ON SUI</text>
+</svg>

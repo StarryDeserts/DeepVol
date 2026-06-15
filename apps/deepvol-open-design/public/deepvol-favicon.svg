@@ -1,0 +1,15 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DeepVol icon">
+<defs>
+<linearGradient id="fvBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#0A1B3D"/>
+<stop offset="1" stop-color="#0E2A66"/>
+</linearGradient>
+<linearGradient id="fvWave" x1="10" y1="32" x2="54" y2="32" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#22D3EE"/>
+<stop offset="1" stop-color="#60A5FA"/>
+</linearGradient>
+</defs>
+<rect width="64" height="64" rx="16" fill="url(#fvBg)"/>
+<path d="M10 36 C 18 36, 20 18, 26 18 S 32 48, 38 48 S 44 16, 50 16 S 56 32, 56 32"
+fill="none" stroke="url(#fvWave)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

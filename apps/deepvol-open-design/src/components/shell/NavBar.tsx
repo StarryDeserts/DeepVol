@@ -31,27 +31,16 @@ export function NavBar({ currentPath, onNavigate }: NavBarProps) {
         {/* Logo */}
         <a
           href="/"
-          className="flex items-center gap-3 group"
+          className="flex items-center gap-3"
           onClick={(e) => handleNav(e, "/")}
         >
-          <span className="relative grid place-items-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyanx-500/30 to-iris-500/30 border border-white/10">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ color: "#5EE8FF" }}
-            >
-              <path d="M2 14c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4" />
-              <path d="M2 18c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4" opacity=".55" />
-            </svg>
-            <span className="absolute inset-0 rounded-xl shadow-glow opacity-60 pointer-events-none" />
-          </span>
-          <span className="hidden min-[400px]:inline font-display text-[19px] font-semibold tracking-tight">DeepVol</span>
-          <Chip className="hidden sm:inline-flex ml-1">Testnet</Chip>
+          <img
+            src="/deepvol-wordmark.svg"
+            alt="DeepVol"
+            className="h-8 w-auto select-none"
+            draggable={false}
+          />
+          <Chip className="hidden sm:inline-flex">Testnet</Chip>
         </a>
 
         {/* Desktop nav */}
