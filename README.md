@@ -2,11 +2,77 @@
 
 > Trade movement, not just direction.
 
-## Overview
-
-DeepVol is a Predict-native **volatility trading terminal** on **Sui (Testnet)**, built on **DeepBook Predict**. Instead of asking only "will the price go up or down?", DeepVol lets you express a view on *how much* an asset will move.
+**Sui Overflow 2026 submission.** A Predict-native **volatility trading terminal** on **Sui (Testnet)**, built on **DeepBook Predict**. Instead of asking only "will the price go up or down?", DeepVol lets you express a view on *how much* an asset will move.
 
 It is **non-custodial**: users sign every transaction in their own wallet, and underlying positions stay in the user's own `PredictManager`. The primary frontend is the Open Design app under [`apps/deepvol-open-design`](apps/deepvol-open-design).
+
+---
+
+## Submission — Sui Overflow 2026
+
+| Field | Value |
+|---|---|
+| Project | **DeepVol** — volatility trading terminal |
+| Track | DeFi · Prediction Markets · Sui-native primitives |
+| Network | Sui **Testnet** |
+| Built on | **DeepBook Predict** (UP / DOWN / RANGE binary primitives) |
+| Custody model | **Non-custodial** — every transaction signed in the user's wallet |
+| Live demo | **TBD** — Vercel deployment (see [Deployment](#deployment)) |
+| Demo video | **TBD** — see [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the script and [`docs/DEMO_VIDEO_PLAN.md`](docs/DEMO_VIDEO_PLAN.md) for the scene plan |
+| Repository | this repository |
+| License | **TBD** |
+
+---
+
+## Quick Verification for Judges
+
+Three ways to confirm DeepVol is a working product, not a deck — pick whichever depth you have time for.
+
+### 1. Inspect on-chain evidence (about 30 seconds)
+
+Every flow below was executed against **Sui Testnet** via a real wallet signature. Click any digest to open it in [SuiVision Testnet Explorer](https://testnet.suivision.xyz/).
+
+| Flow | Tx digest | Notes |
+|---|---|---|
+| **BTC MOVE buy** — fresh end-to-end | [`6sq8ZydZS3sLXNU6Y31gxSqBniVdf7SEXMwiKzJmjbXg`](https://testnet.suivision.xyz/txblock/6sq8ZydZS3sLXNU6Y31gxSqBniVdf7SEXMwiKzJmjbXg) | active market → mintable range → VolSeries → `buy_move_receipt<DUSDC>` → UP+DOWN mints → Create Fee → `MoveReceiptCreated` |
+| **BTC MOVE buy** — browser wallet | [`A6YB62BqMmWsQeEZUoh4qYAA6n4RMqnih5TtHRdadfGn`](https://testnet.suivision.xyz/txblock/A6YB62BqMmWsQeEZUoh4qYAA6n4RMqnih5TtHRdadfGn) | Actual premium **9973**, Create Fee **29**, MoveReceipt `0xbbc2…35eb` |
+| **UP primitive mint** | [`4JCQ9ZCPRfWugiRhQsU6Y3rAaeT3CyYMMGZ4XnoCWcy9`](https://testnet.suivision.xyz/txblock/4JCQ9ZCPRfWugiRhQsU6Y3rAaeT3CyYMMGZ4XnoCWcy9) | Cost **8837** atomic DUSDC, no Create Fee |
+| **DOWN primitive mint** | [`4XU2145PwZNm1Qn3NtVkEdKZt9VPjiZeY5vNwTcy7jnH`](https://testnet.suivision.xyz/txblock/4XU2145PwZNm1Qn3NtVkEdKZt9VPjiZeY5vNwTcy7jnH) | Cost **3156** atomic DUSDC, no Create Fee |
+| **Guided redeem** | [`HeHNeZ95oymZzmA2ZpdjkvJgCaA9s5DzL7qs6aCgbJbJ`](https://testnet.suivision.xyz/txblock/HeHNeZ95oymZzmA2ZpdjkvJgCaA9s5DzL7qs6aCgbJbJ) | Total payout **9774** (UP 9727 + DOWN 47), position deltas 20000 → 10000 |
+
+Key on-chain objects (Sui Testnet):
+
+| Object | Address |
+|---|---|
+| Validated BTC MOVE VolSeries (DeepVol-20) | [`0x227c2436…fba7006d`](https://testnet.suivision.xyz/object/0x227c2436f3f111e41a78967faaca9c5e9dc5f3074959b720efc86f70fba7006d) |
+| Validated MoveReceipt (DeepVol-20) | [`0x85d803ae…eb6ff869`](https://testnet.suivision.xyz/object/0x85d803ae6b8a66f6d0e0772e8906d8076dea210de3eaa322d712db58eb6ff869) |
+
+Full milestone-by-milestone validation history is in [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md).
+
+### 2. Run it locally (about 60 seconds)
+
+Prerequisites: **Node ≥ 18** (20 LTS recommended), a **Sui wallet** browser extension set to **Testnet**, Testnet **SUI** for gas, and a **`PredictManager` funded with DUSDC**.
+
+```bash
+npm install
+npm run dev:open-design
+```
+
+Open the printed dev URL, connect your Testnet wallet, and the guided flow walks you through: active market → mintability → fresh quote → on-chain preflight → wallet review. **No `.env` setup is required** — all Testnet contract and endpoint values are baked into `@rangepilot/config`.
+
+To verify build and tests:
+
+```bash
+npm run typecheck:open-design                                       # passes
+npm run build:open-design                                           # passes
+npm --workspace apps/deepvol-open-design run test:open-design-ui    # 93 UI tests pass
+```
+
+### 3. Read the 4-minute demo walkthrough
+
+[`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) is the full narration; [`docs/DEMO_VIDEO_PLAN.md`](docs/DEMO_VIDEO_PLAN.md) lists the scenes.
+
+---
 
 ## Why DeepVol
 
@@ -16,21 +82,17 @@ DeepVol packages the official DeepBook Predict primitives into a structured **BT
 
 ## Core Products
 
-### BTC MOVE
+### BTC MOVE (flagship composed product)
 
-The flagship composed product. A MOVE receipt is two legs: a long **UP above an upper strike** and a long **DOWN below a lower strike**. You win when BTC moves far enough **outside** the range by expiry — in **either** direction (direction-agnostic). Both legs are minted in a single call via `receipt::buy_move_receipt<DUSDC>`, which creates a non-custodial `MoveReceipt` recording the full structure. A **Create Fee of 0.30% of premium** is charged into the DeepVol `ProtocolVault`.
+A MOVE receipt is two legs: a long **UP above an upper strike** and a long **DOWN below a lower strike**. You win when BTC moves far enough **outside** the range by expiry — in **either** direction (direction-agnostic). Both legs are minted in a single PTB via `receipt::buy_move_receipt<DUSDC>`, which creates a non-custodial `MoveReceipt` recording the full structure. A **Create Fee of 0.30% of premium** is charged into the DeepVol `ProtocolVault`.
 
-### UP
+### UP / DOWN (raw binary primitives)
 
-A raw DeepBook Predict **binary primitive**. Wins if BTC finishes **above** the strike. No receipt, no Create Fee — a single directional building block.
+Direct DeepBook Predict binary positions. **UP** wins if BTC finishes **above** the strike; **DOWN** wins if it finishes **below**. No receipt, no Create Fee — single directional building blocks.
 
-### DOWN
+### RANGE (raw range primitive)
 
-A raw DeepBook Predict **binary primitive**. Wins if BTC finishes **below** the strike. No receipt, no Create Fee.
-
-### RANGE
-
-A raw range primitive via `predict::mint_range<DUSDC>`. The mirror image of MOVE: wins when BTC expires **inside** the selected interval. No receipt, no VolSeries, no Create Fee.
+Via `predict::mint_range<DUSDC>`. The mirror image of MOVE: wins when BTC expires **inside** the selected interval. No receipt, no VolSeries, no Create Fee.
 
 ## How It Works
 
@@ -42,33 +104,33 @@ Every product runs through one shared, headless trading state machine in [`packa
 4. **On-chain preflight** — run a `devInspect` dry-run with a freshness window.
 5. **Wallet review / sign** — only now does the user's wallet open for signing.
 
-The model is **non-custodial**. Underlying positions live in the user's own `PredictManager`. DeepBook Predict owns pricing, the oracle, the vault, and settlement. DeepVol adds the product packaging (MOVE), receipt metadata, fee accounting, portfolio readback, and guided settlement on top.
+The model is **non-custodial**. Underlying positions live in the user's own `PredictManager`. DeepBook Predict owns pricing, the oracle, the vault, and settlement. DeepVol adds product packaging (MOVE), receipt metadata, fee accounting, portfolio readback, and guided settlement on top.
 
 ## Demo Flow
 
 `Landing → Markets → BTC terminal → MOVE → UP / DOWN → RANGE → Portfolio`
 
-See [`docs/DEMO_VIDEO_PLAN.md`](docs/DEMO_VIDEO_PLAN.md) for the scene-by-scene recording plan and [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the narration.
+See [`docs/DEMO_VIDEO_PLAN.md`](docs/DEMO_VIDEO_PLAN.md) for the recording plan and [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the narration.
 
 ## Architecture
 
 npm-workspaces monorepo:
 
 - **Frontend** — the Open Design app: Vite 7 + React 19 + Tailwind CSS 4 + `@mysten/dapp-kit` + `@mysten/sui` + `@tanstack/react-query`. SPA with client-side routing.
-- **Shared trading layer** — `packages/deepvol-trading-react`: the headless MOVE / UP / DOWN / RANGE state machines that drive the gated flow.
+- **Shared trading layer** — `packages/deepvol-trading-react`: the headless MOVE / UP / DOWN / RANGE state machines that drive the gated flow. One verified sequence, four product views.
 - **Supporting packages** — `@rangepilot/sdk` (PTB / transaction building), `@rangepilot/types`, `@rangepilot/config` (baked-in Testnet contract + endpoint config).
-- **Move contracts** — `move/deepvol` (VolSeries, MoveReceipt, ProtocolVault).
+- **Move contracts** — `move/deepvol` (`VolSeries`, `MoveReceipt`, `ProtocolVault`).
 
 ```text
 ┌──────────────────────────────────────────────┐
-│  Open Design app (apps/deepvol-open-design)    │  React 19 + Vite 7 + Tailwind 4
+│  Open Design app (apps/deepvol-open-design)   │  React 19 + Vite 7 + Tailwind 4
 ├──────────────────────────────────────────────┤
-│  Shared trading machines                       │  packages/deepvol-trading-react
-│  (MOVE / UP / DOWN / RANGE, gated flow)         │
+│  Shared trading machines                      │  packages/deepvol-trading-react
+│  (MOVE / UP / DOWN / RANGE, gated flow)        │
 ├──────────────────────────────────────────────┤
-│  SDK · types · config                          │  @rangepilot/{sdk,types,config}
+│  SDK · types · config                         │  @rangepilot/{sdk,types,config}
 ├──────────────────────────────────────────────┤
-│  DeepBook Predict on Sui (Testnet)             │  pricing · oracle · vault · settlement
+│  DeepBook Predict on Sui (Testnet)            │  pricing · oracle · vault · settlement
 └──────────────────────────────────────────────┘
 ```
 
@@ -87,21 +149,6 @@ move/
 docs/                     # architecture, demo plan, demo script, integration notes
 ```
 
-## Getting Started
-
-Prerequisites:
-
-- **Node >= 18** (20 LTS recommended).
-- A **Sui wallet** browser extension set to **Testnet**.
-- Testnet **SUI** for gas.
-- A **PredictManager** funded with **DUSDC**.
-
-Install all workspaces from the repo root:
-
-```bash
-npm install
-```
-
 ## Environment
 
 No `.env` file is required to run — all Testnet contract and endpoint values are baked into `@rangepilot/config`.
@@ -111,19 +158,6 @@ No `.env` file is required to run — all Testnet contract and endpoint values a
 | `VITE_DEEPVOL_VERIFIED_APP_URL` | No | Prefixes fallback CTA links. Unset ⇒ relative paths. |
 
 Never place private keys, mnemonics, or signing secrets in env — signing happens only in the user's wallet.
-
-## Running the App
-
-```bash
-npm install
-npm run dev:open-design     # Vite dev server
-```
-
-Production build:
-
-```bash
-npm run build:open-design   # output: apps/deepvol-open-design/dist
-```
 
 ## Testing
 
@@ -179,10 +213,30 @@ This depends on Vercel detecting the root `package.json` `workspaces` and instal
 
 Testnet-oriented MVP.
 
-- **BTC MOVE** and **UP / DOWN / RANGE** primitive flows run through the shared gated Testnet trading machines.
+- **BTC MOVE** and **UP / DOWN / RANGE** primitive flows all run through the shared gated Testnet trading machines.
 - **BTC MOVE** creates a `MoveReceipt`; **UP / DOWN / RANGE** create raw primitive positions.
 - **Portfolio** shows MOVE Receipts plus primitive positions via local-record + known-key readback (no full wallet indexer yet).
+- **BTC MOVE buy, UP / DOWN primitive mints, and guided redeem** are end-to-end validated on Sui Testnet — see [Quick Verification](#1-inspect-on-chain-evidence-about-30-seconds) above.
+- **RANGE mint** is execution-path implemented and gate-protected but **not yet validated on Testnet** with a real digest.
 - Current scope is Sui Testnet MVP validation and demo readiness.
+
+## Roadmap
+
+| Phase | Status | Highlights |
+|---|---|---|
+| 0 — Foundation docs and ADR | Complete | DeepVol direction, primitive-vs-receipt model, Create Fee enforceability |
+| 1 — Binary leg validation | Complete | Two-leg BTC binary mint validated on Testnet |
+| 2 — Local Route B contract | Complete | `move/deepvol` package: `VolSeries`, `MoveReceipt`, `ProtocolVault` |
+| 3 — Publish + deployed validation | Complete | DeepVol `buy_move_receipt<DUSDC>` validated end-to-end |
+| 4 — Portfolio + guided settlement UX | Complete | Browser buy, browser redeem, primitive terminals, RANGE gate |
+| 5 — Demo polish | In progress | Demo plan, script, recording |
+| 6 — V2 custodial / marketplace research | Future | Tradable receipts, Profit Fee, creator marketplace |
+
+Full milestone history (DeepVol-1 through DeepVol-38) is in [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md).
+
+## Acknowledgements
+
+Built on **DeepBook Predict** primitives on Sui. Thanks to the Sui and Mysten Labs teams for the on-chain prediction infrastructure.
 
 ## License
 
