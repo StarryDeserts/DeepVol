@@ -1,7 +1,8 @@
 import type { VolSeries } from "@rangepilot/types/deepVol";
 import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
-import type { PrimitivePreflightStatus } from "./usePrimitivePreflight";
-import type { PrimitiveQuoteStatus } from "./usePrimitiveQuote";
+
+type PrimitivePreflightStatus = "idle" | "running" | "passed" | "failed";
+type PrimitiveQuoteStatus = "idle" | "loading" | "ready" | "stale" | "error";
 
 export type PrimitiveKind = "UP" | "DOWN" | "RANGE";
 
