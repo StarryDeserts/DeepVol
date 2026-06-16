@@ -1,2 +1,2 @@
-export type { BtcMoveMintableRangeController, BtcMoveMintableRangeStatus } from "@rangepilot/deepvol-trading-react";
-export { useBtcMoveMintableRange } from "@rangepilot/deepvol-trading-react";
+export type { BtcMoveMintableRangeController, BtcMoveMintableRangeStatus } from "@deepvol/trading-react";
+export { useBtcMoveMintableRange } from "@deepvol/trading-react";

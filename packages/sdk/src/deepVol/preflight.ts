@@ -1,13 +1,13 @@
 import type { Transaction } from "@mysten/sui/transactions";
 import type {
   DeepBookPredictNetworkConfig,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import type {
   BuyMoveReceiptParams,
   DeepVolBuyReceiptPreflightResult,
   DeepVolTestnetConfig,
-} from "@rangepilot/types/deepVol";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+} from "@deepvol/types/deepVol";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import { devInspectManagerBalance } from "../deepbookPredict/manager.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "../deepbookPredict/errors.ts";
 import {

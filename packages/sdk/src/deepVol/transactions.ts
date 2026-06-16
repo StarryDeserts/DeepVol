@@ -1,13 +1,13 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
 import type {
   BuyMoveReceiptParams,
   CreateVolSeriesParams,
   DeactivateVolSeriesParams,
   DeepVolTestnetConfig,
   MarkMoveReceiptSettledParams,
-} from "@rangepilot/types/deepVol";
+} from "@deepvol/types/deepVol";
 import { DeepBookPredictUnconfirmedBindingError } from "../deepbookPredict/errors.ts";
 
 export type DeepVolPackageOptions = {

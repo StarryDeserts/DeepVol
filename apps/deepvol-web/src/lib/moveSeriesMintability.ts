@@ -2,7 +2,7 @@ export type {
   MoveSeriesMintabilityClassification,
   MoveSeriesMintabilityKeyInput,
   MoveSeriesMintabilityRecord,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";
 export {
   attachSeriesToMoveSeriesMintabilityRecord,
   buildMoveSeriesMintabilityKey,
@@ -10,4 +10,4 @@ export {
   clearMoveSeriesMintabilityRecord,
   recordMoveSeriesMintabilityFailure,
   recordMoveSeriesMintabilityPass,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";

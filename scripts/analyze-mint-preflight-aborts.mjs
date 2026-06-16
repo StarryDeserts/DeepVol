@@ -1,5 +1,5 @@
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   RANGE_QUOTE_QUANTITY_SWEEP,
   createDeepBookPredictServerClient,
@@ -8,7 +8,7 @@ import {
   devInspectMintRangePreflight,
   inferAskBoundSide,
   scanRangeQuoteQuantities,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 
 const config = DEEPBOOK_PREDICT_TESTNET;
 const verifiedSignerAddress = "0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5";

@@ -11,7 +11,7 @@ import type {
   ManagerBinaryPositionResult,
   ManagerRangePositionResult,
   RangePositionSummary,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
 import { inspectDevInspectU64, summarizeDevInspectU64Diagnostic } from "./quote.ts";

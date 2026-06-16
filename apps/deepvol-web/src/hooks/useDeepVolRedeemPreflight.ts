@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   buildRedeemBinaryPositionsTransaction,
   buildSuiExplorerTransactionUrl,
@@ -12,10 +12,10 @@ import {
   parsePositionRedeemedEvents,
   readBinaryPositionQuantity,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
-import { readMoveReceipt } from "@rangepilot/sdk/deepVol";
-import type { PositionRedeemedEvent, TransactionStatus } from "@rangepilot/types/deepbookPredict";
-import type { MoveReceipt } from "@rangepilot/types/deepVol";
+} from "@deepvol/sdk/deepbookPredict";
+import { readMoveReceipt } from "@deepvol/sdk/deepVol";
+import type { PositionRedeemedEvent, TransactionStatus } from "@deepvol/types/deepbookPredict";
+import type { MoveReceipt } from "@deepvol/types/deepVol";
 import { useSuiWallet } from "./useSuiWallet";
 import { redeemExecutionBlockers } from "./redeemMoveReceiptGate";
 import {

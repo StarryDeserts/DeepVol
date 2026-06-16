@@ -1,5 +1,5 @@
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   CONFIGURED_BTC_MOVE_SERIES_ID,
   CONTROLLED_REDEEM_BUY_DIGEST,

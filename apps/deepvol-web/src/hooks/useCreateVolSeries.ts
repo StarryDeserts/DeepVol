@@ -1,2 +1,2 @@
-export type { CreateVolSeriesController, CreateVolSeriesMintabilityValidation, CreateVolSeriesStatus } from "@rangepilot/deepvol-trading-react";
-export { useCreateVolSeries } from "@rangepilot/deepvol-trading-react";
+export type { CreateVolSeriesController, CreateVolSeriesMintabilityValidation, CreateVolSeriesStatus } from "@deepvol/trading-react";
+export { useCreateVolSeries } from "@deepvol/trading-react";

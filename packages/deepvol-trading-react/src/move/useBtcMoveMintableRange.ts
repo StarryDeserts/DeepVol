@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import { findMintableBtcMoveRangeCandidate } from "@rangepilot/sdk/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import { findMintableBtcMoveRangeCandidate } from "@deepvol/sdk/deepbookPredict";
 import type {
   BtcMoveMintableRangeCandidate,
   BtcMoveMintableRangeAttempt,
   PrimitiveActiveMarketContext,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import {
   attachSeriesToMoveSeriesMintabilityRecord,
   buildMoveSeriesMintabilityKey,

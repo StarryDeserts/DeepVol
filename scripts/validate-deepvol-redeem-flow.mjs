@@ -1,13 +1,13 @@
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   classifyRedeemAbort,
   devInspectBinaryQuote,
   devInspectManagerBalance,
   devInspectRedeemBinaryPosition,
   readBinaryPositionQuantity,
-} from "@rangepilot/sdk/deepbookPredict";
-import { readMoveReceipt } from "@rangepilot/sdk/deepVol";
+} from "@deepvol/sdk/deepbookPredict";
+import { readMoveReceipt } from "@deepvol/sdk/deepVol";
 
 const config = DEEPBOOK_PREDICT_TESTNET;
 const knownReceipt = {

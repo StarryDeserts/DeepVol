@@ -1,2 +1,2 @@
-export type { DeepVolPreflightState, DeepVolQuoteState } from "@rangepilot/deepvol-trading-react";
-export { useDeepVolQuote } from "@rangepilot/deepvol-trading-react";
+export type { DeepVolPreflightState, DeepVolQuoteState } from "@deepvol/trading-react";
+export { useDeepVolQuote } from "@deepvol/trading-react";

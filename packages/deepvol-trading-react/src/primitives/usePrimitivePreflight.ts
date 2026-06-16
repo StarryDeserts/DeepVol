@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   devInspectManagerBalance,
   devInspectMintBinaryPreflight,
   devInspectMintRangePreflight,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import { useSuiWallet } from "../core/useSuiWallet";
 import type { PrimitiveQuoteState } from "./usePrimitiveQuote";
 import {

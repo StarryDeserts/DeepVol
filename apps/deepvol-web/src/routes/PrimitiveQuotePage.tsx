@@ -19,7 +19,7 @@ import type {
   PrimitiveMarketStatus,
   RangePrimitiveMintabilityFailureFamily,
   RangePrimitiveMintabilitySummary,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import type { PrimitiveKind } from "../hooks/primitiveQuoteGate";
 import { DEFAULT_MOVE_QUANTITY } from "../lib/constants";
 import { formatTimestampMs, shortId } from "../lib/format";

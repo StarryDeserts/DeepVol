@@ -2,7 +2,7 @@ import {
   type DeepVolMachineAction,
   type DeepVolMachineStep,
   type DeepVolTradeMachine,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";
 import { type MarketProduct, verifiedTradingHref } from "@/lib/productRoute";
 
 type Product = MarketProduct;

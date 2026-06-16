@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { buildCreateVolSeriesTransaction } from "@rangepilot/sdk/deepVol";
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
-import type { PrimitiveActiveMarketContext } from "@rangepilot/types/deepbookPredict";
-import { buildSuiExplorerTransactionUrl } from "@rangepilot/sdk/deepbookPredict";
+import { buildCreateVolSeriesTransaction } from "@deepvol/sdk/deepVol";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
+import type { PrimitiveActiveMarketContext } from "@deepvol/types/deepbookPredict";
+import { buildSuiExplorerTransactionUrl } from "@deepvol/sdk/deepbookPredict";
 import { useSuiWallet } from "../core/useSuiWallet";
 import { DEEPVOL_STORAGE_KEYS, TESTNET_CHAIN } from "../core/constants";
 

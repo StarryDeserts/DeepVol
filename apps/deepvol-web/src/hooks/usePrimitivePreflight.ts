@@ -1,2 +1,2 @@
-export type { PrimitivePreflightController } from "@rangepilot/deepvol-trading-react";
-export { usePrimitivePreflight } from "@rangepilot/deepvol-trading-react";
+export type { PrimitivePreflightController } from "@deepvol/trading-react";
+export { usePrimitivePreflight } from "@deepvol/trading-react";

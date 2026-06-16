@@ -1,2 +1,2 @@
-export type { PredictManagerSession, PredictManagerSessionStatus } from "@rangepilot/deepvol-trading-react";
-export { usePredictManagerSession } from "@rangepilot/deepvol-trading-react";
+export type { PredictManagerSession, PredictManagerSessionStatus } from "@deepvol/trading-react";
+export { usePredictManagerSession } from "@deepvol/trading-react";

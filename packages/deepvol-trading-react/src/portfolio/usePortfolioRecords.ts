@@ -1,8 +1,8 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import { readMoveReceipt } from "@rangepilot/sdk/deepVol";
-import type { MoveReceipt } from "@rangepilot/types/deepVol";
+import { readMoveReceipt } from "@deepvol/sdk/deepVol";
+import type { MoveReceipt } from "@deepvol/types/deepVol";
 import { DEEPVOL_STORAGE_KEYS } from "../core/constants";
 import { useDeepVolConfig } from "../core/useDeepVolConfig";
 import { useSuiWallet } from "../core/useSuiWallet";

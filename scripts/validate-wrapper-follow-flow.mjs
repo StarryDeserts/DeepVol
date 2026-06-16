@@ -2,13 +2,13 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   RANGEPILOT_ADMIN_CAP_ID,
   RANGEPILOT_PROTOCOL_VAULT_ID,
   RANGEPILOT_TESTNET,
   RANGEPILOT_WRAPPER_PACKAGE_ID,
-} from "@rangepilot/config/rangePilotTestnet";
+} from "@deepvol/config/rangePilotTestnet";
 import {
   buildSuiExplorerTransactionUrl,
   createDeepBookPredictServerClient,
@@ -21,11 +21,11 @@ import {
   readRangePositionQuantity,
   scanMintableRangeCandidates,
   summarizeDevInspectU64Diagnostic,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import {
   buildCreateStrategyTransaction,
   buildFollowStrategyAndMintTransaction,
-} from "@rangepilot/sdk/rangePilotStrategy";
+} from "@deepvol/sdk/rangePilotStrategy";
 
 const execFileAsync = promisify(execFile);
 const deepbookConfig = DEEPBOOK_PREDICT_TESTNET;

@@ -14,7 +14,7 @@ import type {
   DeepBookPredictSviUpdate,
   DeepBookPredictTradeRecord,
   DeepBookPredictVaultSummary,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 
 export class DeepBookPredictServerError extends Error {

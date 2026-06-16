@@ -87,8 +87,8 @@ assert("verified MOVE route targets old app", productRoute.includes('MOVE: "/buy
 assert("verified UP route targets old app", productRoute.includes('UP: "/primitives?type=UP"'));
 assert("verified DOWN route targets old app", productRoute.includes('DOWN: "/primitives?type=DOWN"'));
 assert("verified RANGE route targets old app", productRoute.includes('RANGE: "/primitives?type=RANGE"'));
-assert("Open Design depends on shared trading package", packageJson.includes('"@rangepilot/deepvol-trading-react"'));
-assert("BtcMarketPage imports shared trading machines", btcMarket.includes("@rangepilot/deepvol-trading-react") && btcMarket.includes("useMoveTradeMachine") && btcMarket.includes("useUpTradeMachine") && btcMarket.includes("useDownTradeMachine") && btcMarket.includes("useRangeTradeMachine"));
+assert("Open Design depends on shared trading package", packageJson.includes('"@deepvol/trading-react"'));
+assert("BtcMarketPage imports shared trading machines", btcMarket.includes("@deepvol/trading-react") && btcMarket.includes("useMoveTradeMachine") && btcMarket.includes("useUpTradeMachine") && btcMarket.includes("useDownTradeMachine") && btcMarket.includes("useRangeTradeMachine"));
 assert("BtcMarketPage imports verified trading helper", btcMarket.includes("verifiedTradingHref"));
 assert("BtcMarketPage does not render PredictManager setup", !btcMarket.includes("<PredictManagerSetup"));
 assert("BtcMarketPage explains shared verified execution", btcMarket.includes("Open Design direct controls use the shared verified trading state machine."));

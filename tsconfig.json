@@ -10,34 +10,34 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@rangepilot/config/deepbookPredictTestnet": [
+      "@deepvol/config/deepbookPredictTestnet": [
         "packages/config/src/deepbookPredictTestnet.ts"
       ],
-      "@rangepilot/config/deepVolTestnet": [
+      "@deepvol/config/deepVolTestnet": [
         "packages/config/src/deepVolTestnet.ts"
       ],
-      "@rangepilot/config/rangePilotTestnet": [
+      "@deepvol/config/rangePilotTestnet": [
         "packages/config/src/rangePilotTestnet.ts"
       ],
-      "@rangepilot/types/deepbookPredict": [
+      "@deepvol/types/deepbookPredict": [
         "packages/types/src/deepbookPredict.ts"
       ],
-      "@rangepilot/types/deepVol": [
+      "@deepvol/types/deepVol": [
         "packages/types/src/deepVol.ts"
       ],
-      "@rangepilot/types/rangePilotStrategy": [
+      "@deepvol/types/rangePilotStrategy": [
         "packages/types/src/rangePilotStrategy.ts"
       ],
-      "@rangepilot/sdk/deepbookPredict": [
+      "@deepvol/sdk/deepbookPredict": [
         "packages/sdk/src/deepbookPredict/index.ts"
       ],
-      "@rangepilot/sdk/deepVol": [
+      "@deepvol/sdk/deepVol": [
         "packages/sdk/src/deepVol/index.ts"
       ],
-      "@rangepilot/sdk/rangePilotStrategy": [
+      "@deepvol/sdk/rangePilotStrategy": [
         "packages/sdk/src/rangePilotStrategy/index.ts"
       ],
-      "@rangepilot/deepvol-trading-react": [
+      "@deepvol/trading-react": [
         "packages/deepvol-trading-react/src/index.ts"
       ]
     }

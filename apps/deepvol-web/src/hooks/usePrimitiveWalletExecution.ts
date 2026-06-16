@@ -1,1 +1,1 @@
-export { usePrimitiveWalletExecution } from "@rangepilot/deepvol-trading-react";
+export { usePrimitiveWalletExecution } from "@deepvol/trading-react";

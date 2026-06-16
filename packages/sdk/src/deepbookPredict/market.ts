@@ -13,7 +13,7 @@ import type {
   PrimitiveActiveMarketContext,
   PrimitiveActiveMarketDiscoveryResult,
   PrimitiveMarketStatus,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import {
   formatBtcMoveMintabilityError,

@@ -1,4 +1,4 @@
-import type { DeepVolTestnetConfig } from "@rangepilot/types/deepVol";
+import type { DeepVolTestnetConfig } from "@deepvol/types/deepVol";
 
 export const DEEPVOL_PACKAGE_ID =
   "0xe9b45e8d06406bb935bf5e3260ac9b82491ca158775861660be34881e17a4fa0";

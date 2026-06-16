@@ -3,7 +3,7 @@ import type {
   MintAbortCandidateParams,
   MintAbortClassification,
   MintAbortKnownReason,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 
 export class DeepBookPredictUnconfirmedBindingError extends Error {
   readonly code = "DEEPBOOK_PREDICT_UNCONFIRMED_BINDING";

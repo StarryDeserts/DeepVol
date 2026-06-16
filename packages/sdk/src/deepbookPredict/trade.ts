@@ -12,7 +12,7 @@ import type {
   RedeemAbortCandidateParams,
   RedeemAbortClassification,
   RedeemRangePreflightResult,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import {
   classifyDeepBookPredictAbort,

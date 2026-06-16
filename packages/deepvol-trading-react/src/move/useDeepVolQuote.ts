@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import type { VolSeries } from "@rangepilot/types/deepVol";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import type { VolSeries } from "@deepvol/types/deepVol";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   devInspectBinaryQuote,
   getDusdcCoins,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import { useDeepVolConfig } from "../core/useDeepVolConfig";
 import { useSuiWallet } from "../core/useSuiWallet";
 import {

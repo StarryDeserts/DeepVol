@@ -1,2 +1,2 @@
-export type { DeepVolPreflightController } from "@rangepilot/deepvol-trading-react";
-export { buildPreflightDependencyKey, useDeepVolPreflight } from "@rangepilot/deepvol-trading-react";
+export type { DeepVolPreflightController } from "@deepvol/trading-react";
+export { buildPreflightDependencyKey, useDeepVolPreflight } from "@deepvol/trading-react";

@@ -1,4 +1,4 @@
-import type { MoveReceipt } from "@rangepilot/types/deepVol";
+import type { MoveReceipt } from "@deepvol/types/deepVol";
 
 export async function readMoveReceipt(
   client: {

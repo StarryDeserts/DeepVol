@@ -1,5 +1,5 @@
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
 import { browserStorage, type StorageLike } from "../core/environment";
 import { DEEPVOL_MINTABILITY_PASS_TTL_MS } from "../core/time";
 

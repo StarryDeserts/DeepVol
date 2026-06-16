@@ -14,7 +14,7 @@ import type {
   RangeQuoteCandidate,
   RangeQuotePreview,
   RedeemRangePreflightResult,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { translateDeepBookPredictError } from "./errors.ts";
 import {

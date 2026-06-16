@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   readBinaryPositionQuantity,
   readRangePositionQuantity,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import type { StoredDeepVolPrimitiveTrade } from "@/lib/deepVolPrimitiveStorage";
 
 export type PrimitiveRecordPositionReadbackStatus =

@@ -1,4 +1,4 @@
-import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { VolSeries } from "@deepvol/types/deepVol";
 import { decodeAsciiVector } from "../core/format";
 
 type ParsedMoveObject = {

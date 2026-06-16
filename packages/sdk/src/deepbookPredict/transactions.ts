@@ -4,7 +4,7 @@ import type {
   DeepBookPredictNetwork,
   DeepBookPredictNetworkConfig,
   DepositDusdcParams,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { selectDusdcCoinsForAmount } from "./coins.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";

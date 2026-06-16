@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useActiveBtcPredictMarket } from "@rangepilot/deepvol-trading-react";
+import { useActiveBtcPredictMarket } from "@deepvol/trading-react";
 import { formatTimestampMs } from "@/lib/format";
 import { type MarketProduct } from "@/lib/productRoute";
 import { DownActionPanel } from "@/components/trade/DownActionPanel";

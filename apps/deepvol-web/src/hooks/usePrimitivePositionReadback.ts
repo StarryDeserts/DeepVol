@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   readBinaryPositionQuantity,
   readRangePositionQuantity,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import { useSuiWallet } from "./useSuiWallet";
 import { normalizePositiveIntegerInput } from "../lib/format";
-import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { VolSeries } from "@deepvol/types/deepVol";
 import type { PrimitiveKind } from "./primitiveQuoteGate";
 
 type PrimitivePositionReadbackParams = {

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useActiveBtcPredictMarket } from "@rangepilot/deepvol-trading-react";
+import { useActiveBtcPredictMarket } from "@deepvol/trading-react";
 import { formatTimestampMs } from "@/lib/format";
 import { FlagshipMarketCard } from "@/components/markets/FlagshipMarketCard";
 import { MarketStatusCard } from "@/components/markets/MarketStatusCard";

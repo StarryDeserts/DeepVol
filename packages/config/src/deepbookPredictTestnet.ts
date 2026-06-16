@@ -1,4 +1,4 @@
-import type { DeepBookPredictNetworkConfig } from "@rangepilot/types/deepbookPredict";
+import type { DeepBookPredictNetworkConfig } from "@deepvol/types/deepbookPredict";
 
 export {
   RANGEPILOT_ADMIN_CAP_ID,

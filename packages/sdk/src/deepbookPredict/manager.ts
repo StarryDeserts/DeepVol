@@ -5,7 +5,7 @@ import type {
   ManagerDiscoveryLayerResult,
   ManagerDiscoveryResult,
   PredictManagerRef,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
 import {

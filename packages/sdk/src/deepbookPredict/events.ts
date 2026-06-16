@@ -8,7 +8,7 @@ import type {
   RangeMintedEvent,
   RangeRedeemedEvent,
   RangePositionSummary,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 
 const MANAGER_CREATED_SUFFIX = "::predict_manager::PredictManagerCreated";

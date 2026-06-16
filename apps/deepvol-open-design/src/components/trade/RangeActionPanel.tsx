@@ -1,4 +1,4 @@
-import { useRangeTradeMachine } from "@rangepilot/deepvol-trading-react";
+import { useRangeTradeMachine } from "@deepvol/trading-react";
 import { MachineActionCard, type ProductMachinePanelProps } from "./MachineActionCard";
 
 export function RangeActionPanel(props: ProductMachinePanelProps) {

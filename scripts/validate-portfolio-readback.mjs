@@ -1,5 +1,5 @@
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   buildManagerRangePositionTransaction,
   buildSuiExplorerTransactionUrl,
@@ -7,7 +7,7 @@ import {
   extractRangePositionFromMintEvent,
   parseRangeMintedEvent,
   readRangePositionQuantity,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 
 const config = DEEPBOOK_PREDICT_TESTNET;
 const knownMint = {

@@ -1,4 +1,4 @@
-import type { TransactionStatus as TransactionStatusType } from "@rangepilot/types/deepbookPredict";
+import type { TransactionStatus as TransactionStatusType } from "@deepvol/types/deepbookPredict";
 import { StateCallout } from "./ui/StateCallout";
 import { StatusPill } from "./ui/StatusPill";
 import { shortId } from "../lib/format";

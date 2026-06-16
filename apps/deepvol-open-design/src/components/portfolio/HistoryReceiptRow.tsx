@@ -1,4 +1,4 @@
-import type { DeepVolPortfolioReceipt } from "@rangepilot/deepvol-trading-react";
+import type { DeepVolPortfolioReceipt } from "@deepvol/trading-react";
 import { shortId, formatTimestampMs } from "@/lib/format";
 
 type Props = {

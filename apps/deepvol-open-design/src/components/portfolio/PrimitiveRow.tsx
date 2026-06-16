@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { StoredDeepVolPrimitiveTrade } from "@rangepilot/deepvol-trading-react";
+import type { StoredDeepVolPrimitiveTrade } from "@deepvol/trading-react";
 import { usePrimitiveRecordPositionReadback } from "@/hooks/usePrimitiveRecordPositionReadback";
 import { shortId, formatTimestampMs, formatAtomicAmount } from "@/lib/format";
 

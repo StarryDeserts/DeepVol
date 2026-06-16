@@ -1,4 +1,4 @@
-import type { RangePilotStrategyConfig } from "@rangepilot/types/rangePilotStrategy";
+import type { RangePilotStrategyConfig } from "@deepvol/types/rangePilotStrategy";
 
 export const RANGEPILOT_WRAPPER_PACKAGE_ID =
   "0xe0b877a06541d184b8c3bec46b81ccca2de38495979c25a658f98923407bf697";

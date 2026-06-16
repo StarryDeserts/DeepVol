@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import type { VolSeries } from "@rangepilot/types/deepVol";
-import type { PrimitiveActiveMarketContext } from "@rangepilot/types/deepbookPredict";
+import type { VolSeries } from "@deepvol/types/deepVol";
+import type { PrimitiveActiveMarketContext } from "@deepvol/types/deepbookPredict";
 import { readVolSeries } from "./deepVolSeries";
 import { DEEPVOL_STORAGE_KEYS } from "../core/constants";
 import { classifyMoveSeriesMintability } from "./moveSeriesMintability";

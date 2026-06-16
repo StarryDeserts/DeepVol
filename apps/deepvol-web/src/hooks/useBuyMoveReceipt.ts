@@ -1,1 +1,1 @@
-export { useBuyMoveReceipt } from "@rangepilot/deepvol-trading-react";
+export { useBuyMoveReceipt } from "@deepvol/trading-react";

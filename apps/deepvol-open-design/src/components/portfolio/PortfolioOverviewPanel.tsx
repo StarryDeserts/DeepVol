@@ -1,4 +1,4 @@
-import type { StoredDeepVolPrimitiveTrade } from "@rangepilot/deepvol-trading-react";
+import type { StoredDeepVolPrimitiveTrade } from "@deepvol/trading-react";
 
 type Props = {
   receiptCount: number;

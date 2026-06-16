@@ -1,6 +1,6 @@
-import { usePortfolioRecords } from "@rangepilot/deepvol-trading-react";
+import { usePortfolioRecords } from "@deepvol/trading-react";
 
-export type { DeepVolPortfolioReceipt } from "@rangepilot/deepvol-trading-react";
+export type { DeepVolPortfolioReceipt } from "@deepvol/trading-react";
 
 export function useDeepVolPortfolio() {
   const portfolio = usePortfolioRecords();

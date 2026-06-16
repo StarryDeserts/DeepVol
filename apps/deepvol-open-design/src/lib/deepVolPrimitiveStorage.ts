@@ -1,4 +1,4 @@
-import type { PrimitiveKind } from "@rangepilot/deepvol-trading-react";
+import type { PrimitiveKind } from "@deepvol/trading-react";
 
 export type StoredDeepVolPrimitiveTrade = {
   primitiveType: PrimitiveKind;

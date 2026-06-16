@@ -1,5 +1,5 @@
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import type { DeepBookPredictNetworkConfig } from "@rangepilot/types/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import type { DeepBookPredictNetworkConfig } from "@deepvol/types/deepbookPredict";
 
 export { DEEPBOOK_PREDICT_TESTNET };
 export type { DeepBookPredictNetworkConfig };

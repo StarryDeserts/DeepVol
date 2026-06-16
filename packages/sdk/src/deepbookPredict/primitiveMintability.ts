@@ -15,7 +15,7 @@ import type {
   RangePrimitiveMintableCandidateDiagnostic,
   RangeQuoteCandidateStrategy,
   RangeQuotePreview,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import {
   isAssertMintableAskAbort,

@@ -1,6 +1,6 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
-import { RANGEPILOT_TESTNET } from "@rangepilot/config/rangePilotTestnet";
+import { RANGEPILOT_TESTNET } from "@deepvol/config/rangePilotTestnet";
 import type {
   CreateProtocolVaultParams,
   CreateStrategyTransactionOptions,
@@ -8,7 +8,7 @@ import type {
   FollowStrategyParams,
   RangePilotWrapperConfig,
   WithdrawPlatformFeesParams,
-} from "@rangepilot/types/rangePilotStrategy";
+} from "@deepvol/types/rangePilotStrategy";
 import { DeepBookPredictUnconfirmedBindingError } from "../deepbookPredict/errors.ts";
 
 export const RANGE_PILOT_WRAPPER_TESTNET = RANGEPILOT_TESTNET;

@@ -1,5 +1,5 @@
-import type { PrimitiveMarketStatus } from "@rangepilot/types/deepbookPredict";
-import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { PrimitiveMarketStatus } from "@deepvol/types/deepbookPredict";
+import type { VolSeries } from "@deepvol/types/deepVol";
 
 export type PrimitiveKind = "UP" | "DOWN" | "RANGE";
 export type PrimitiveQuoteStatus = "idle" | "loading" | "ready" | "blocked" | "error";

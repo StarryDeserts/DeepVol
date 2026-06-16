@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { isValidSuiObjectId, normalizeSuiAddress } from "@mysten/sui/utils";
-import type { ManagerDiscoveryResult, TransactionStatus } from "@rangepilot/types/deepbookPredict";
+import type { ManagerDiscoveryResult, TransactionStatus } from "@deepvol/types/deepbookPredict";
 import {
   buildCreateManagerTransaction,
   buildSuiExplorerTransactionUrl,
@@ -10,9 +10,9 @@ import {
   findPredictManagerByOwner,
   recoverPredictManagerIdFromCreateResult,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
-import type { ManagerBalanceResult } from "@rangepilot/sdk/deepbookPredict";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+} from "@deepvol/sdk/deepbookPredict";
+import type { ManagerBalanceResult } from "@deepvol/sdk/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import { useDeepVolConfig } from "../core/useDeepVolConfig";
 import { useSuiWallet } from "../core/useSuiWallet";
 import { DEEPVOL_STORAGE_KEYS, TESTNET_CHAIN } from "../core/constants";

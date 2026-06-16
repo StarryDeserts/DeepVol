@@ -3,12 +3,12 @@ import type { Dispatch, SetStateAction } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import { discoverActiveBtcPrimitiveMarket } from "@rangepilot/sdk/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import { discoverActiveBtcPrimitiveMarket } from "@deepvol/sdk/deepbookPredict";
 import type {
   PrimitiveActiveMarketContext,
   PrimitiveMarketStatus,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { useSuiWallet } from "../core/useSuiWallet";
 
 export type ManualMarketInput = {
@@ -216,7 +216,7 @@ function deriveDiscoveryPhase(input: {
   isLoading: boolean;
   isFetching: boolean;
   queryError: unknown;
-  data: import("@rangepilot/types/deepbookPredict").PrimitiveActiveMarketDiscoveryResult | null;
+  data: import("@deepvol/types/deepbookPredict").PrimitiveActiveMarketDiscoveryResult | null;
   hasManualOverride: boolean;
 }): DiscoveryPhase {
   if (!input.canDiscover) {

@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import type { TransactionStatus } from "@rangepilot/types/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import type { TransactionStatus } from "@deepvol/types/deepbookPredict";
 import {
   buildMintBinaryPrimitiveTransaction,
   buildMintRangeTransaction,
@@ -15,7 +15,7 @@ import {
   readBinaryPositionQuantity,
   readRangePositionQuantity,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import {
   buildPrimitiveExecutionBlockers,
   buildPrimitivePreflightDependencyKey,

@@ -2,7 +2,7 @@ import type { Transaction } from "@mysten/sui/transactions";
 import type {
   DeepBookPredictNetworkConfig,
   RangeKeyInput,
-} from "@rangepilot/types/deepbookPredict";
+} from "@deepvol/types/deepbookPredict";
 import { resolveDeepBookPredictConfig } from "./config.ts";
 import { DeepBookPredictUnconfirmedBindingError } from "./errors.ts";
 

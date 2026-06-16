@@ -1,4 +1,4 @@
-import type { MoveReceipt } from "@rangepilot/types/deepVol";
+import type { MoveReceipt } from "@deepvol/types/deepVol";
 import type { ControlledRedeemAttempt } from "../lib/deepVolReceiptStorage";
 import {
   CONTROLLED_REDEEM_DOWN_STRIKE,

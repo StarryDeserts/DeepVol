@@ -1,2 +1,2 @@
-export type { PrimitiveQuoteState } from "@rangepilot/deepvol-trading-react";
-export { usePrimitiveQuote } from "@rangepilot/deepvol-trading-react";
+export type { PrimitiveQuoteState } from "@deepvol/trading-react";
+export { usePrimitiveQuote } from "@deepvol/trading-react";

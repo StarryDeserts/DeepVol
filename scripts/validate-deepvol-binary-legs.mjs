@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   buildMarketKeyTransactionArgument,
   buildSuiExplorerTransactionUrl,
@@ -13,7 +13,7 @@ import {
   inspectDevInspectU64,
   scanBinaryQuoteSanity,
   summarizeDevInspectU64Diagnostic,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 
 const execFileAsync = promisify(execFile);
 const config = DEEPBOOK_PREDICT_TESTNET;

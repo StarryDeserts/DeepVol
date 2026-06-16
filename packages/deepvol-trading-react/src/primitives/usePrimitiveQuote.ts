@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import type { VolSeries } from "@rangepilot/types/deepVol";
+import type { VolSeries } from "@deepvol/types/deepVol";
 import type {
   PrimitiveActiveMarketContext,
   PrimitiveMarketStatus,
-} from "@rangepilot/types/deepbookPredict";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+} from "@deepvol/types/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import {
   devInspectBinaryQuote,
   devInspectRangeQuote,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import { useSuiWallet } from "../core/useSuiWallet";
 import { normalizePositiveIntegerInput } from "../core/format";
 import {

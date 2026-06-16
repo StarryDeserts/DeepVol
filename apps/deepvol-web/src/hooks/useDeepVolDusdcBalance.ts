@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { getDusdcBalance } from "@rangepilot/sdk/deepbookPredict";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+import { getDusdcBalance } from "@deepvol/sdk/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import { useSuiWallet } from "./useSuiWallet";
 
 export function useDeepVolDusdcBalance() {

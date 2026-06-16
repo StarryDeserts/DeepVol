@@ -1,2 +1,2 @@
-export type { RangePrimitiveMintableController, RangePrimitiveMintableStatus } from "@rangepilot/deepvol-trading-react";
-export { usePrimitiveMintableRange } from "@rangepilot/deepvol-trading-react";
+export type { RangePrimitiveMintableController, RangePrimitiveMintableStatus } from "@deepvol/trading-react";
+export { usePrimitiveMintableRange } from "@deepvol/trading-react";

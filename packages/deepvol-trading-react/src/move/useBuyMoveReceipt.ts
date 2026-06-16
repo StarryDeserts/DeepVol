@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import type { TransactionStatus } from "@rangepilot/types/deepbookPredict";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
-import { buildBuyMoveReceiptTransaction, devInspectBuyMoveReceiptPreflight } from "@rangepilot/sdk/deepVol";
+import type { TransactionStatus } from "@deepvol/types/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
+import { buildBuyMoveReceiptTransaction, devInspectBuyMoveReceiptPreflight } from "@deepvol/sdk/deepVol";
 import {
   buildSuiExplorerTransactionUrl,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
+} from "@deepvol/sdk/deepbookPredict";
 import { useDeepVolConfig } from "../core/useDeepVolConfig";
 import { useSuiWallet } from "../core/useSuiWallet";
 import { getBuyMoveReceiptBlockers } from "./buyMoveReceiptGate";

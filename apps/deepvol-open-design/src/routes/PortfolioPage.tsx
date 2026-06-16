@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { usePortfolioRecords } from "@rangepilot/deepvol-trading-react";
+import { usePortfolioRecords } from "@deepvol/trading-react";
 import { verifiedTradingHref } from "@/lib/productRoute";
 import { PrimitiveRow } from "@/components/portfolio/PrimitiveRow";
 import { ReceiptRow } from "@/components/portfolio/ReceiptRow";

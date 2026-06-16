@@ -1,5 +1,5 @@
 {
-  "name": "@rangepilot/deepvol-web",
+  "name": "@deepvol/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.6",
     "@mysten/sui": "^2.16.2",
-    "@rangepilot/deepvol-trading-react": "*",
+    "@deepvol/trading-react": "*",
     "@tanstack/react-query": "^5.90.12",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"

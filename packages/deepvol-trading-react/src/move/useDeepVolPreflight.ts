@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
-import { DEEPVOL_TESTNET } from "@rangepilot/config/deepVolTestnet";
-import { devInspectBuyMoveReceiptPreflight } from "@rangepilot/sdk/deepVol";
-import { formatBtcMoveMintabilityError } from "@rangepilot/sdk/deepbookPredict";
-import type { DeepVolBuyReceiptPreflightResult } from "@rangepilot/types/deepVol";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
+import { DEEPVOL_TESTNET } from "@deepvol/config/deepVolTestnet";
+import { devInspectBuyMoveReceiptPreflight } from "@deepvol/sdk/deepVol";
+import { formatBtcMoveMintabilityError } from "@deepvol/sdk/deepbookPredict";
+import type { DeepVolBuyReceiptPreflightResult } from "@deepvol/types/deepVol";
 import type { DeepVolPreflightState, DeepVolQuoteState } from "./useDeepVolQuote";
 import { recordMoveSeriesMintabilityFailure } from "./moveSeriesMintability";
 import { useDeepVolConfig } from "../core/useDeepVolConfig";

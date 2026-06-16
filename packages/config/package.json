@@ -1,5 +1,5 @@
 {
-  "name": "@rangepilot/config",
+  "name": "@deepvol/config",
   "private": true,
   "type": "module",
   "exports": {

@@ -3,7 +3,7 @@ export type {
   PrimitiveMintabilityKeyInput,
   PrimitiveMintabilityRecord,
   RangePrimitiveMintabilityKeyInput,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";
 export {
   buildPrimitiveMintabilityKey,
   buildRangePrimitiveMintabilityKey,
@@ -15,4 +15,4 @@ export {
   recordPrimitiveMintabilityPass,
   recordRangePrimitiveMintabilityFailure,
   recordRangePrimitiveMintabilityPass,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";

@@ -4,7 +4,7 @@ export type {
   PrimitiveKind,
   PrimitivePreflightStatus,
   PrimitiveQuoteStatus,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";
 export {
   buildPrimitiveExecutionBlockers,
   buildPrimitivePreflightBlockers,
@@ -16,4 +16,4 @@ export {
   PRIMITIVE_PREFLIGHT_FRESHNESS_MS,
   PRIMITIVE_QUOTE_FRESHNESS_MS,
   PRIMITIVE_RANGE_EXECUTION_DISABLED_BLOCKER,
-} from "@rangepilot/deepvol-trading-react";
+} from "@deepvol/trading-react";

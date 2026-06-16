@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import type { DusdcBalance, TransactionStatus as TransactionStatusType } from "@rangepilot/types/deepbookPredict";
+import type { DusdcBalance, TransactionStatus as TransactionStatusType } from "@deepvol/types/deepbookPredict";
 import {
   buildDepositDusdcTransaction,
   buildSuiExplorerTransactionUrl,
   selectDusdcCoinsForAmount,
   translateDeepBookPredictError,
-} from "@rangepilot/sdk/deepbookPredict";
-import { DEEPBOOK_PREDICT_TESTNET } from "@rangepilot/config/deepbookPredictTestnet";
+} from "@deepvol/sdk/deepbookPredict";
+import { DEEPBOOK_PREDICT_TESTNET } from "@deepvol/config/deepbookPredictTestnet";
 import { StateCallout } from "./ui/StateCallout";
 import { StatusPill } from "./ui/StatusPill";
 import { useSuiWallet } from "../hooks/useSuiWallet";
