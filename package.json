@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/web",
     "apps/deepvol-web",
     "apps/deepvol-open-design",
     "packages/config",
@@ -15,7 +14,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit && npm --workspace apps/web run typecheck && npm --workspace apps/deepvol-web run typecheck",
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm --workspace apps/deepvol-web run typecheck && npm --workspace apps/deepvol-open-design run typecheck",
     "discover:deepbook-predict": "node scripts/discover-deepbook-predict.mjs",
     "validate:predict-manager": "node scripts/validate-predict-manager-flow.mjs",
     "validate:range-quote": "node scripts/validate-range-mint-flow.mjs --quote-only",
@@ -43,8 +42,6 @@
     "move:test:rangepilot": "sui move test --path move/rangepilot",
     "move:build:deepvol": "sui move build --path move/deepvol",
     "move:test:deepvol": "sui move test --path move/deepvol",
-    "dev:web": "npm --workspace apps/web run dev",
-    "build:web": "npm --workspace apps/web run build",
     "dev:deepvol-web": "npm --workspace apps/deepvol-web run dev",
     "build:deepvol-web": "npm --workspace apps/deepvol-web run build",
     "typecheck:deepvol-web": "npm --workspace apps/deepvol-web run typecheck",
