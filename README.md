@@ -58,7 +58,11 @@ npm install
 npm run dev:open-design
 ```
 
-Open the printed dev URL, connect your Testnet wallet, and the guided flow walks you through: active market → mintability → fresh quote → on-chain preflight → wallet review. **No `.env` setup is required** — all Testnet contract and endpoint values are baked into `@rangepilot/config`.
+> The app defaults to Sui Testnet. To target another network, set `VITE_NETWORK`
+> in `apps/deepvol-open-design/.env.local` (see `.env.example`). DeepBook Predict
+> markets currently exist on Testnet only — see Roadmap.
+
+Open the printed dev URL, connect your Testnet wallet, and the guided flow walks you through: active market → mintability → fresh quote → on-chain preflight → wallet review. **No `.env` setup is required** — all Testnet contract and endpoint values are baked into `@deepvol/config`.
 
 To verify build and tests:
 
@@ -118,7 +122,7 @@ npm-workspaces monorepo:
 
 - **Frontend** — the Open Design app: Vite 7 + React 19 + Tailwind CSS 4 + `@mysten/dapp-kit` + `@mysten/sui` + `@tanstack/react-query`. SPA with client-side routing.
 - **Shared trading layer** — `packages/deepvol-trading-react`: the headless MOVE / UP / DOWN / RANGE state machines that drive the gated flow. One verified sequence, four product views.
-- **Supporting packages** — `@rangepilot/sdk` (PTB / transaction building), `@rangepilot/types`, `@rangepilot/config` (baked-in Testnet contract + endpoint config).
+- **Supporting packages** — `@deepvol/sdk` (PTB / transaction building), `@deepvol/types`, `@deepvol/config` (baked-in Testnet contract + endpoint config).
 - **Move contracts** — `move/deepvol` (`VolSeries`, `MoveReceipt`, `ProtocolVault`).
 
 ```text
@@ -128,7 +132,7 @@ npm-workspaces monorepo:
 │  Shared trading machines                      │  packages/deepvol-trading-react
 │  (MOVE / UP / DOWN / RANGE, gated flow)        │
 ├──────────────────────────────────────────────┤
-│  SDK · types · config                         │  @rangepilot/{sdk,types,config}
+│  SDK · types · config                         │  @deepvol/{sdk,types,config}
 ├──────────────────────────────────────────────┤
 │  DeepBook Predict on Sui (Testnet)            │  pricing · oracle · vault · settlement
 └──────────────────────────────────────────────┘
@@ -151,7 +155,7 @@ docs/                     # architecture, demo plan, demo script, integration no
 
 ## Environment
 
-No `.env` file is required to run — all Testnet contract and endpoint values are baked into `@rangepilot/config`.
+No `.env` file is required to run — all Testnet contract and endpoint values are baked into `@deepvol/config`.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
@@ -173,14 +177,14 @@ npm --workspace packages/deepvol-trading-react run test
 
 ## Deployment
 
-The app consumes workspace packages as raw TypeScript via npm symlinks, so the install **must run at the repo root** to materialize the `node_modules/@rangepilot/*` symlinks.
+The app consumes workspace packages as raw TypeScript via npm symlinks, so the install **must run at the repo root** to materialize the `node_modules/@deepvol/*` symlinks.
 
 ### Recommended — repo-root build
 
 ```text
 Framework Preset:   Other
 Root Directory:     ./           (repository root)
-Install Command:    npm ci        (root install creates @rangepilot/* workspace symlinks from package-lock.json)
+Install Command:    npm ci        (root install creates @deepvol/* workspace symlinks from package-lock.json)
 Build Command:      npm run typecheck:open-design && npm run build:open-design
 Output Directory:   apps/deepvol-open-design/dist
 Node.js Version:    20.x
@@ -200,7 +204,7 @@ Output Directory:   dist
 Node.js Version:    20.x
 ```
 
-This depends on Vercel detecting the root `package.json` `workspaces` and installing from the repo root so the `@rangepilot/*` symlinks exist. If the build cannot resolve `@rangepilot/*`, switch to the recommended repo-root config.
+This depends on Vercel detecting the root `package.json` `workspaces` and installing from the repo root so the `@deepvol/*` symlinks exist. If the build cannot resolve `@deepvol/*`, switch to the recommended repo-root config.
 
 ## Security Notes
 
