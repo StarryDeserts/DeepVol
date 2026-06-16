@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useActiveBtcPredictMarket } from "../hooks/useActiveBtcPredictMarket";
+import { useActiveBtcPredictMarket } from "@rangepilot/deepvol-trading-react";
 import { formatTimestampMs } from "../lib/format";
 import { verifiedTradingHref } from "../lib/productRoute";
 

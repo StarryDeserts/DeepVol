@@ -1,3 +1,5 @@
+// Local-only: thin dapp-kit wrapper used exclusively by NavBar.
+// Not promoted to @rangepilot/deepvol-trading-react because it is shell-specific.
 import {
   useCurrentAccount,
   useCurrentWallet,

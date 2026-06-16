@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useDeepVolPortfolio } from "../hooks/useDeepVolPortfolio";
-import { useDeepVolPrimitiveRecords } from "../hooks/useDeepVolPrimitiveRecords";
+import {
+  usePortfolioRecords,
+  type DeepVolPortfolioReceipt,
+  type StoredDeepVolPrimitiveTrade,
+} from "@rangepilot/deepvol-trading-react";
 import { usePrimitiveRecordPositionReadback } from "../hooks/usePrimitiveRecordPositionReadback";
 import { shortId, formatTimestampMs, formatAtomicAmount } from "../lib/format";
 import { verifiedTradingHref } from "../lib/productRoute";
-import type { DeepVolPortfolioReceipt } from "../hooks/useDeepVolPortfolio";
-import type { StoredDeepVolPrimitiveTrade } from "../lib/deepVolPrimitiveStorage";
 
 type Props = { navigate: (to: string) => void };
 
@@ -365,8 +366,8 @@ function ReceiptRow({
 }
 
 export function PortfolioPage({ navigate }: Props) {
-  const portfolio = useDeepVolPortfolio();
-  const { records, hasLocalPrimitiveRecords } = useDeepVolPrimitiveRecords();
+  const portfolio = usePortfolioRecords();
+  const { records, hasLocalPrimitiveRecords } = portfolio.primitiveRecords;
   const [activeTab, setActiveTab] = useState<PortfolioTab>("overview");
 
   /* Scroll reveal */
