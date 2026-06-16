@@ -1,7 +1,7 @@
-import { Chip } from "../atoms/Chip";
-import { Label } from "../atoms/Label";
-import { PulseDot, StatusDot } from "../atoms/StatusDot";
-import { Button } from "../atoms/Button";
+import { Chip } from "@/components/atoms/Chip";
+import { Label } from "@/components/atoms/Label";
+import { PulseDot, StatusDot } from "@/components/atoms/StatusDot";
+import { Button } from "@/components/atoms/Button";
 
 type MarketStatsPanelProps = {
   oracleLabel: string;

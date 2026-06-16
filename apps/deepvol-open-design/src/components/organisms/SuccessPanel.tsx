@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Button } from "../atoms/Button";
-import { Pill } from "../atoms/Pill";
-import { Label } from "../atoms/Label";
-import { DataPair } from "../molecules/DataPair";
+import { Button } from "@/components/atoms/Button";
+import { Pill } from "@/components/atoms/Pill";
+import { Label } from "@/components/atoms/Label";
+import { DataPair } from "@/components/molecules/DataPair";
 
 type SuccessVariant = "confirmed" | "local" | "failed";
 

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useActiveBtcPredictMarket } from "@rangepilot/deepvol-trading-react";
-import { formatTimestampMs } from "../lib/format";
-import { type MarketProduct } from "../lib/productRoute";
-import { DownActionPanel } from "../components/trade/DownActionPanel";
-import { MoveActionPanel } from "../components/trade/MoveActionPanel";
-import { type ProductMachinePanelProps } from "../components/trade/MachineActionCard";
-import { RangeActionPanel } from "../components/trade/RangeActionPanel";
-import { UpActionPanel } from "../components/trade/UpActionPanel";
+import { formatTimestampMs } from "@/lib/format";
+import { type MarketProduct } from "@/lib/productRoute";
+import { DownActionPanel } from "@/components/trade/DownActionPanel";
+import { MoveActionPanel } from "@/components/trade/MoveActionPanel";
+import { type ProductMachinePanelProps } from "@/components/trade/MachineActionCard";
+import { RangeActionPanel } from "@/components/trade/RangeActionPanel";
+import { UpActionPanel } from "@/components/trade/UpActionPanel";
 
 type Product = MarketProduct;
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Chip } from "../atoms/Chip";
-import { Label } from "../atoms/Label";
-import type { MarketProduct } from "../../lib/productRoute";
+import { Chip } from "@/components/atoms/Chip";
+import { Label } from "@/components/atoms/Label";
+import type { MarketProduct } from "@/lib/productRoute";
 
 type ProductCardProps = {
   product: MarketProduct;

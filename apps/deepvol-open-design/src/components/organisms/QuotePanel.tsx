@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { Pill } from "../atoms/Pill";
-import { Label } from "../atoms/Label";
-import { Spinner } from "../atoms/Spinner";
-import { SkeletonBlock } from "../atoms/SkeletonBlock";
-import { StatusDot } from "../atoms/StatusDot";
-import { GlassInner } from "../molecules/GlassInner";
-import { Toast } from "../molecules/Toast";
-import { Button } from "../atoms/Button";
+import { Pill } from "@/components/atoms/Pill";
+import { Label } from "@/components/atoms/Label";
+import { Spinner } from "@/components/atoms/Spinner";
+import { SkeletonBlock } from "@/components/atoms/SkeletonBlock";
+import { StatusDot } from "@/components/atoms/StatusDot";
+import { GlassInner } from "@/components/molecules/GlassInner";
+import { Toast } from "@/components/molecules/Toast";
+import { Button } from "@/components/atoms/Button";
 import { AdvancedDetails } from "./AdvancedDetails";
 
 type QuoteStatus = "idle" | "loading" | "ready" | "stale" | "error";

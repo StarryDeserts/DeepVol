@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { usePortfolioRecords } from "@rangepilot/deepvol-trading-react";
-import { verifiedTradingHref } from "../lib/productRoute";
-import { PrimitiveRow } from "../components/portfolio/PrimitiveRow";
-import { ReceiptRow } from "../components/portfolio/ReceiptRow";
-import { HistoryReceiptRow } from "../components/portfolio/HistoryReceiptRow";
-import { HistoryPrimitiveRow } from "../components/portfolio/HistoryPrimitiveRow";
-import { PortfolioSummaryCards } from "../components/portfolio/PortfolioSummaryCards";
-import { PortfolioOverviewPanel } from "../components/portfolio/PortfolioOverviewPanel";
+import { verifiedTradingHref } from "@/lib/productRoute";
+import { PrimitiveRow } from "@/components/portfolio/PrimitiveRow";
+import { ReceiptRow } from "@/components/portfolio/ReceiptRow";
+import { HistoryReceiptRow } from "@/components/portfolio/HistoryReceiptRow";
+import { HistoryPrimitiveRow } from "@/components/portfolio/HistoryPrimitiveRow";
+import { PortfolioSummaryCards } from "@/components/portfolio/PortfolioSummaryCards";
+import { PortfolioOverviewPanel } from "@/components/portfolio/PortfolioOverviewPanel";
 
 type Props = { navigate: (to: string) => void };
 

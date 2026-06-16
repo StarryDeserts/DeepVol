@@ -1,4 +1,4 @@
-import { verifiedTradingHref } from "../../lib/productRoute";
+import { verifiedTradingHref } from "@/lib/productRoute";
 
 type Props = { navigate: (to: string) => void };
 

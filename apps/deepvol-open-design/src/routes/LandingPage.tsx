@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { LandingHero } from "../components/landing/LandingHero";
-import { LandingStatusStrip } from "../components/landing/LandingStatusStrip";
-import { LandingProductGrid } from "../components/landing/LandingProductGrid";
-import { LandingHowItWorks } from "../components/landing/LandingHowItWorks";
-import { LandingQuietCta } from "../components/landing/LandingQuietCta";
-import { LandingFooter } from "../components/landing/LandingFooter";
+import { LandingHero } from "@/components/landing/LandingHero";
+import { LandingStatusStrip } from "@/components/landing/LandingStatusStrip";
+import { LandingProductGrid } from "@/components/landing/LandingProductGrid";
+import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
+import { LandingQuietCta } from "@/components/landing/LandingQuietCta";
+import { LandingFooter } from "@/components/landing/LandingFooter";
 
 type Props = { navigate: (to: string) => void };
 

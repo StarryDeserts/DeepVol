@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DataPair } from "../molecules/DataPair";
+import { DataPair } from "@/components/molecules/DataPair";
 
 type DetailEntry = {
   label: string;

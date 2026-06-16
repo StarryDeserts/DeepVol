@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ConnectButton } from "@mysten/dapp-kit";
-import { Chip } from "../atoms/Chip";
-import { StatusDot } from "../atoms/StatusDot";
-import { useSuiWallet } from "../../hooks/useSuiWallet";
+import { Chip } from "@/components/atoms/Chip";
+import { StatusDot } from "@/components/atoms/StatusDot";
+import { useSuiWallet } from "@/hooks/useSuiWallet";
 
 type NavBarProps = {
   currentPath: string;

@@ -1,8 +1,8 @@
-import { Pill } from "../atoms/Pill";
-import { Label } from "../atoms/Label";
-import { DataPair } from "../molecules/DataPair";
-import { shortId, formatAtomicAmount, formatTimestampMs } from "../../lib/format";
-import { DUSDC_DECIMALS } from "../../lib/constants";
+import { Pill } from "@/components/atoms/Pill";
+import { Label } from "@/components/atoms/Label";
+import { DataPair } from "@/components/molecules/DataPair";
+import { shortId, formatAtomicAmount, formatTimestampMs } from "@/lib/format";
+import { DUSDC_DECIMALS } from "@/lib/constants";
 
 type ReceiptRowProps = {
   receiptId: string;

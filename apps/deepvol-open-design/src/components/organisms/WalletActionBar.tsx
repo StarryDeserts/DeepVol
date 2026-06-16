@@ -1,7 +1,7 @@
-import { Button } from "../atoms/Button";
-import { Spinner } from "../atoms/Spinner";
-import { Label } from "../atoms/Label";
-import { Pill } from "../atoms/Pill";
+import { Button } from "@/components/atoms/Button";
+import { Spinner } from "@/components/atoms/Spinner";
+import { Label } from "@/components/atoms/Label";
+import { Pill } from "@/components/atoms/Pill";
 
 type WalletActionStatus =
   | "disabled"

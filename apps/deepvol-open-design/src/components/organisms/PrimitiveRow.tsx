@@ -1,8 +1,8 @@
-import { Pill } from "../atoms/Pill";
-import { DataPair } from "../molecules/DataPair";
-import { shortId, formatAtomicAmount, formatTimestampMs } from "../../lib/format";
-import { DUSDC_DECIMALS } from "../../lib/constants";
-import type { MarketProduct } from "../../lib/productRoute";
+import { Pill } from "@/components/atoms/Pill";
+import { DataPair } from "@/components/molecules/DataPair";
+import { shortId, formatAtomicAmount, formatTimestampMs } from "@/lib/format";
+import { DUSDC_DECIMALS } from "@/lib/constants";
+import type { MarketProduct } from "@/lib/productRoute";
 
 type PrimitiveRowProps = {
   primitiveKind: Exclude<MarketProduct, "MOVE">;

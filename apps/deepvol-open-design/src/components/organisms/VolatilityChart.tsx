@@ -1,6 +1,6 @@
-import { Chip } from "../atoms/Chip";
-import { Label } from "../atoms/Label";
-import { GlassInner } from "../molecules/GlassInner";
+import { Chip } from "@/components/atoms/Chip";
+import { Label } from "@/components/atoms/Label";
+import { GlassInner } from "@/components/molecules/GlassInner";
 
 type VolatilityChartProps = {
   upperStrike: string;

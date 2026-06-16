@@ -6,7 +6,7 @@ import {
   useDisconnectWallet,
   useSuiClientContext,
 } from "@mysten/dapp-kit";
-import { TESTNET_CHAIN } from "../lib/constants";
+import { TESTNET_CHAIN } from "@/lib/constants";
 
 export function useSuiWallet() {
   const account = useCurrentAccount();

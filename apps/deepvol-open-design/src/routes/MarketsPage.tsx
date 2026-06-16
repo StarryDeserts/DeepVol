@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useActiveBtcPredictMarket } from "@rangepilot/deepvol-trading-react";
-import { formatTimestampMs } from "../lib/format";
-import { FlagshipMarketCard } from "../components/markets/FlagshipMarketCard";
-import { MarketStatusCard } from "../components/markets/MarketStatusCard";
-import { MarketsFooter } from "../components/markets/MarketsFooter";
-import { MarketsHeroSection } from "../components/markets/MarketsHeroSection";
-import { MarketsTable } from "../components/markets/MarketsTable";
+import { formatTimestampMs } from "@/lib/format";
+import { FlagshipMarketCard } from "@/components/markets/FlagshipMarketCard";
+import { MarketStatusCard } from "@/components/markets/MarketStatusCard";
+import { MarketsFooter } from "@/components/markets/MarketsFooter";
+import { MarketsHeroSection } from "@/components/markets/MarketsHeroSection";
+import { MarketsTable } from "@/components/markets/MarketsTable";
 
 type Props = { navigate: (to: string) => void };
 

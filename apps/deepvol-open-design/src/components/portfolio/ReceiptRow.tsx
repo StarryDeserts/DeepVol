@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DeepVolPortfolioReceipt } from "@rangepilot/deepvol-trading-react";
-import { shortId, formatTimestampMs } from "../../lib/format";
+import { shortId, formatTimestampMs } from "@/lib/format";
 
 type Props = {
   receipt: DeepVolPortfolioReceipt;

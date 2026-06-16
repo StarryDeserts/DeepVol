@@ -6,7 +6,7 @@ import {
   readBinaryPositionQuantity,
   readRangePositionQuantity,
 } from "@rangepilot/sdk/deepbookPredict";
-import type { StoredDeepVolPrimitiveTrade } from "../lib/deepVolPrimitiveStorage";
+import type { StoredDeepVolPrimitiveTrade } from "@/lib/deepVolPrimitiveStorage";
 
 export type PrimitiveRecordPositionReadbackStatus =
   | "idle"

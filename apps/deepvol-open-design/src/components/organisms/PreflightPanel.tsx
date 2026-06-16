@@ -1,9 +1,9 @@
-import { Pill } from "../atoms/Pill";
-import { Label } from "../atoms/Label";
-import { Spinner } from "../atoms/Spinner";
-import { Button } from "../atoms/Button";
-import { Gate, type GateVariant } from "../molecules/Gate";
-import { Toast } from "../molecules/Toast";
+import { Pill } from "@/components/atoms/Pill";
+import { Label } from "@/components/atoms/Label";
+import { Spinner } from "@/components/atoms/Spinner";
+import { Button } from "@/components/atoms/Button";
+import { Gate, type GateVariant } from "@/components/molecules/Gate";
+import { Toast } from "@/components/molecules/Toast";
 
 type PreflightStatus = "idle" | "ready" | "running" | "blocked" | "passed" | "failed";
 

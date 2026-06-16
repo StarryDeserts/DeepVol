@@ -1,5 +1,5 @@
 import type { StoredDeepVolPrimitiveTrade } from "@rangepilot/deepvol-trading-react";
-import { shortId, formatTimestampMs, formatAtomicAmount } from "../../lib/format";
+import { shortId, formatTimestampMs, formatAtomicAmount } from "@/lib/format";
 
 type Props = {
   record: StoredDeepVolPrimitiveTrade;
